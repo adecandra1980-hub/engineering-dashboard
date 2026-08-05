@@ -597,6 +597,7 @@
   /* Log book table: top-align every cell (aligned with the Date), widen Problem &amp; action ~2x */
   #book td, #book th{ vertical-align:top; }
   #book td.pa-col, #book th.pa-col{ min-width:200px; white-space:normal; }
+  #book td.tech-col, #book th.tech-col{ min-width:72px; max-width:72px; width:72px; white-space:normal; }
   /* action buttons match the status flag size */
   #book [data-del], #book [data-close]{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:2px 6px; line-height:1.5; }
 </style>
@@ -629,7 +630,7 @@
       <div class=&quot;grid g5&quot;>
         <div><label class=&quot;f&quot; for=&quot;eDate&quot;>Date</label><input type=&quot;date&quot; id=&quot;eDate&quot;></div>
         <div><label class=&quot;f&quot; for=&quot;eShift&quot;>Shift</label>
-          <select id=&quot;eShift&quot;><option>A (07–15)</option><option>B (15–23)</option><option>C (23–07)</option><option>Day</option></select></div>
+          <select id=&quot;eShift&quot;><option>1 (07–15)</option><option>2 (15–23)</option><option>3 (23–07)</option><option>Day</option></select></div>
         <div><label class=&quot;f&quot; for=&quot;eCat&quot;>Machine</label><select id=&quot;eCat&quot;></select></div>
         <div><label class=&quot;f&quot; for=&quot;eLine&quot;>Line</label><select id=&quot;eLine&quot;></select></div>
         <div><label class=&quot;f&quot; for=&quot;eBy&quot;>Reported by</label><input id=&quot;eBy&quot; placeholder=&quot;Technician Name&quot;></div>
@@ -2325,9 +2326,9 @@ function drawBook(){
     return true;
   });
   if(!list.length){ $(&quot;book&quot;).innerHTML = '<div class=&quot;empty&quot;><b>No match</b>Change the status filter or clear the search.</div>'; return; }
-  var h = '<table><thead><tr><th>Date</th><th>Sh</th><th>Line</th><th>Stopages</th><th>Type</th>' +
+  var h = '<table><thead><tr><th>Date</th><th>Sh</th><th>Line</th><th class=&quot;tech-col&quot;>Tech</th><th>Stopages</th><th>Type</th>' +
     '<th class=&quot;num&quot;>Resp</th><th class=&quot;num&quot;>Repair</th><th class=&quot;num&quot;>Down</th><th class=&quot;pa-col&quot;>Problem</th><th class=&quot;pa-col&quot;>Root cause</th><th class=&quot;pa-col&quot;>Action</th><th class=&quot;pa-col&quot;>Counter measure</th>' +
-    '<th>Tech</th><th>Parts used</th><th>To order</th><th>Photos</th><th>Status</th><th></th></tr></thead><tbody>';
+    '<th>Parts used</th><th>To order</th><th>Photos</th><th>Status</th><th></th></tr></thead><tbody>';
   list.forEach(function(e){
     var probCell = esc(e.problem || &quot;—&quot;);
     var causeCell = esc(e.cause || &quot;—&quot;);
@@ -2335,6 +2336,7 @@ function drawBook(){
     if(e.follow) actCell += '<br><span style=&quot;color:var(--bad)&quot;>follow-up: '+esc(e.follow)+'</span>';
     var counterCell = esc(e.counter || &quot;—&quot;);
     h += '<tr><td>'+esc(e.date||&quot;—&quot;)+'</td><td>'+esc(String(e.shift||&quot;&quot;).charAt(0))+'</td><td>'+esc(e.line)+'</td>' +
+      '<td class=&quot;wrap tech-col&quot;>'+esc(e.tech)+(e.tech2 ? &quot;<br>&quot;+esc(e.tech2) : &quot;&quot;)+'</td>' +
       '<td class=&quot;wrap&quot;>'+esc(e.stopCat||&quot;—&quot;)+'</td>' +
       '<td class=&quot;wrap&quot;>'+esc(e.type)+'</td>' +
       '<td class=&quot;num&quot;>'+Math.round(e.resp||0)+'</td><td class=&quot;num&quot;>'+Math.round(e.rep||0)+'</td>' +
@@ -2343,7 +2345,6 @@ function drawBook(){
       '<td class=&quot;wrap pa-col&quot;>'+causeCell+'</td>' +
       '<td class=&quot;wrap pa-col&quot;>'+actCell+'</td>' +
       '<td class=&quot;wrap pa-col&quot;>'+counterCell+'</td>' +
-      '<td class=&quot;wrap&quot;>'+esc(e.tech)+(e.tech2 ? &quot;<br>&quot;+esc(e.tech2) : &quot;&quot;)+'</td>' +
       '<td class=&quot;wrap&quot;>'+(e.parts ? esc(e.parts) : &quot;—&quot;)+'</td>' +
       '<td class=&quot;wrap&quot;>'+(e.order ? '<span class=&quot;flag st-parts&quot;>'+esc(e.order)+'</span>' : &quot;—&quot;)+'</td>' +
       '<td>' +
