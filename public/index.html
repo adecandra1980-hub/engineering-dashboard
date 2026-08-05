@@ -95,6 +95,7 @@
     border-bottom: 3px solid var(--amber); position: sticky; top: 0; z-index: 20;
   }
   .topbar h1 { font-family: var(--disp); font-size: 23px; margin: 0; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #F2EFE9; }
+  .topbar-main { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; }
   .topbar .spacer { flex: 1; }
   .field-inline { display: flex; align-items: center; gap: 9px; }
   .topbar .field-inline label { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #9AA6AE; font-weight: 500; }
@@ -104,7 +105,7 @@
     border-radius: 2px; padding: 8px 10px; outline: none; width: 100%;
   }
   select:focus, input:focus, textarea:focus { outline: 2px solid var(--starch); outline-offset: -1px; background: var(--panel); }
-  .field-inline select { width: auto; min-width: 190px; }
+  .field-inline select { width: auto; min-width: 0; }
   .topbar select { background: #2A3037; color: #F2EFE9; border-color: #3A424A; }
   .topbar select:focus { outline: 2px solid var(--amber); }
   .icon-btn {
@@ -234,8 +235,8 @@
   @media (max-width: 680px) {
     .topbar { flex-wrap: wrap; padding: 10px 14px; gap: 10px 12px; }
     .topbar h1 { font-size: 18px; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .topbar .field-inline { flex: 1 1 auto; }
-    .topbar .field-inline select { flex: 1 1 auto; width: 100%; min-width: 0; }
+    .topbar .field-inline { flex: 0 1 auto; }
+    .topbar .field-inline select { flex: 0 1 auto; width: auto; min-width: 0; }
     .content { padding: 16px 14px 40px; }
     .page-head h2 { font-size: 22px; }
     .tile { padding: 13px 14px; }
@@ -293,12 +294,14 @@
       <button class="icon-btn menu-toggle" id="menuToggle" title="Menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
       </button>
-      <h1 id="pageTitle">Engineering Dashboard</h1>
-      <div class="spacer"></div>
-      <div class="field-inline">
-        <label for="entitySel">Entity</label>
-        <select id="entitySel"></select>
+      <div class="topbar-main">
+        <h1 id="pageTitle">Engineering Dashboard</h1>
+        <div class="field-inline">
+          <label for="entitySel">Entity</label>
+          <select id="entitySel"></select>
+        </div>
       </div>
+      <div class="spacer"></div>
       <button class="icon-btn" id="themeBtn" title="Toggle theme">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
@@ -520,7 +523,7 @@
     border-bottom:1px solid var(--ink);padding:6px 8px;font-weight:500;white-space:nowrap}
   td{border-bottom:1px solid var(--rule);padding:7px 8px;white-space:nowrap;vertical-align:top}
   td.num,th.num{text-align:right}
-  td.wrap{white-space:normal;min-width:180px}
+  td.wrap{white-space:normal;min-width:180px;padding:7px 8px}
   .scroll{overflow-x:auto}
 
   .empty{border:1px dashed var(--rule);border-radius:2px;padding:26px;text-align:center;color:var(--ink-soft)}
@@ -586,6 +589,16 @@
     .brand img{height:25px}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+  /* uniform control height in spare-part rows */
+  .partrow .p-name, .partrow .p-qty, .partrow .p-cam, .partrow .p-file, .partrow .p-del{
+    height:38px; box-sizing:border-box; }
+  .partrow .p-cam, .partrow .p-file, .partrow .p-del{
+    display:inline-flex; align-items:center; justify-content:center; padding-top:0; padding-bottom:0; }
+  /* Log book table: top-align every cell (aligned with the Date), widen Problem &amp; action ~2x */
+  #book td, #book th{ vertical-align:top; }
+  #book td.pa-col, #book th.pa-col{ min-width:200px; white-space:normal; }
+  /* action buttons match the status flag size */
+  #book [data-del], #book [data-close]{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:2px 6px; line-height:1.5; }
 </style>
 
 <div class=&quot;wrap&quot;>
@@ -625,13 +638,18 @@
 
     <div class=&quot;panel&quot;>
       <p class=&quot;eyebrow&quot;>Clock</p>
-      <div class=&quot;grid g4&quot;>
-        <div><label class=&quot;f&quot; for=&quot;tCall&quot;>Line stopped / called</label><input type=&quot;time&quot; id=&quot;tCall&quot;></div>
-        <div><label class=&quot;f&quot; for=&quot;tStart&quot;>Technician started</label><input type=&quot;time&quot; id=&quot;tStart&quot;></div>
-        <div><label class=&quot;f&quot; for=&quot;tEnd&quot;>Line running again</label><input type=&quot;time&quot; id=&quot;tEnd&quot;></div>
-        <div><label class=&quot;f&quot; for=&quot;tDays&quot;>Extra days</label><input type=&quot;number&quot; inputmode=&quot;decimal&quot; id=&quot;tDays&quot; min=&quot;0&quot; max=&quot;30&quot; value=&quot;0&quot;>
-          <div class=&quot;hint&quot;>Only for stops longer than a day.</div></div>
+      <div class=&quot;grid g3&quot;>
+        <div><label class=&quot;f&quot; for=&quot;tCall&quot;>Line stopped / called</label>
+          <div style=&quot;display:flex;gap:6px&quot;><input type=&quot;datetime-local&quot; id=&quot;tCall&quot; style=&quot;flex:1&quot;>
+          <button class=&quot;ghost&quot; type=&quot;button&quot; data-now=&quot;tCall&quot; style=&quot;padding:8px 10px;white-space:nowrap&quot;>Now</button></div></div>
+        <div><label class=&quot;f&quot; for=&quot;tStart&quot;>Technician started</label>
+          <div style=&quot;display:flex;gap:6px&quot;><input type=&quot;datetime-local&quot; id=&quot;tStart&quot; style=&quot;flex:1&quot;>
+          <button class=&quot;ghost&quot; type=&quot;button&quot; data-now=&quot;tStart&quot; style=&quot;padding:8px 10px;white-space:nowrap&quot;>Now</button></div></div>
+        <div><label class=&quot;f&quot; for=&quot;tEnd&quot;>Line running again</label>
+          <div style=&quot;display:flex;gap:6px&quot;><input type=&quot;datetime-local&quot; id=&quot;tEnd&quot; style=&quot;flex:1&quot;>
+          <button class=&quot;ghost&quot; type=&quot;button&quot; data-now=&quot;tEnd&quot; style=&quot;padding:8px 10px;white-space:nowrap&quot;>Now</button></div></div>
       </div>
+      <input type=&quot;hidden&quot; id=&quot;tDays&quot; value=&quot;0&quot;>
       <div style=&quot;margin-top:16px&quot; id=&quot;timeline&quot;></div>
       <div class=&quot;reads four&quot; style=&quot;margin-top:14px&quot;>
         <div class=&quot;read&quot;><div class=&quot;k&quot;>Response</div><div class=&quot;v&quot; id=&quot;oResp&quot;>—</div><div class=&quot;n&quot;>called → started</div></div>
@@ -674,7 +692,7 @@
       </div>
 
       <div style=&quot;margin-top:20px;border-top:1px dashed var(--rule);padding-top:16px&quot;>
-        <label class=&quot;f&quot;>Photos of the fault as found</label>
+        <label class=&quot;f&quot;>Photos of the fault as found <span style=&quot;color:var(--bad)&quot;>*</span></label>
         <div style=&quot;display:flex;gap:10px;flex-wrap:wrap;align-items:center&quot;>
           <button class=&quot;ghost&quot; id=&quot;btnCamF&quot;>Take photo</button>
           <button class=&quot;ghost&quot; id=&quot;btnFileF&quot;>Choose from files</button>
@@ -697,37 +715,16 @@
           <select id=&quot;eStatus&quot;><option>Closed</option><option>Temporary fix</option><option>Waiting parts</option><option>Open</option></select></div>
       </div>
       <div style=&quot;margin-top:12px&quot;>
-        <label class=&quot;f&quot; for=&quot;eParts&quot;>Spare parts used</label>
-        <input id=&quot;eParts&quot; placeholder=&quot;part name / code, qty&quot;>
-      </div>
-
-      <div style=&quot;margin-top:16px&quot;>
-        <label class=&quot;f&quot;>Photos of spare parts used</label>
-        <div style=&quot;display:flex;gap:10px;flex-wrap:wrap;align-items:center&quot;>
-          <button class=&quot;ghost&quot; id=&quot;btnCam&quot;>Take photo</button>
-          <button class=&quot;ghost&quot; id=&quot;btnFile&quot;>Choose from files</button>
-        </div>
-        <div class=&quot;hint&quot; id=&quot;phNote&quot;></div>
-        <input type=&quot;file&quot; id=&quot;inCam&quot; accept=&quot;image/*&quot; capture=&quot;environment&quot; hidden>
-        <input type=&quot;file&quot; id=&quot;inFile&quot; accept=&quot;image/*&quot; multiple hidden>
-        <div id=&quot;phStrip&quot; style=&quot;display:flex;gap:10px;flex-wrap:wrap;margin-top:12px&quot;></div>
+        <label class=&quot;f&quot;>Spare parts used <span style=&quot;color:var(--ink-soft);font-weight:400;text-transform:none;letter-spacing:0&quot;> · qty required for each part</span></label>
+        <div id=&quot;usedList&quot;></div>
+        <button class=&quot;ghost&quot; type=&quot;button&quot; id=&quot;addUsed&quot; style=&quot;margin-top:8px;padding:8px 12px&quot;>+ Add part</button>
       </div>
 
       <div style=&quot;margin-top:20px;border-top:1px dashed var(--rule);padding-top:16px&quot;>
-        <label class=&quot;f&quot; for=&quot;eOrder&quot;>Spare parts need to order</label>
-        <input id=&quot;eOrder&quot; placeholder=&quot;part name / code, qty — leave empty if nothing is needed&quot;>
-      </div>
-
-      <div style=&quot;margin-top:16px&quot;>
-        <label class=&quot;f&quot;>Photos of the part to order</label>
-        <div style=&quot;display:flex;gap:10px;flex-wrap:wrap;align-items:center&quot;>
-          <button class=&quot;ghost&quot; id=&quot;btnCamB&quot;>Take photo</button>
-          <button class=&quot;ghost&quot; id=&quot;btnFileB&quot;>Choose from files</button>
-        </div>
-        <div class=&quot;hint&quot; id=&quot;phNoteB&quot;></div>
-        <input type=&quot;file&quot; id=&quot;inCamB&quot; accept=&quot;image/*&quot; capture=&quot;environment&quot; hidden>
-        <input type=&quot;file&quot; id=&quot;inFileB&quot; accept=&quot;image/*&quot; multiple hidden>
-        <div id=&quot;phStripB&quot; style=&quot;display:flex;gap:10px;flex-wrap:wrap;margin-top:12px&quot;></div>
+        <label class=&quot;f&quot;>Spare parts need to order <span style=&quot;color:var(--ink-soft);font-weight:400;text-transform:none;letter-spacing:0&quot;> · leave empty if nothing is needed</span></label>
+        <div id=&quot;orderList&quot;></div>
+        <button class=&quot;ghost&quot; type=&quot;button&quot; id=&quot;addOrder&quot; style=&quot;margin-top:8px;padding:8px 12px&quot;>+ Add part</button>
+        <div class=&quot;hint&quot;>Quantity is required for each part you list.</div>
       </div>
 
       <div style=&quot;margin-top:20px;border-top:1px dashed var(--rule);padding-top:16px&quot;>
@@ -1674,16 +1671,18 @@ function timeline(resp, rep, callT, startT, endT){
 }
 
 /* ---------------- live calc ---------------- */
+function dtMin(v){ if(!v) return null; var ms = Date.parse(v); return isNaN(ms) ? null : ms; }
+function diffMin(a, b){ var A = dtMin(a), B = dtMin(b); if(A === null || B === null) return null; return Math.max(0, Math.round((B - A) / 60000)); }
+function hmOnly(v){ return (v &amp;&amp; v.length >= 16) ? v.slice(11, 16) : (v || &quot;&quot;); }
 function currentTimes(){
-  var days = Math.max(0, Math.round(num($(&quot;tDays&quot;).value)));
   var call = $(&quot;tCall&quot;).value, start = $(&quot;tStart&quot;).value, end = $(&quot;tEnd&quot;).value;
-  var resp = gap(call, start, 0);
-  var total = gap(call, end, days);
+  var resp = diffMin(call, start);
+  var total = diffMin(call, end);
   var rep = null;
   if(total !== null &amp;&amp; resp !== null){ rep = Math.max(0, total - resp); }
-  else if(start &amp;&amp; end){ rep = gap(start, end, days); }
+  else if(start &amp;&amp; end){ rep = diffMin(start, end); }
   if(total === null &amp;&amp; resp !== null &amp;&amp; rep !== null) total = resp + rep;
-  return { call:call, start:start, end:end, days:days,
+  return { call:call, start:start, end:end, days:0,
            resp: resp === null ? 0 : resp, rep: rep === null ? 0 : rep, total: total === null ? 0 : total };
 }
 function calc(){
@@ -1692,9 +1691,14 @@ function calc(){
   $(&quot;oRep&quot;).textContent = t.rep ? hhmm(t.rep) : &quot;—&quot;;
   $(&quot;oTot&quot;).textContent = t.total ? hhmm(t.total) : &quot;—&quot;;
   $(&quot;oShare&quot;).textContent = t.total ? (t.resp/t.total*100).toFixed(0) + &quot;%&quot; : &quot;—&quot;;
-  $(&quot;timeline&quot;).innerHTML = timeline(t.resp, t.rep, t.call, t.start, t.end);
+  $(&quot;timeline&quot;).innerHTML = timeline(t.resp, t.rep, hmOnly(t.call), hmOnly(t.start), hmOnly(t.end));
 }
 [&quot;tCall&quot;,&quot;tStart&quot;,&quot;tEnd&quot;,&quot;tDays&quot;].forEach(function(id){ $(id).addEventListener(&quot;input&quot;, calc); });
+function nowLocalDT(){ var d = new Date(); function p(n){ return (n < 10 ? &quot;0&quot; : &quot;&quot;) + n; }
+  return d.getFullYear() + &quot;-&quot; + p(d.getMonth()+1) + &quot;-&quot; + p(d.getDate()) + &quot;T&quot; + p(d.getHours()) + &quot;:&quot; + p(d.getMinutes()); }
+document.querySelectorAll(&quot;[data-now]&quot;).forEach(function(btn){
+  btn.addEventListener(&quot;click&quot;, function(){ var id = btn.getAttribute(&quot;data-now&quot;); $(id).value = nowLocalDT(); calc(); });
+});
 
 /* ---------------- photos ---------------- */
 var MAX_PH = 4, PH_MAX_PX = 1000;
@@ -1772,13 +1776,68 @@ function photoSet(ids, emptyNote){
 var PH_FAULT = photoSet(
   { cam:&quot;btnCamF&quot;, file:&quot;btnFileF&quot;, inCam:&quot;inCamF&quot;, inFile:&quot;inFileF&quot;, strip:&quot;phStripF&quot;, note:&quot;phNoteF&quot; },
   &quot;Shoot it before you touch it — the state you found it in cannot be photographed later.&quot;);
-var PH_FIX = photoSet(
-  { cam:&quot;btnCam&quot;, file:&quot;btnFile&quot;, inCam:&quot;inCam&quot;, inFile:&quot;inFile&quot;, strip:&quot;phStrip&quot;, note:&quot;phNote&quot; },
-  &quot;The parts that went in — old part, new part, or the code on the box. Up to &quot; + MAX_PH + &quot; photos.&quot;);
-var PH_ORD = photoSet(
-  { cam:&quot;btnCamB&quot;, file:&quot;btnFileB&quot;, inCam:&quot;inCamB&quot;, inFile:&quot;inFileB&quot;, strip:&quot;phStripB&quot;, note:&quot;phNoteB&quot; },
-  &quot;Photograph the part, its label or the nameplate so purchasing orders the right one.&quot;);
-function drawStrip(){ PH_FAULT.draw(); PH_FIX.draw(); PH_ORD.draw(); }
+function drawStrip(){ PH_FAULT.draw(); }
+
+/* ---- repeatable spare-part rows: part + qty + per-part photos ---- */
+function partsList(listId, addBtnId){
+  var box = $(listId);
+  function rowHtml(){
+    return '<div class=&quot;partrow&quot; style=&quot;border:1px solid var(--rule);border-radius:2px;padding:10px;margin-bottom:8px&quot;>' +
+      '<div style=&quot;display:flex;flex-wrap:wrap;gap:8px;align-items:center&quot;>' +
+        '<input class=&quot;p-name&quot; style=&quot;flex:1 1 150px;min-width:120px&quot; placeholder=&quot;part name / number&quot;>' +
+        '<input class=&quot;p-qty&quot; type=&quot;number&quot; inputmode=&quot;numeric&quot; min=&quot;0&quot; step=&quot;1&quot; placeholder=&quot;Qty&quot; style=&quot;width:72px&quot;>' +
+        '<button class=&quot;tiny p-cam&quot; type=&quot;button&quot;>Take photo</button>' +
+        '<button class=&quot;tiny p-file&quot; type=&quot;button&quot;>Choose from files</button>' +
+        '<button class=&quot;tiny p-del&quot; type=&quot;button&quot; title=&quot;Remove&quot;>&amp;#10005;</button>' +
+      '</div>' +
+      '<input type=&quot;file&quot; class=&quot;p-incam&quot; accept=&quot;image/*&quot; capture=&quot;environment&quot; hidden>' +
+      '<input type=&quot;file&quot; class=&quot;p-infile&quot; accept=&quot;image/*&quot; multiple hidden>' +
+      '<div class=&quot;p-strip&quot; style=&quot;display:flex;gap:8px;flex-wrap:wrap;margin-top:8px&quot;></div></div>';
+  }
+  function drawStripFor(row){
+    var strip = row.querySelector(&quot;.p-strip&quot;);
+    strip.innerHTML = (row._ph || []).map(function(p,i){
+      return '<div class=&quot;thumb&quot; style=&quot;width:64px;height:64px;background-image:url(' + p + ')&quot;><button data-rmi=&quot;' + i + '&quot; title=&quot;Remove&quot;>&amp;#10005;</button></div>';
+    }).join(&quot;&quot;);
+    strip.querySelectorAll(&quot;[data-rmi]&quot;).forEach(function(btn){
+      btn.onclick = function(){ row._ph.splice(parseInt(btn.getAttribute(&quot;data-rmi&quot;),10),1); drawStripFor(row); };
+    });
+  }
+  async function take(row, files){
+    row._ph = row._ph || [];
+    for(var i=0;i<files.length;i++){
+      if(row._ph.length >= MAX_PH){ toast(MAX_PH + &quot; photos per part is the limit.&quot;); break; }
+      var f = files[i];
+      if(!/^image\//.test(f.type)){ toast(&quot;Skipped &quot; + f.name + &quot; — not an image.&quot;); continue; }
+      try{ row._ph.push(await shrink(f)); }catch(e){ toast(&quot;Could not read that photo.&quot;); }
+    }
+    drawStripFor(row);
+  }
+  function wireRow(row){
+    row._ph = row._ph || [];
+    row.querySelector(&quot;.p-cam&quot;).onclick = function(){ row.querySelector(&quot;.p-incam&quot;).click(); };
+    row.querySelector(&quot;.p-file&quot;).onclick = function(){ row.querySelector(&quot;.p-infile&quot;).click(); };
+    row.querySelector(&quot;.p-incam&quot;).onchange = async function(e){ await take(row, e.target.files); e.target.value = &quot;&quot;; };
+    row.querySelector(&quot;.p-infile&quot;).onchange = async function(e){ await take(row, e.target.files); e.target.value = &quot;&quot;; };
+    row.querySelector(&quot;.p-del&quot;).onclick = function(){
+      if(box.querySelectorAll(&quot;.partrow&quot;).length > 1){ row.remove(); }
+      else { row.querySelector(&quot;.p-name&quot;).value=&quot;&quot;; row.querySelector(&quot;.p-qty&quot;).value=&quot;&quot;; row._ph=[]; drawStripFor(row); }
+    };
+  }
+  function addRow(){ box.insertAdjacentHTML(&quot;beforeend&quot;, rowHtml()); wireRow(box.lastElementChild); }
+  function rows(){
+    return [].slice.call(box.querySelectorAll(&quot;.partrow&quot;)).map(function(r){
+      return { part: r.querySelector(&quot;.p-name&quot;).value.trim(), qty: r.querySelector(&quot;.p-qty&quot;).value.trim(), photos: (r._ph || []).slice() };
+    }).filter(function(r){ return r.part || r.qty || r.photos.length; });
+  }
+  function clear(){ box.innerHTML = &quot;&quot;; addRow(); }
+  $(addBtnId).addEventListener(&quot;click&quot;, addRow);
+  clear();
+  return { rows: rows, clear: clear };
+}
+var USED = partsList(&quot;usedList&quot;, &quot;addUsed&quot;);
+var ORDER = partsList(&quot;orderList&quot;, &quot;addOrder&quot;);
+function partsToStr(rows){ return rows.map(function(r){ return r.part + (r.qty ? &quot; ×&quot; + r.qty : &quot;&quot;); }).join(&quot;; &quot;); }
 
 function closeLb(){ $(&quot;lb&quot;).hidden = true; $(&quot;lbBody&quot;).innerHTML = &quot;&quot;; }
 $(&quot;lbClose&quot;).addEventListener(&quot;click&quot;, closeLb);
@@ -1990,10 +2049,11 @@ $(&quot;eLine&quot;).addEventListener(&quot;change&quot;, function(){ fillUnits(
 $(&quot;eUnit&quot;).addEventListener(&quot;change&quot;, function(){ fillTypes(&quot;&quot;); });
 
 $(&quot;clearForm&quot;).addEventListener(&quot;click&quot;, function(){
-  [&quot;tCall&quot;,&quot;tStart&quot;,&quot;tEnd&quot;,&quot;eProb&quot;,&quot;eCause&quot;,&quot;eAction&quot;,&quot;eCounter&quot;,&quot;eParts&quot;,&quot;eOrder&quot;,&quot;eFollow&quot;,&quot;eBy&quot;].forEach(function(id){ $(id).value = &quot;&quot;; });
+  [&quot;tCall&quot;,&quot;tStart&quot;,&quot;tEnd&quot;,&quot;eProb&quot;,&quot;eCause&quot;,&quot;eAction&quot;,&quot;eCounter&quot;,&quot;eFollow&quot;,&quot;eBy&quot;].forEach(function(id){ $(id).value = &quot;&quot;; });
+  USED.clear(); ORDER.clear();
   fillTypes(&quot;&quot;);
   $(&quot;tDays&quot;).value = &quot;0&quot;; $(&quot;eStatus&quot;).value = &quot;Closed&quot;;
-  PH_FAULT.clear(); PH_FIX.clear(); PH_ORD.clear();
+  PH_FAULT.clear();
   calc(); toast(&quot;Form reset.&quot;);
 });
 
@@ -2004,28 +2064,49 @@ $(&quot;saveEvt&quot;).addEventListener(&quot;click&quot;, async function(){
   if(!t.call || !t.end){ toast(&quot;Enter at least when the line stopped and when it ran again.&quot;); $(&quot;tCall&quot;).focus(); return; }
   if(!$(&quot;eType&quot;).value){ toast(&quot;Pick a downtime type from the list.&quot;); $(&quot;eTypeBox&quot;).focus(); return; }
   if(!$(&quot;eProb&quot;).value.trim()){ toast(&quot;Describe what happened.&quot;); $(&quot;eProb&quot;).focus(); return; }
+  if(PH_FAULT.items().length === 0){ toast(&quot;Add at least one photo of the fault as found.&quot;); return; }
+  var usedRows = USED.rows(), orderRows = ORDER.rows();
+  for(var ui=0; ui<usedRows.length; ui++){
+    if(usedRows[ui].part &amp;&amp; !usedRows[ui].qty){ toast(&quot;Enter the quantity for spare part used: &quot; + usedRows[ui].part); return; }
+    if(usedRows[ui].qty &amp;&amp; !usedRows[ui].part){ toast(&quot;Enter the part name for a spare part used.&quot;); return; }
+  }
+  for(var uj=0; uj<usedRows.length; uj++){
+    if(usedRows[uj].part &amp;&amp; usedRows[uj].photos.length === 0){ toast(&quot;Add a photo for spare part used: &quot; + usedRows[uj].part); return; }
+  }
+  for(var oi=0; oi<orderRows.length; oi++){
+    if(orderRows[oi].part &amp;&amp; !orderRows[oi].qty){ toast(&quot;Enter the quantity for part to order: &quot; + orderRows[oi].part); return; }
+    if(orderRows[oi].qty &amp;&amp; !orderRows[oi].part){ toast(&quot;Enter the part name for a part to order.&quot;); return; }
+  }
   var d = $(&quot;eDate&quot;).value;
   var eid = Date.now();
   var faultKeys = [], photoKeys = [], orderKeys = [];
-  var faultShots = PH_FAULT.items(), fixShots = PH_FIX.items(), ordShots = PH_ORD.items();
+  var faultShots = PH_FAULT.items();
   for(var fi=0; fi<faultShots.length; fi++){
     var kc = PH_KEY + eid + &quot;:c&quot; + fi;
     await save(kc, faultShots[fi].data);
     faultKeys.push(kc);
   }
-  for(var pi=0; pi<fixShots.length; pi++){
-    var kf = PH_KEY + eid + &quot;:a&quot; + pi;
-    await save(kf, fixShots[pi].data);
-    photoKeys.push(kf);
+  for(var ur=0; ur<usedRows.length; ur++){
+    var uk = [];
+    for(var up=0; up<usedRows[ur].photos.length; up++){
+      var kf = PH_KEY + eid + &quot;:u&quot; + ur + &quot;_&quot; + up;
+      await save(kf, usedRows[ur].photos[up]);
+      uk.push(kf); photoKeys.push(kf);
+    }
+    usedRows[ur] = { part: usedRows[ur].part, qty: usedRows[ur].qty, photoKeys: uk };
   }
-  for(var oi=0; oi<ordShots.length; oi++){
-    var ko = PH_KEY + eid + &quot;:b&quot; + oi;
-    await save(ko, ordShots[oi].data);
-    orderKeys.push(ko);
+  for(var orr=0; orr<orderRows.length; orr++){
+    var ok = [];
+    for(var op=0; op<orderRows[orr].photos.length; op++){
+      var ko = PH_KEY + eid + &quot;:o&quot; + orr + &quot;_&quot; + op;
+      await save(ko, orderRows[orr].photos[op]);
+      ok.push(ko); orderKeys.push(ko);
+    }
+    orderRows[orr] = { part: orderRows[orr].part, qty: orderRows[orr].qty, photoKeys: ok };
   }
   evts.push({
     id: eid,
-    ts: Date.parse((d || &quot;1970-01-01&quot;) + &quot;T&quot; + (t.call || &quot;00:00&quot;) + &quot;:00&quot;) || Date.now(),
+    ts: (t.call ? Date.parse(t.call) : NaN) || Date.parse((d || &quot;1970-01-01&quot;) + &quot;T00:00:00&quot;) || Date.now(),
     date: d, shift: $(&quot;eShift&quot;).value,
     catId: cat.id, category: cat.name, lineId: line.id, line: line.name,
     reportedBy: $(&quot;eBy&quot;).value.trim(),
@@ -2041,7 +2122,7 @@ $(&quot;saveEvt&quot;).addEventListener(&quot;click&quot;, async function(){
     problem: $(&quot;eProb&quot;).value.trim(), cause: $(&quot;eCause&quot;).value.trim(), action: $(&quot;eAction&quot;).value.trim(),
     counter: $(&quot;eCounter&quot;).value.trim(),
     tech: titleName($(&quot;eTech&quot;).value), tech2: titleName($(&quot;eTech2&quot;).value),
-    parts: $(&quot;eParts&quot;).value.trim(), order: $(&quot;eOrder&quot;).value.trim(),
+    parts: partsToStr(usedRows), partsUsed: usedRows, order: partsToStr(orderRows), partsOrder: orderRows,
     follow: $(&quot;eFollow&quot;).value.trim(),
     status: $(&quot;eStatus&quot;).value,
     photosFault: faultKeys, photos: photoKeys, photosOrder: orderKeys
@@ -2052,7 +2133,7 @@ $(&quot;saveEvt&quot;).addEventListener(&quot;click&quot;, async function(){
   fillLists();
   headline();
   var phN = faultKeys.length + photoKeys.length + orderKeys.length;
-  PH_FAULT.clear(); PH_FIX.clear(); PH_ORD.clear();
+  PH_FAULT.clear(); USED.clear(); ORDER.clear();
   $(&quot;saveNote&quot;).textContent = line.name + &quot; · &quot; + $(&quot;eType&quot;).value + &quot; · &quot; + hhmm(t.total) + &quot; down · &quot; +
     $(&quot;eStatus&quot;).value + (phN ? &quot; · &quot; + phN + &quot; photo&quot; + (phN > 1 ? &quot;s&quot; : &quot;&quot;) : &quot;&quot;) + &quot; — saved.&quot;;
   toast(&quot;Form submitted.&quot;);
@@ -2245,22 +2326,25 @@ function drawBook(){
   });
   if(!list.length){ $(&quot;book&quot;).innerHTML = '<div class=&quot;empty&quot;><b>No match</b>Change the status filter or clear the search.</div>'; return; }
   var h = '<table><thead><tr><th>Date</th><th>Sh</th><th>Line</th><th>Stopages</th><th>Type</th>' +
-    '<th class=&quot;num&quot;>Resp</th><th class=&quot;num&quot;>Repair</th><th class=&quot;num&quot;>Down</th><th>Problem &amp;amp; action</th>' +
+    '<th class=&quot;num&quot;>Resp</th><th class=&quot;num&quot;>Repair</th><th class=&quot;num&quot;>Down</th><th class=&quot;pa-col&quot;>Problem</th><th class=&quot;pa-col&quot;>Root cause</th><th class=&quot;pa-col&quot;>Action</th><th class=&quot;pa-col&quot;>Counter measure</th>' +
     '<th>Tech</th><th>Parts used</th><th>To order</th><th>Photos</th><th>Status</th><th></th></tr></thead><tbody>';
   list.forEach(function(e){
-    var pa = esc(e.problem);
-    if(e.cause) pa += '<br><span style=&quot;color:var(--ink-soft)&quot;>cause: '+esc(e.cause)+'</span>';
-    if(e.action) pa += '<br><span style=&quot;color:var(--starch)&quot;>action: '+esc(e.action)+'</span>';
-    if(e.counter) pa += '<br><span style=&quot;color:var(--good)&quot;>counter measure: '+esc(e.counter)+'</span>';
-    if(e.follow) pa += '<br><span style=&quot;color:var(--bad)&quot;>follow-up: '+esc(e.follow)+'</span>';
+    var probCell = esc(e.problem || &quot;—&quot;);
+    var causeCell = esc(e.cause || &quot;—&quot;);
+    var actCell = esc(e.action || &quot;—&quot;);
+    if(e.follow) actCell += '<br><span style=&quot;color:var(--bad)&quot;>follow-up: '+esc(e.follow)+'</span>';
+    var counterCell = esc(e.counter || &quot;—&quot;);
     h += '<tr><td>'+esc(e.date||&quot;—&quot;)+'</td><td>'+esc(String(e.shift||&quot;&quot;).charAt(0))+'</td><td>'+esc(e.line)+'</td>' +
       '<td class=&quot;wrap&quot;>'+esc(e.stopCat||&quot;—&quot;)+'</td>' +
       '<td class=&quot;wrap&quot;>'+esc(e.type)+'</td>' +
       '<td class=&quot;num&quot;>'+Math.round(e.resp||0)+'</td><td class=&quot;num&quot;>'+Math.round(e.rep||0)+'</td>' +
       '<td class=&quot;num&quot;><b>'+Math.round(e.total||0)+'</b></td>' +
-      '<td class=&quot;wrap&quot;>'+pa+'</td>' +
+      '<td class=&quot;wrap pa-col&quot;>'+probCell+'</td>' +
+      '<td class=&quot;wrap pa-col&quot;>'+causeCell+'</td>' +
+      '<td class=&quot;wrap pa-col&quot;>'+actCell+'</td>' +
+      '<td class=&quot;wrap pa-col&quot;>'+counterCell+'</td>' +
       '<td class=&quot;wrap&quot;>'+esc(e.tech)+(e.tech2 ? &quot;<br>&quot;+esc(e.tech2) : &quot;&quot;)+'</td>' +
-      '<td class=&quot;wrap&quot;>'+esc(e.parts||&quot;—&quot;)+'</td>' +
+      '<td class=&quot;wrap&quot;>'+(e.parts ? esc(e.parts) : &quot;—&quot;)+'</td>' +
       '<td class=&quot;wrap&quot;>'+(e.order ? '<span class=&quot;flag st-parts&quot;>'+esc(e.order)+'</span>' : &quot;—&quot;)+'</td>' +
       '<td>' +
         ((e.photosFault &amp;&amp; e.photosFault.length) ? '<button class=&quot;tiny&quot; data-phf=&quot;'+e.id+'&quot;>Fault '+e.photosFault.length+'</button> ' : &quot;&quot;) +
@@ -3455,10 +3539,10 @@ function headline(){
    ============================================================ */
 
 const ENTITIES = [
-  "ALCO Engineering",
-  "SAAT Engineering",
-  "IKG Engineering",
-  "BOL Engineering"
+  "ALCO",
+  "SAAT",
+  "BOL",
+  "IKG"
 ];
 
 const DT_CATEGORIES = ["Mechanical","Electrical","Utility","Instrumentation","Automation / Software","Civil / Structural","Other"];
@@ -3468,19 +3552,19 @@ const WO_STATUS = ["New","Assigned","In Progress","On Hold","Completed"];
 const PRIORITIES = ["Low","Medium","High","Urgent"];
 
 let state = {
-  entity: "ALL",
+  entity: "ALCO",
   seq: { downtime: 4, workorder: 4 },
   downtime: [
-    mkDT("DT-0001","ALCO Engineering","Injection Moulding M-04","IMM-04","Production Line A","Rahman","Electrical","Servo drive overload tripped the machine","Cooling fan on drive failed","Replaced cooling fan, reset drive","2026-08-03T08:20","2026-08-03T10:05","Resolved"),
-    mkDT("DT-0002","ALCO Engineering","Air Compressor C-02","UTIL-C02","Utility Room","Kumar","Utility","Low discharge pressure, line starved","Clogged intake filter","Cleaned filter, monitoring","2026-08-04T14:10","2026-08-04T15:40","Resolved"),
-    mkDT("DT-0003","SAAT Engineering","CNC Lathe L-11","CNC-11","Machining Bay","Wei Ming","Mechanical","Spindle vibration and noise","Bearing wear suspected","Awaiting spare bearing","2026-08-05T09:30","","Open"),
-    mkDT("DT-0004","ALCO Engineering","Chiller CH-01","UTIL-CH01","Rooftop Plant","Kumar","Utility","Chilled water temp not reaching setpoint","Under investigation","Technician assigned","2026-08-05T11:00","","In Progress")
+    mkDT("DT-0001","ALCO","Injection Moulding M-04","IMM-04","Production Line A","Rahman","Electrical","Servo drive overload tripped the machine","Cooling fan on drive failed","Replaced cooling fan, reset drive","2026-08-03T08:20","2026-08-03T10:05","Resolved"),
+    mkDT("DT-0002","ALCO","Air Compressor C-02","UTIL-C02","Utility Room","Kumar","Utility","Low discharge pressure, line starved","Clogged intake filter","Cleaned filter, monitoring","2026-08-04T14:10","2026-08-04T15:40","Resolved"),
+    mkDT("DT-0003","SAAT","CNC Lathe L-11","CNC-11","Machining Bay","Wei Ming","Mechanical","Spindle vibration and noise","Bearing wear suspected","Awaiting spare bearing","2026-08-05T09:30","","Open"),
+    mkDT("DT-0004","ALCO","Chiller CH-01","UTIL-CH01","Rooftop Plant","Kumar","Utility","Chilled water temp not reaching setpoint","Under investigation","Technician assigned","2026-08-05T11:00","","In Progress")
   ],
   workorder: [
-    mkWO("WO-0001","ALCO Engineering","2026-08-02","Production","Ahmad","Line A wash area","Plumbing","High","Leaking pipe joint flooding the wash area floor","Kumar","2026-08-04","Completed","Sealed and replaced joint"),
-    mkWO("WO-0002","ALCO Engineering","2026-08-04","Facilities","Siti","Office Level 2","HVAC","Medium","Meeting room aircon not cooling","Wei Ming","2026-08-07","In Progress",""),
-    mkWO("WO-0003","SAAT Engineering","2026-08-05","Warehouse","Devan","Loading Bay","Electrical","Urgent","Loading bay lighting circuit down — safety risk at night shift","","2026-08-06","New",""),
-    mkWO("WO-0004","ALCO Engineering","2026-08-05","Engineering","Rahman","Utility Room","Compressed Air","Low","Install additional air line drop for new workbench","","2026-08-12","Assigned","")
+    mkWO("WO-0001","ALCO","2026-08-02","Production","Ahmad","Line A wash area","Plumbing","High","Leaking pipe joint flooding the wash area floor","Kumar","2026-08-04","Completed","Sealed and replaced joint"),
+    mkWO("WO-0002","ALCO","2026-08-04","Facilities","Siti","Office Level 2","HVAC","Medium","Meeting room aircon not cooling","Wei Ming","2026-08-07","In Progress",""),
+    mkWO("WO-0003","SAAT","2026-08-05","Warehouse","Devan","Loading Bay","Electrical","Urgent","Loading bay lighting circuit down — safety risk at night shift","","2026-08-06","New",""),
+    mkWO("WO-0004","ALCO","2026-08-05","Engineering","Rahman","Utility Room","Compressed Air","Low","Install additional air line drop for new workbench","","2026-08-12","Assigned","")
   ]
 };
 
@@ -3535,7 +3619,8 @@ document.querySelectorAll('.nav-item').forEach(b=>b.addEventListener('click',()=
 /* ---------- entity selector ---------- */
 function initEntities(){
   const sel=$('#entitySel');
-  sel.innerHTML='<option value="ALL">All entities</option>'+ENTITIES.map(e=>`<option>${esc(e)}</option>`).join('');
+  sel.innerHTML=ENTITIES.map(e=>`<option>${esc(e)}</option>`).join('');
+  if(!ENTITIES.includes(state.entity)) state.entity=ENTITIES[0];
   sel.value=state.entity;
   sel.onchange=()=>{ state.entity=sel.value; renderAll(); };
 }
@@ -3570,8 +3655,8 @@ const WO_FORM_STATUS=["Open","In progress","Pending parts","Completed"];
 
 /* The embedded Log Books (downtime + work orders) belong to this entity.
    Other group entities have no linked apps yet, so their Overview reads empty. */
-const LOGBOOK_ENTITY="ALCO Engineering";
-function logbookInScope(){ return state.entity==="ALL" || state.entity===LOGBOOK_ENTITY; }
+const LOGBOOK_ENTITY="ALCO";
+function logbookInScope(){ return state.entity===LOGBOOK_ENTITY; }
 function lbStatusBadge(orig){
   const s=String(orig||"Open"), l=s.toLowerCase();
   let cls="b-open";
