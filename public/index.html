@@ -695,8 +695,8 @@
       <div style=&quot;margin-top:20px;border-top:1px dashed var(--rule);padding-top:16px&quot;>
         <label class=&quot;f&quot;>Photos of the fault as found <span style=&quot;color:var(--bad)&quot;>*</span></label>
         <div style=&quot;display:flex;gap:10px;flex-wrap:wrap;align-items:center&quot;>
-          <button class=&quot;ghost&quot; id=&quot;btnCamF&quot;>Take photo</button>
-          <button class=&quot;ghost&quot; id=&quot;btnFileF&quot;>Choose from files</button>
+          <button class=&quot;ghost&quot; id=&quot;btnCamF&quot; style=&quot;color:var(--good);border-color:var(--good)&quot;><svg width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; style=&quot;vertical-align:-2px;margin-right:6px&quot;><path d=&quot;M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z&quot;/><circle cx=&quot;12&quot; cy=&quot;13&quot; r=&quot;4&quot;/></svg>Take photo</button>
+          <button class=&quot;ghost&quot; id=&quot;btnFileF&quot; style=&quot;color:var(--good);border-color:var(--good)&quot;><svg width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; style=&quot;vertical-align:-2px;margin-right:6px&quot;><path d=&quot;M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z&quot;/><polyline points=&quot;14 2 14 8 20 8&quot;/></svg>Choose from files</button>
         </div>
         <div class=&quot;hint&quot; id=&quot;phNoteF&quot;></div>
         <input type=&quot;file&quot; id=&quot;inCamF&quot; accept=&quot;image/*&quot; capture=&quot;environment&quot; hidden>
@@ -1787,8 +1787,8 @@ function partsList(listId, addBtnId){
       '<div style=&quot;display:flex;flex-wrap:wrap;gap:8px;align-items:center&quot;>' +
         '<input class=&quot;p-name&quot; style=&quot;flex:1 1 150px;min-width:120px&quot; placeholder=&quot;part name / number&quot;>' +
         '<input class=&quot;p-qty&quot; type=&quot;number&quot; inputmode=&quot;numeric&quot; min=&quot;0&quot; step=&quot;1&quot; placeholder=&quot;Qty&quot; style=&quot;width:72px&quot;>' +
-        '<button class=&quot;tiny p-cam&quot; type=&quot;button&quot;>Take photo</button>' +
-        '<button class=&quot;tiny p-file&quot; type=&quot;button&quot;>Choose from files</button>' +
+        '<button class=&quot;tiny p-cam&quot; type=&quot;button&quot; title=&quot;Take photo&quot; aria-label=&quot;Take photo&quot; style=&quot;color:var(--good);border-color:var(--good)&quot;><svg width=&quot;15&quot; height=&quot;15&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; style=&quot;vertical-align:-3px&quot;><path d=&quot;M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z&quot;/><circle cx=&quot;12&quot; cy=&quot;13&quot; r=&quot;4&quot;/></svg></button>' +
+        '<button class=&quot;tiny p-file&quot; type=&quot;button&quot; title=&quot;Choose from files&quot; aria-label=&quot;Choose from files&quot; style=&quot;color:var(--good);border-color:var(--good)&quot;><svg width=&quot;15&quot; height=&quot;15&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; style=&quot;vertical-align:-3px&quot;><path d=&quot;M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z&quot;/><polyline points=&quot;14 2 14 8 20 8&quot;/></svg></button>' +
         '<button class=&quot;tiny p-del&quot; type=&quot;button&quot; title=&quot;Remove&quot;>&amp;#10005;</button>' +
       '</div>' +
       '<input type=&quot;file&quot; class=&quot;p-incam&quot; accept=&quot;image/*&quot; capture=&quot;environment&quot; hidden>' +
