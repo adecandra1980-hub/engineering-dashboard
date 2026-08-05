@@ -590,7 +590,7 @@
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
   /* uniform control height in spare-part rows */
-  .partrow .p-name, .partrow .p-qty, .partrow .p-cam, .partrow .p-file, .partrow .p-del{
+  .partrow .p-name, .partrow .p-desc, .partrow .p-qty, .partrow .p-cam, .partrow .p-file, .partrow .p-del{
     height:38px; box-sizing:border-box; }
   .partrow .p-cam, .partrow .p-file, .partrow .p-del{
     display:inline-flex; align-items:center; justify-content:center; padding-top:0; padding-bottom:0; }
@@ -1785,7 +1785,8 @@ function partsList(listId, addBtnId){
   function rowHtml(){
     return '<div class=&quot;partrow&quot; style=&quot;border:1px solid var(--rule);border-radius:2px;padding:10px;margin-bottom:8px&quot;>' +
       '<div style=&quot;display:flex;flex-wrap:wrap;gap:8px;align-items:center&quot;>' +
-        '<input class=&quot;p-name&quot; style=&quot;flex:1 1 150px;min-width:120px&quot; placeholder=&quot;part name / number&quot;>' +
+        '<input class=&quot;p-name&quot; style=&quot;flex:1 1 150px;min-width:120px&quot; placeholder=&quot;PN (Part Number)&quot;>' +
+        '<input class=&quot;p-desc&quot; style=&quot;flex:1 1 150px;min-width:120px&quot; placeholder=&quot;Description&quot;>' +
         '<input class=&quot;p-qty&quot; type=&quot;number&quot; inputmode=&quot;numeric&quot; min=&quot;0&quot; step=&quot;1&quot; placeholder=&quot;Qty&quot; style=&quot;width:72px&quot;>' +
         '<button class=&quot;tiny p-cam&quot; type=&quot;button&quot; title=&quot;Take photo&quot; aria-label=&quot;Take photo&quot; style=&quot;color:var(--good);border-color:var(--good)&quot;><svg width=&quot;15&quot; height=&quot;15&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; style=&quot;vertical-align:-3px&quot;><path d=&quot;M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z&quot;/><circle cx=&quot;12&quot; cy=&quot;13&quot; r=&quot;4&quot;/></svg></button>' +
         '<button class=&quot;tiny p-file&quot; type=&quot;button&quot; title=&quot;Choose from files&quot; aria-label=&quot;Choose from files&quot; style=&quot;color:var(--good);border-color:var(--good)&quot;><svg width=&quot;15&quot; height=&quot;15&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; style=&quot;vertical-align:-3px&quot;><path d=&quot;M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z&quot;/><polyline points=&quot;14 2 14 8 20 8&quot;/></svg></button>' +
@@ -1822,14 +1823,14 @@ function partsList(listId, addBtnId){
     row.querySelector(&quot;.p-infile&quot;).onchange = async function(e){ await take(row, e.target.files); e.target.value = &quot;&quot;; };
     row.querySelector(&quot;.p-del&quot;).onclick = function(){
       if(box.querySelectorAll(&quot;.partrow&quot;).length > 1){ row.remove(); }
-      else { row.querySelector(&quot;.p-name&quot;).value=&quot;&quot;; row.querySelector(&quot;.p-qty&quot;).value=&quot;&quot;; row._ph=[]; drawStripFor(row); }
+      else { row.querySelector(&quot;.p-name&quot;).value=&quot;&quot;; row.querySelector(&quot;.p-desc&quot;).value=&quot;&quot;; row.querySelector(&quot;.p-qty&quot;).value=&quot;&quot;; row._ph=[]; drawStripFor(row); }
     };
   }
   function addRow(){ box.insertAdjacentHTML(&quot;beforeend&quot;, rowHtml()); wireRow(box.lastElementChild); }
   function rows(){
     return [].slice.call(box.querySelectorAll(&quot;.partrow&quot;)).map(function(r){
-      return { part: r.querySelector(&quot;.p-name&quot;).value.trim(), qty: r.querySelector(&quot;.p-qty&quot;).value.trim(), photos: (r._ph || []).slice() };
-    }).filter(function(r){ return r.part || r.qty || r.photos.length; });
+      return { part: r.querySelector(&quot;.p-name&quot;).value.trim(), desc: r.querySelector(&quot;.p-desc&quot;).value.trim(), qty: r.querySelector(&quot;.p-qty&quot;).value.trim(), photos: (r._ph || []).slice() };
+    }).filter(function(r){ return r.part || r.desc || r.qty || r.photos.length; });
   }
   function clear(){ box.innerHTML = &quot;&quot;; addRow(); }
   $(addBtnId).addEventListener(&quot;click&quot;, addRow);
@@ -1838,7 +1839,7 @@ function partsList(listId, addBtnId){
 }
 var USED = partsList(&quot;usedList&quot;, &quot;addUsed&quot;);
 var ORDER = partsList(&quot;orderList&quot;, &quot;addOrder&quot;);
-function partsToStr(rows){ return rows.map(function(r){ return r.part + (r.qty ? &quot; ×&quot; + r.qty : &quot;&quot;); }).join(&quot;; &quot;); }
+function partsToStr(rows){ return rows.map(function(r){ return r.part + (r.desc ? &quot; — &quot; + r.desc : &quot;&quot;) + (r.qty ? &quot; ×&quot; + r.qty : &quot;&quot;); }).join(&quot;; &quot;); }
 
 function closeLb(){ $(&quot;lb&quot;).hidden = true; $(&quot;lbBody&quot;).innerHTML = &quot;&quot;; }
 $(&quot;lbClose&quot;).addEventListener(&quot;click&quot;, closeLb);
@@ -2094,7 +2095,7 @@ $(&quot;saveEvt&quot;).addEventListener(&quot;click&quot;, async function(){
       await save(kf, usedRows[ur].photos[up]);
       uk.push(kf); photoKeys.push(kf);
     }
-    usedRows[ur] = { part: usedRows[ur].part, qty: usedRows[ur].qty, photoKeys: uk };
+    usedRows[ur] = { part: usedRows[ur].part, desc: usedRows[ur].desc, qty: usedRows[ur].qty, photoKeys: uk };
   }
   for(var orr=0; orr<orderRows.length; orr++){
     var ok = [];
@@ -2103,7 +2104,7 @@ $(&quot;saveEvt&quot;).addEventListener(&quot;click&quot;, async function(){
       await save(ko, orderRows[orr].photos[op]);
       ok.push(ko); orderKeys.push(ko);
     }
-    orderRows[orr] = { part: orderRows[orr].part, qty: orderRows[orr].qty, photoKeys: ok };
+    orderRows[orr] = { part: orderRows[orr].part, desc: orderRows[orr].desc, qty: orderRows[orr].qty, photoKeys: ok };
   }
   evts.push({
     id: eid,
