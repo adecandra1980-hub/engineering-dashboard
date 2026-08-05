@@ -117,7 +117,7 @@
   .topbar .icon-btn:hover { border-color: var(--amber); color: #fff; }
 
   .content { padding: 24px 28px 48px; max-width: 1160px; width: 100%; }
-  .embed-frame { width: 100%; height: calc(100vh - 118px); min-height: 560px; border: 1px solid var(--rule); border-radius: 2px; background: #EDE9E2; display: block; }
+  .embed-frame { width: 100%; height: 620px; border: 1px solid var(--rule); border-radius: 2px; background: #EDE9E2; display: block; overflow: hidden; }
   .page { display: none; }
   .page.active { display: block; animation: fade .18s ease; }
   @keyframes fade { from { opacity: 0; transform: translateY(4px);} to {opacity:1; transform:none;} }
@@ -241,7 +241,6 @@
     .tile { padding: 13px 14px; }
     .tile .t-value { font-size: 24px; }
     .card-head h3 { font-size: 16px; }
-    .embed-frame { height: calc(100vh - 150px); min-height: 72vh; }
     /* 16px keeps iOS Safari from zooming when a field is focused */
     select, input, textarea { font-size: 16px; }
     .bar-row { grid-template-columns: 96px 1fr 42px; gap: 8px; }
@@ -3813,6 +3812,39 @@ $('#scrim').onclick=closeSidebar;
 // downtime tiles once it is ready and then poll lightly so new stops show up.
 refreshShared();
 setInterval(()=>{ if($('#page-dashboard').classList.contains('active')) refreshShared(); }, 4000);
+
+/* Auto-size each embedded app to its content height so the page scrolls as one
+   (no scrollbar inside the embedded page). srcdoc iframes are same-origin. */
+function fitFrame(frame){
+  try{
+    const d=frame.contentDocument; if(!d) return;
+    const h=Math.max(d.body?d.body.scrollHeight:0, d.documentElement?d.documentElement.scrollHeight:0);
+    if(h>0) frame.style.height=(h+2)+"px";
+  }catch(e){}
+}
+function autoFit(frame){
+  if(!frame) return;
+  const run=()=>fitFrame(frame);
+  const wire=()=>{
+    run();
+    try{
+      const d=frame.contentDocument;
+      if(d){
+        if(window.ResizeObserver && d.body){ new ResizeObserver(run).observe(d.body); }
+        d.addEventListener('click', ()=>setTimeout(run,80), true);
+        d.addEventListener('input', ()=>setTimeout(run,80), true);
+        d.addEventListener('change', ()=>setTimeout(run,80), true);
+        if(d.defaultView) d.defaultView.addEventListener('resize', run);
+      }
+    }catch(e){}
+  };
+  frame.addEventListener('load', wire);
+  setTimeout(wire, 400);          // in case it already loaded
+  setInterval(run, 1500);         // safety refit
+}
+autoFit(document.getElementById('logbookFrame'));
+autoFit(document.getElementById('workorderFrame'));
+window.addEventListener('resize', ()=>{ fitFrame(document.getElementById('logbookFrame')); fitFrame(document.getElementById('workorderFrame')); });
 
 /* ---------- boot ---------- */
 initEntities();
