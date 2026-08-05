@@ -1,0 +1,15 @@
+name = "engineering-app"
+main = "worker.js"
+compatibility_date = "2025-08-01"
+
+# The dashboard (index.html) is served from ./public
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# Shared database. Replace PASTE_DATABASE_ID_HERE with your engineering-db Database ID
+# (Storage & Databases -> engineering-db -> Database ID).
+[[d1_databases]]
+binding = "DB"
+database_name = "engineering-db"
+database_id = "369c2eab-a4d7-4785-9c58-a471f19b788b"
