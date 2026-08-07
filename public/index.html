@@ -370,14 +370,16 @@
           @media(max-width:600px){ .line-grid{grid-template-columns:1fr} }
           .ld-box{background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius);overflow:hidden}
           .ld-box .ld-head{background:var(--ink);color:var(--panel);padding:8px 12px;font-family:var(--disp);letter-spacing:.06em;text-transform:uppercase;font-size:14px}
-          .ld-seg{padding:12px 14px}
-          .ld-seg + .ld-seg{border-top:1px dashed var(--rule)}
-          .ld-role{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
-          .ld-line{font-weight:600;color:var(--text-primary);margin:2px 0 6px;font-size:13px}
-          .ld-min{font-family:var(--disp);font-size:28px;font-weight:700;color:var(--text-primary);line-height:1}
-          .ld-min small{font-size:12px;font-family:var(--mono);color:var(--muted);letter-spacing:.08em;font-weight:400;margin-left:4px}
-          .ld-bar{height:6px;background:var(--wash);border-radius:3px;margin-top:8px;overflow:hidden}
-          .ld-bar > i{display:block;height:100%;background:var(--brand)}
+          .ld-role{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:400}
+          .ld-chart{display:flex;align-items:stretch;gap:12px;padding:14px 14px 12px}
+          .ld-col{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}
+          .ld-colval{font-family:var(--disp);font-weight:700;font-size:18px;color:var(--text-primary);line-height:1;margin-bottom:5px}
+          .ld-colval small{font-family:var(--mono);font-size:9px;color:var(--muted);font-weight:400;margin-left:1px}
+          .ld-barwrap{height:120px;width:100%;max-width:52px;display:flex;align-items:flex-end;justify-content:center;background:var(--wash);border-radius:3px;overflow:hidden}
+          .ld-barwrap > i{display:block;width:100%;border-radius:3px 3px 0 0}
+          .ld-barwrap > i.mk{background:var(--brand)}
+          .ld-barwrap > i.pk{background:var(--amber)}
+          .ld-collabel{margin-top:7px;text-align:center;font-size:11px;color:var(--text-primary);font-weight:600;line-height:1.2;word-break:break-word}
           .ld-per.active{background:var(--brand);color:#fff;border-color:var(--brand)}
         </style>
         <div class="page-head" style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
@@ -4095,19 +4097,18 @@ function renderLineDowntime(){
   const inScope=logbookInScope();
   const map=inScope? ldMinutesByLine(ldPeriod) : {};
   let max=1; LINE_GROUPS.forEach(g=>{ max=Math.max(max, map[g.make]||0); (g.packs||[]).forEach(p=>{ max=Math.max(max, map[p]||0); }); });
-  const seg=(role,line,mins)=>{
-    const pct=Math.round(((mins||0)/max)*100);
-    return '<div class="ld-seg"><div class="ld-role">'+role+'</div><div class="ld-line">'+esc(line)+'</div>'+
-      '<div class="ld-min">'+(mins||0)+'<small>min</small></div>'+
-      '<div class="ld-bar"><i style="width:'+pct+'%"></i></div></div>';
+  const col=(role,line,mins,kind)=>{
+    const m=mins||0; const pct=m? Math.max(4, Math.round((m/max)*100)) : 0;
+    return '<div class="ld-col">'+
+      '<div class="ld-colval">'+m+'<small>min</small></div>'+
+      '<div class="ld-barwrap"><i class="'+kind+'" style="height:'+pct+'%"></i></div>'+
+      '<div class="ld-collabel"><span class="ld-role">'+role+'</span><br>'+esc(line)+'</div></div>';
   };
   $('#lineGrid').innerHTML = LINE_GROUPS.map(g=>{
     var packs=g.packs||[];
-    var packHtml = packs.length
-      ? packs.map(function(p,i){ return seg(packs.length>1?('Packing '+(i+1)):'Packing', p, map[p]); }).join('')
-      : '';
-    return '<div class="ld-box"><div class="ld-head">'+esc(g.label)+'</div>'+
-      seg('Making', g.make, map[g.make]) + packHtml + '</div>';
+    var cols = col('Making', g.make, map[g.make], 'mk');
+    packs.forEach(function(p,i){ cols += col(packs.length>1?('Packing '+(i+1)):'Packing', p, map[p], 'pk'); });
+    return '<div class="ld-box"><div class="ld-head">'+esc(g.label)+'</div><div class="ld-chart">'+cols+'</div></div>';
   }).join('');
   const pl={today:"today",week:"last 7 days",month:"this month",all:"all time"}[ldPeriod];
   $('#ldScope').textContent = inScope
