@@ -342,10 +342,20 @@
           <div class="card tile" onclick="nav('linedt')" style="cursor:pointer" title="Open downtime by line"><div class="t-label"><span class="dot" style="background:var(--brand-2)"></span>Downtime Hours</div><div class="t-value" id="kHours">0</div><div class="t-sub">hours · from Log Book · <span style="color:var(--brand)">view by line →</span></div></div>
         </div>
 
+        <div class="card" style="margin-top:12px">
+          <div class="card-head"><h3>Downtime by machine line</h3><span class="muted">open · hours</span></div>
+          <div class="card-body"><div id="catChart" style="max-height:300px;overflow:auto"></div></div>
+        </div>
+
         <h3 class="ov-sec" style="font-family:var(--disp);font-size:18px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin:22px 0 10px;color:var(--ink)">Utility &amp; Facility</h3>
         <div class="tiles">
           <div class="card tile" onclick="openWOLog({status:'Open'})" style="cursor:pointer" title="Open work orders"><div class="t-label"><span class="dot" style="background:var(--warning)"></span>Open Work Orders</div><div class="t-value" id="kOpenWO">0</div><div class="t-sub">open · <span style="color:var(--brand)">view open →</span></div></div>
           <div class="card tile" onclick="openWOLog({pri:'urgent'})" style="cursor:pointer" title="Emergency / High priority"><div class="t-label"><span class="dot" style="background:var(--serious)"></span>Urgent / High</div><div class="t-value" id="kUrgent">0</div><div class="t-sub">priority · <span style="color:var(--brand)">view urgent →</span></div></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div class="card-head"><h3>Work orders by status</h3><span class="muted">count</span></div>
+          <div class="card-body"><div class="chart" id="woChart"></div></div>
         </div>
 
         <h3 class="ov-sec" style="font-family:var(--disp);font-size:18px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin:22px 0 10px;color:var(--ink)">Diesel Inventory</h3>
@@ -353,17 +363,6 @@
           <div class="card tile" onclick="openDieselLog('receive')" style="cursor:pointer" title="Open diesel log — receiving"><div class="t-label"><span class="dot" style="background:var(--good)"></span>Diesel Stock</div><div class="t-value" id="kDieselStock">0</div><div class="t-sub">litres in tank · <span style="color:var(--brand)">view receiving →</span></div></div>
           <div class="card tile" onclick="openDieselLog('usage')" style="cursor:pointer" title="Open diesel log — usage"><div class="t-label"><span class="dot" style="background:var(--kraft)"></span>Diesel Usage</div><div class="t-value" id="kDieselUse">0</div><div class="t-sub">litres used · <span style="color:var(--brand)">view usage →</span></div></div>
           <div class="card tile" onclick="openDieselLog('transfer')" style="cursor:pointer" title="Open diesel log — transfer"><div class="t-label"><span class="dot" style="background:var(--amber)"></span>Diesel Transfer</div><div class="t-value" id="kDieselXfer">0</div><div class="t-sub">litres transferred · <span style="color:var(--brand)">view transfer →</span></div></div>
-        </div>
-
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-head"><h3>Downtime by machine line</h3><span class="muted">open · hours</span></div>
-            <div class="card-body"><div id="catChart" style="max-height:300px;overflow:auto"></div></div>
-          </div>
-          <div class="card">
-            <div class="card-head"><h3>Work orders by status</h3><span class="muted">count</span></div>
-            <div class="card-body"><div class="chart" id="woChart"></div></div>
-          </div>
         </div>
 
         <div class="card">
@@ -379,6 +378,14 @@
           <div class="card-body table-wrap">
             <table><thead><tr><th>Ref</th><th>Summary</th><th>Entity</th><th>Date</th><th>Status</th></tr></thead>
             <tbody id="recentWOBody"></tbody></table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Recent activity — Diesel Inventory</h3><span class="muted">latest entries</span></div>
+          <div class="card-body table-wrap">
+            <table><thead><tr><th>Type</th><th>Detail</th><th>Litres</th><th>Entity</th><th>Date</th></tr></thead>
+            <tbody id="recentDieselBody"></tbody></table>
           </div>
         </div>
       </section>
@@ -4873,9 +4880,16 @@ function renderDashboard(){
   }
 
   // ---- Recent activity — split into Downtime and Work Orders, filtered by entity ----
-  let dRecent=[], wRecent=[];
+  let dRecent=[], wRecent=[], diRecent=[];
   if(logbookInScope()){
-    const evtsR=logbookEvents()||[], woR=workorderRecords()||[];
+    const evtsR=logbookEvents()||[], woR=workorderRecords()||[], diR=dieselEntries()||[];
+    diRecent=diR.map(e=>{
+      const detail = e.kind==='receive' ? ([e.truck,e.driver,e.supplier].filter(Boolean).join(' · ') || 'Receiving')
+        : e.kind==='usage' ? ((e.usageType==='Others'?('Others: '+(e.usageOther||'')):(e.usageType||'Usage')) + (e.dept?(' — '+e.dept):''))
+        : (e.dest||'Transfer');
+      return { kind:e.kind, detail:detail, litres:(e.kind==='receive'?(+e.received||0):(+e.litres||0)),
+        entity:LOGBOOK_ENTITY, t:(+e.ts)||(e.date?Date.parse(e.date):0)||0, date:e.date||'' };
+    }).sort((a,b)=>b.t-a.t).slice(0,8);
     dRecent=evtsR.map(e=>({
       ref: e.line || e.category || "Stop",
       sum: e.problem || e.type || e.category || "Downtime stop",
@@ -4899,6 +4913,10 @@ function renderDashboard(){
     : `<tr><td colspan="5" class="empty">${emptyMsg}</td></tr>`;
   $('#recentDowntimeBody').innerHTML = recentRows(dRecent, 'No downtime for this entity.');
   $('#recentWOBody').innerHTML = recentRows(wRecent, 'No work orders for this entity.');
+  const dieselKindBadge=(k)=>{ const c=k==='receive'?'var(--good)':k==='usage'?'var(--kraft)':'var(--amber)'; const t=k==='receive'?'Receiving':k==='usage'?'Usage':'Transfer'; return '<span style="font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:2px;border:1px solid '+c+';color:'+c+'">'+t+'</span>'; };
+  $('#recentDieselBody').innerHTML = diRecent.length? diRecent.map(r=>`
+    <tr><td>${dieselKindBadge(r.kind)}</td><td style="max-width:320px">${esc(r.detail)}</td><td class="num">${Math.round(r.litres).toLocaleString('en-US')}</td><td>${esc(r.entity)}</td><td>${fmtDate(r.date)}</td></tr>`).join('')
+    : '<tr><td colspan="5" class="empty">No diesel entries for this entity.</td></tr>';
 }
 
 /* ---------- tables ---------- */
