@@ -333,13 +333,26 @@
         </div>
         <div class="page-head">
           <h2>Engineering Overview</h2>
-          <p id="dashScope">Live snapshot of downtime and work-order activity.</p>
+          <p id="dashScope">Live snapshot of downtime, work-order and diesel activity.</p>
         </div>
+
+        <h3 class="ov-sec" style="font-family:var(--disp);font-size:18px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin:6px 0 10px;color:var(--ink)">SMD Downtime</h3>
         <div class="tiles">
-          <div class="card tile"><div class="t-label"><span class="dot" style="background:var(--critical)"></span>Open Downtime</div><div class="t-value" id="kOpenDT">0</div><div class="t-sub">open stops · from Log Book</div></div>
+          <div class="card tile" onclick="nav('downtime2')" style="cursor:pointer"><div class="t-label"><span class="dot" style="background:var(--critical)"></span>Open Downtime</div><div class="t-value" id="kOpenDT">0</div><div class="t-sub">open stops · from Log Book</div></div>
           <div class="card tile" onclick="nav('linedt')" style="cursor:pointer" title="Open downtime by line"><div class="t-label"><span class="dot" style="background:var(--brand-2)"></span>Downtime Hours</div><div class="t-value" id="kHours">0</div><div class="t-sub">hours · from Log Book · <span style="color:var(--brand)">view by line →</span></div></div>
-          <div class="card tile"><div class="t-label"><span class="dot" style="background:var(--warning)"></span>Open Work Orders</div><div class="t-value" id="kOpenWO">0</div><div class="t-sub">open · from WO form</div></div>
-          <div class="card tile"><div class="t-label"><span class="dot" style="background:var(--serious)"></span>Urgent / High</div><div class="t-value" id="kUrgent">0</div><div class="t-sub">priority · from WO form</div></div>
+        </div>
+
+        <h3 class="ov-sec" style="font-family:var(--disp);font-size:18px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin:22px 0 10px;color:var(--ink)">Utility &amp; Facility</h3>
+        <div class="tiles">
+          <div class="card tile" onclick="openWOLog({status:'Open'})" style="cursor:pointer" title="Open work orders"><div class="t-label"><span class="dot" style="background:var(--warning)"></span>Open Work Orders</div><div class="t-value" id="kOpenWO">0</div><div class="t-sub">open · <span style="color:var(--brand)">view open →</span></div></div>
+          <div class="card tile" onclick="openWOLog({pri:'urgent'})" style="cursor:pointer" title="Emergency / High priority"><div class="t-label"><span class="dot" style="background:var(--serious)"></span>Urgent / High</div><div class="t-value" id="kUrgent">0</div><div class="t-sub">priority · <span style="color:var(--brand)">view urgent →</span></div></div>
+        </div>
+
+        <h3 class="ov-sec" style="font-family:var(--disp);font-size:18px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin:22px 0 10px;color:var(--ink)">Diesel Inventory</h3>
+        <div class="tiles">
+          <div class="card tile" onclick="openDieselLog('receive')" style="cursor:pointer" title="Open diesel log — receiving"><div class="t-label"><span class="dot" style="background:var(--good)"></span>Diesel Stock</div><div class="t-value" id="kDieselStock">0</div><div class="t-sub">litres in tank · <span style="color:var(--brand)">view receiving →</span></div></div>
+          <div class="card tile" onclick="openDieselLog('usage')" style="cursor:pointer" title="Open diesel log — usage"><div class="t-label"><span class="dot" style="background:var(--kraft)"></span>Diesel Usage</div><div class="t-value" id="kDieselUse">0</div><div class="t-sub">litres used · <span style="color:var(--brand)">view usage →</span></div></div>
+          <div class="card tile" onclick="openDieselLog('transfer')" style="cursor:pointer" title="Open diesel log — transfer"><div class="t-label"><span class="dot" style="background:var(--amber)"></span>Diesel Transfer</div><div class="t-value" id="kDieselXfer">0</div><div class="t-sub">litres transferred · <span style="color:var(--brand)">view transfer →</span></div></div>
         </div>
 
         <div class="grid-2">
@@ -3223,6 +3236,8 @@ function headline(){
             <select id=&quot;fStatus&quot;><option value=&quot;&quot;>All</option><option>Open</option><option>In progress</option><option>Pending parts</option><option>Completed</option></select></div>
           <div><label class=&quot;f&quot; for=&quot;fDept&quot;>Department</label>
             <select id=&quot;fDept&quot;><option value=&quot;&quot;>All</option></select></div>
+          <div><label class=&quot;f&quot; for=&quot;fPri&quot;>Priority</label>
+            <select id=&quot;fPri&quot;><option value=&quot;&quot;>All</option><option value=&quot;urgent&quot;>Emergency / High</option><option>Emergency</option><option>High</option><option>Normal</option><option>Low</option></select></div>
           <div style=&quot;flex:1&quot;><label class=&quot;f&quot; for=&quot;fSearch&quot;>Search</label><input id=&quot;fSearch&quot; type=&quot;text&quot; placeholder=&quot;WO no, location, asset, description…&quot;></div>
           <div><button class=&quot;ghost&quot; id=&quot;csv&quot;>Download CSV</button></div>
           <div><button class=&quot;ghost&quot; id=&quot;histBtn&quot;>Deleted history</button></div>
@@ -3657,9 +3672,13 @@ function headline(){
   }
   function filtered(){
     var st=$(&quot;fStatus&quot;).value, dp=$(&quot;fDept&quot;).value, q=$(&quot;fSearch&quot;).value.trim().toLowerCase();
+    var pr=$(&quot;fPri&quot;)?$(&quot;fPri&quot;).value:&quot;&quot;;
     return recs.slice().reverse().filter(function(r){
       if(st &amp;&amp; r.status!==st) return false;
       if(dp &amp;&amp; r.dept!==dp) return false;
+      if(pr){ var p=(r.priority||&quot;&quot;).toLowerCase();
+        if(pr===&quot;urgent&quot;){ if(p.indexOf(&quot;emerg&quot;)<0 &amp;&amp; p.indexOf(&quot;high&quot;)<0) return false; }
+        else if(r.priority!==pr) return false; }
       if(q){ var blob=(r.wo+&quot; &quot;+r.location+&quot; &quot;+r.asset+&quot; &quot;+r.desc+&quot; &quot;+r.requester).toLowerCase(); if(blob.indexOf(q)<0) return false; }
       return true;
     });
@@ -3760,7 +3779,7 @@ function headline(){
       });
     });
   }
-  [&quot;fStatus&quot;,&quot;fDept&quot;,&quot;fSearch&quot;].forEach(function(id){ $(id).addEventListener(&quot;input&quot;, drawBook); });
+  [&quot;fStatus&quot;,&quot;fDept&quot;,&quot;fPri&quot;,&quot;fSearch&quot;].forEach(function(id){ if($(id)) $(id).addEventListener(&quot;input&quot;, drawBook); });
 
   /* ---- detail / work-done page ---- */
   var detailId=null;
@@ -4630,6 +4649,32 @@ function nav(page){
   if(page==='linedt') renderLineDowntime();
 }
 
+/* open the Work Order Log Book pre-filtered ({status} or {pri}) */
+function openWOLog(opts){
+  opts=opts||{}; nav('workorder2');
+  var tries=0;
+  (function go(){
+    var f=document.getElementById('workorderFrame'); var d=f&&f.contentDocument;
+    if(d && d.getElementById('t-log') && d.getElementById('fStatus')){
+      if(d.getElementById('fStatus')) d.getElementById('fStatus').value = opts.status||'';
+      if(d.getElementById('fPri')) d.getElementById('fPri').value = opts.pri||'';
+      d.getElementById('t-log').click();
+    } else if(tries++<50){ setTimeout(go,100); }
+  })();
+}
+/* open the Diesel Inventory Log Book pre-filtered by kind ('receive'|'usage'|'transfer'|'') */
+function openDieselLog(kind){
+  nav('diesel');
+  var tries=0;
+  (function go(){
+    var f=document.getElementById('dieselFrame'); var d=f&&f.contentDocument;
+    if(d && d.getElementById('bKind') && d.getElementById('t-book')){
+      d.getElementById('bKind').value = kind||'';
+      d.getElementById('t-book').click();
+    } else if(tries++<50){ setTimeout(go,100); }
+  })();
+}
+
 /* ---------- Downtime by line (making & packing), paired by line number ---------- */
 const LINE_GROUPS=[
   {label:"Line 1", make:"Line 1 (Protos 80-1)",  packs:["Line 1 (Focke 350-1)"]},
@@ -4699,11 +4744,18 @@ function initEntities(){
 /* ---------- dashboard ---------- */
 /* Read the embedded Technician Downtime Log Book's live data (same-origin srcdoc iframe).
    Each event: status ("Closed" = resolved), total = downtime in MINUTES, category = machine group. */
-let SHARED = { evts:null, wo:null };
+let SHARED = { evts:null, wo:null, diesel:null };
 async function refreshShared(){
   try { const r=await fetch('/api/kv?key=tdl:events',{cache:'no-store'}); const j=await r.json(); SHARED.evts = (j&&j.value)? JSON.parse(j.value): []; } catch(e){}
   try { const r=await fetch('/api/kv?key=alco:workorders',{cache:'no-store'}); const j=await r.json(); SHARED.wo = (j&&j.value)? JSON.parse(j.value): []; } catch(e){}
+  try { const r=await fetch('/api/kv?key=diesel:entries',{cache:'no-store'}); const j=await r.json(); SHARED.diesel = (j&&j.value)? JSON.parse(j.value): []; } catch(e){}
   renderDashboard();
+}
+function dieselEntries(){ return Array.isArray(SHARED.diesel)? SHARED.diesel : null; }
+function dieselTotals(){
+  const e=dieselEntries()||[]; let recv=0,use=0,xfer=0;
+  e.forEach(function(x){ if(x.kind==='receive') recv+=(+x.received||0); else if(x.kind==='usage') use+=(+x.litres||0); else if(x.kind==='transfer') xfer+=(+x.litres||0); });
+  return { recv:recv, use:use, xfer:xfer, stock:recv-use-xfer };
 }
 function logbookEvents(){ return Array.isArray(SHARED.evts)? SHARED.evts : null; }
 
@@ -4775,6 +4827,19 @@ function renderDashboard(){
     const wostat=workorderStats();
     if(wostat){ $('#kOpenWO').textContent = wostat.open; $('#kUrgent').textContent = wostat.urgent; }
     else { $('#kOpenWO').textContent = "—"; $('#kUrgent').textContent = "—"; }
+  }
+
+  // ---- Diesel tiles — stock / usage / transfer, filtered by entity ----
+  if(!logbookInScope() || !Array.isArray(SHARED.diesel)){
+    $('#kDieselStock').textContent = logbookInScope()? "—" : "0";
+    $('#kDieselUse').textContent = logbookInScope()? "—" : "0";
+    $('#kDieselXfer').textContent = logbookInScope()? "—" : "0";
+  } else {
+    const dt=dieselTotals();
+    const fmtL=n=>Math.round(n).toLocaleString('en-US');
+    $('#kDieselStock').textContent = fmtL(dt.stock);
+    $('#kDieselUse').textContent = fmtL(dt.use);
+    $('#kDieselXfer').textContent = fmtL(dt.xfer);
   }
   $('#dashScope').textContent = (state.entity==="ALL"?"All entities":state.entity)+" · live snapshot of downtime and work-order activity.";
 
