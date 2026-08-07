@@ -329,7 +329,7 @@
         </div>
         <div class="tiles">
           <div class="card tile"><div class="t-label"><span class="dot" style="background:var(--critical)"></span>Open Downtime</div><div class="t-value" id="kOpenDT">0</div><div class="t-sub">open stops · from Log Book</div></div>
-          <div class="card tile"><div class="t-label"><span class="dot" style="background:var(--brand-2)"></span>Downtime Hours</div><div class="t-value" id="kHours">0</div><div class="t-sub">hours · from Log Book</div></div>
+          <div class="card tile" onclick="nav('linedt')" style="cursor:pointer" title="Open downtime by line"><div class="t-label"><span class="dot" style="background:var(--brand-2)"></span>Downtime Hours</div><div class="t-value" id="kHours">0</div><div class="t-sub">hours · from Log Book · <span style="color:var(--brand)">view by line →</span></div></div>
           <div class="card tile"><div class="t-label"><span class="dot" style="background:var(--warning)"></span>Open Work Orders</div><div class="t-value" id="kOpenWO">0</div><div class="t-sub">open · from WO form</div></div>
           <div class="card tile"><div class="t-label"><span class="dot" style="background:var(--serious)"></span>Urgent / High</div><div class="t-value" id="kUrgent">0</div><div class="t-sub">priority · from WO form</div></div>
         </div>
@@ -346,12 +346,54 @@
         </div>
 
         <div class="card">
-          <div class="card-head"><h3>Recent activity</h3><span class="muted">latest submissions</span></div>
+          <div class="card-head"><h3>Recent activity — Technician Downtime</h3><span class="muted">latest stops</span></div>
           <div class="card-body table-wrap">
-            <table><thead><tr><th>Ref</th><th>Type</th><th>Summary</th><th>Entity</th><th>Date</th><th>Status</th></tr></thead>
-            <tbody id="recentBody"></tbody></table>
+            <table><thead><tr><th>Ref</th><th>Summary</th><th>Entity</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody id="recentDowntimeBody"></tbody></table>
           </div>
         </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Recent activity — Work Orders</h3><span class="muted">latest requests</span></div>
+          <div class="card-body table-wrap">
+            <table><thead><tr><th>Ref</th><th>Summary</th><th>Entity</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody id="recentWOBody"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== DOWNTIME BY LINE (making & packing) ===== -->
+      <section class="page" id="page-linedt">
+        <style>
+          .line-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+          @media(max-width:920px){ .line-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+          @media(max-width:600px){ .line-grid{grid-template-columns:1fr} }
+          .ld-box{background:var(--panel);border:1px solid var(--rule);border-radius:var(--radius);overflow:hidden}
+          .ld-box .ld-head{background:var(--ink);color:var(--panel);padding:8px 12px;font-family:var(--disp);letter-spacing:.06em;text-transform:uppercase;font-size:14px}
+          .ld-seg{padding:12px 14px}
+          .ld-seg + .ld-seg{border-top:1px dashed var(--rule)}
+          .ld-role{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+          .ld-line{font-weight:600;color:var(--text-primary);margin:2px 0 6px;font-size:13px}
+          .ld-min{font-family:var(--disp);font-size:28px;font-weight:700;color:var(--text-primary);line-height:1}
+          .ld-min small{font-size:12px;font-family:var(--mono);color:var(--muted);letter-spacing:.08em;font-weight:400;margin-left:4px}
+          .ld-bar{height:6px;background:var(--wash);border-radius:3px;margin-top:8px;overflow:hidden}
+          .ld-bar > i{display:block;height:100%;background:var(--brand)}
+          .ld-per.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+        </style>
+        <div class="page-head" style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
+          <div style="flex:1;min-width:220px">
+            <button class="btn" onclick="nav('dashboard')" style="margin-bottom:8px">← Back to overview</button>
+            <h2>Downtime by Line — Making &amp; Packing</h2>
+            <p id="ldScope">Total downtime minutes per line group · making on top, packing below.</p>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-self:center">
+            <button class="btn ld-per" data-per="today">Today</button>
+            <button class="btn ld-per" data-per="week">This week</button>
+            <button class="btn ld-per active" data-per="month">This month</button>
+            <button class="btn ld-per" data-per="all">All time</button>
+          </div>
+        </div>
+        <div id="lineGrid" class="line-grid"></div>
       </section>
 
       <!-- ===== DOWNTIME ===== -->
@@ -605,7 +647,7 @@
   /* Log book table: top-align every cell (aligned with the Date), widen Problem &amp; action ~2x */
   #book td, #book th{ vertical-align:top; }
   #book td.pa-col, #book th.pa-col{ min-width:200px; white-space:normal; }
-  #book td.tech-col, #book th.tech-col{ min-width:72px; max-width:72px; width:72px; white-space:normal; }
+  #book td.tech-col, #book th.tech-col{ min-width:90px; max-width:90px; width:90px; white-space:normal; }
   /* action buttons match the status flag size */
   #book [data-del], #book [data-close], #book [data-edit], #book [data-verify]{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:2px 6px; line-height:1.5; }
 </style>
@@ -3444,7 +3486,8 @@ function headline(){
   var datePart=dd+mm+yy;
   function nextRun(){
     var n=1;
-    recs.forEach(function(r){ var pt=(r.wo||&quot;&quot;).split(&quot;-&quot;); if(pt[1]===datePart){ var x=parseInt(pt[0],10); if(x>=n) n=x+1; } });
+    var scan=function(list){ (list||[]).forEach(function(r){ var pt=(r.wo||&quot;&quot;).split(&quot;-&quot;); var x=parseInt(pt[0],10); if(!isNaN(x) &amp;&amp; x>=n) n=x+1; }); };
+    scan(recs); scan(delRecs);   // continuous sequence across all dates; never reuse a number
     return n;
   }
   function setWoNumber(){
@@ -4005,15 +4048,72 @@ const REPORTKINDS = {
 };
 
 /* ---------- navigation ---------- */
-const TITLES={dashboard:"Engineering Dashboard",downtime:"Technician Downtime Report",workorder:"Utility & Facility Work Order",downtime2:"Technician Downtime Log Book",workorder2:"Work Order Request — Utility Facility"};
+const TITLES={dashboard:"Engineering Dashboard",downtime:"Technician Downtime Report",workorder:"Utility & Facility Work Order",downtime2:"Technician Downtime Log Book",workorder2:"Work Order Request — Utility Facility",linedt:"Downtime by Line"};
 function nav(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   $('#page-'+page).classList.add('active');
-  $('#pageTitle').textContent=TITLES[page];
+  $('#pageTitle').textContent=TITLES[page]||'Engineering Dashboard';
   closeSidebar();
   if(page==='dashboard') renderDashboard();
+  if(page==='linedt') renderLineDowntime();
 }
+
+/* ---------- Downtime by line (making & packing), paired by line number ---------- */
+const LINE_GROUPS=[
+  {label:"Line 1", make:"Line 1 (Protos 80-1)",  pack:"Line 1 (Focke 350-1)"},
+  {label:"Line 2", make:"Line 2 (Protos 80-2)",  pack:"Line 2 (Focke 350-2)"},
+  {label:"Line 3", make:"Line 3 (Protos 80-3)",  pack:"Line 3 (Focke 350-3)"},
+  {label:"Line 4", make:"Line 4 (Protos 80-4)",  pack:"Line 4 (GDX6P)"},
+  {label:"Line 5", make:"Line 5 (Protos 90T-5)", pack:"Line 5 (GDX6R)"},
+  {label:"Line 6", make:"Line 6 (Super 9-SS)",   pack:"Line A1 (HLP - SS)"},
+  {label:"Filter 1", make:"Line F1 (KDF2-1)",    pack:"Line A2 (HLP - 25)"},
+  {label:"Filter 2", make:"Line F2 (KDF2-2)",    pack:""},
+  {label:"Filter 3", make:"Line F3 (KDF6)",      pack:""}
+];
+let ldPeriod="month";
+function ldStart(period){
+  const d=new Date();
+  if(period==="today"){ d.setHours(0,0,0,0); return d.getTime(); }
+  if(period==="week"){ const x=new Date(); x.setDate(x.getDate()-6); x.setHours(0,0,0,0); return x.getTime(); }
+  if(period==="month"){ return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); }
+  return 0; // all
+}
+function ldMinutesByLine(period){
+  const evts=logbookEvents()||[];
+  const from=ldStart(period), map={};
+  evts.forEach(e=>{
+    const t=(+e.ts) || (e.date?Date.parse(e.date):0) || 0;
+    if(from && t<from) return;
+    const line=e.line||""; if(!line) return;
+    map[line]=(map[line]||0)+(Number(e.total)||0);
+  });
+  return map;
+}
+function renderLineDowntime(){
+  document.querySelectorAll('.ld-per').forEach(b=>b.classList.toggle('active',b.dataset.per===ldPeriod));
+  const inScope=logbookInScope();
+  const map=inScope? ldMinutesByLine(ldPeriod) : {};
+  let max=1; LINE_GROUPS.forEach(g=>{ max=Math.max(max, map[g.make]||0, g.pack?(map[g.pack]||0):0); });
+  const seg=(role,line,mins)=>{
+    if(!line) return '<div class="ld-seg"><div class="ld-role">'+role+'</div><div class="ld-line" style="color:var(--muted)">— none —</div></div>';
+    const pct=Math.round(((mins||0)/max)*100);
+    return '<div class="ld-seg"><div class="ld-role">'+role+'</div><div class="ld-line">'+esc(line)+'</div>'+
+      '<div class="ld-min">'+(mins||0)+'<small>min</small></div>'+
+      '<div class="ld-bar"><i style="width:'+pct+'%"></i></div></div>';
+  };
+  $('#lineGrid').innerHTML = LINE_GROUPS.map(g=>
+    '<div class="ld-box"><div class="ld-head">'+esc(g.label)+'</div>'+
+    seg('Making', g.make, map[g.make])+
+    seg('Packing', g.pack, g.pack?map[g.pack]:0)+
+    '</div>'
+  ).join('');
+  const pl={today:"today",week:"last 7 days",month:"this month",all:"all time"}[ldPeriod];
+  $('#ldScope').textContent = inScope
+    ? 'Total downtime minutes per line group ('+pl+') · making on top, packing below.'
+    : 'No downtime data for this entity.';
+}
+document.querySelectorAll('.ld-per').forEach(b=>b.addEventListener('click',()=>{ ldPeriod=b.dataset.per; renderLineDowntime(); }));
 document.querySelectorAll('.nav-item').forEach(b=>b.addEventListener('click',()=>nav(b.dataset.page)));
 
 /* ---------- entity selector ---------- */
@@ -4136,35 +4236,33 @@ function renderDashboard(){
     $('#woChart').innerHTML = '<div class="empty">Connecting to Work Order form…</div>';
   }
 
-  // ---- Recent activity — from BOTH embedded Log Books, filtered by entity ----
-  let recent=[];
+  // ---- Recent activity — split into Downtime and Work Orders, filtered by entity ----
+  let dRecent=[], wRecent=[];
   if(logbookInScope()){
     const evtsR=logbookEvents()||[], woR=workorderRecords()||[];
-    recent=[
-      ...evtsR.map(e=>({
-        ref: e.line || e.category || "Stop",
-        type: "Downtime",
-        sum: e.problem || e.type || e.category || "Downtime stop",
-        entity: LOGBOOK_ENTITY,
-        t: (+e.ts) || (e.date? Date.parse(e.date):0) || 0,
-        date: e.ts || e.date || "",
-        status: e.status || "Open"
-      })),
-      ...woR.map(r=>({
-        ref: r.wo || "WO",
-        type: "Work Order",
-        sum: r.desc || (r.types && r.types.join(", ")) || "Work order request",
-        entity: LOGBOOK_ENTITY,
-        t: r.date? Date.parse(r.date):0,
-        date: r.date || "",
-        status: r.status || "Open"
-      }))
-    ].sort((a,b)=>b.t-a.t).slice(0,10);
+    dRecent=evtsR.map(e=>({
+      ref: e.line || e.category || "Stop",
+      sum: e.problem || e.type || e.category || "Downtime stop",
+      entity: LOGBOOK_ENTITY,
+      t: (+e.ts) || (e.date? Date.parse(e.date):0) || 0,
+      date: e.ts || e.date || "",
+      status: e.status || "Open"
+    })).sort((a,b)=>b.t-a.t).slice(0,8);
+    wRecent=woR.map(r=>({
+      ref: r.wo || "WO",
+      sum: r.desc || (r.types && r.types.join(", ")) || "Work order request",
+      entity: LOGBOOK_ENTITY,
+      t: r.date? Date.parse(r.date):0,
+      date: r.date || "",
+      status: r.status || "Open"
+    })).sort((a,b)=>b.t-a.t).slice(0,8);
   }
-  $('#recentBody').innerHTML = recent.length? recent.map(r=>`
-    <tr><td class="id-cell">${esc(r.ref)}</td><td><span class="pill">${esc(r.type)}</span></td>
-    <td style="max-width:320px">${esc(r.sum)}</td><td>${esc(r.entity)}</td><td>${fmtDate(r.date)}</td><td>${lbStatusBadge(r.status)}</td></tr>`).join('')
-    : '<tr><td colspan="6" class="empty">No activity for this entity.</td></tr>';
+  const recentRows=(arr,emptyMsg)=> arr.length? arr.map(r=>`
+    <tr><td class="id-cell">${esc(r.ref)}</td>
+    <td style="max-width:360px">${esc(r.sum)}</td><td>${esc(r.entity)}</td><td>${fmtDate(r.date)}</td><td>${lbStatusBadge(r.status)}</td></tr>`).join('')
+    : `<tr><td colspan="5" class="empty">${emptyMsg}</td></tr>`;
+  $('#recentDowntimeBody').innerHTML = recentRows(dRecent, 'No downtime for this entity.');
+  $('#recentWOBody').innerHTML = recentRows(wRecent, 'No work orders for this entity.');
 }
 
 /* ---------- tables ---------- */
@@ -4300,26 +4398,32 @@ setInterval(()=>{ if($('#page-dashboard').classList.contains('active')) refreshS
 
 /* Auto-size each embedded app to its content height so the page scrolls as one
    (no scrollbar inside the embedded page). srcdoc iframes are same-origin. */
+/* silence the benign "ResizeObserver loop completed…" console error (not a real error) */
+window.addEventListener('error', function(e){
+  if(e && e.message && e.message.indexOf('ResizeObserver loop')>=0){ e.stopImmediatePropagation(); e.preventDefault(); return false; }
+});
 function fitFrame(frame){
   try{
     const d=frame.contentDocument; if(!d) return;
     const h=Math.max(d.body?d.body.scrollHeight:0, d.documentElement?d.documentElement.scrollHeight:0);
-    if(h>0) frame.style.height=(h+2)+"px";
+    if(h>0){ const target=(h+2)+"px"; if(frame.style.height!==target) frame.style.height=target; }  // only write when changed
   }catch(e){}
 }
 function autoFit(frame){
   if(!frame) return;
+  let scheduled=false;
   const run=()=>fitFrame(frame);
+  const runRAF=()=>{ if(scheduled) return; scheduled=true; requestAnimationFrame(function(){ scheduled=false; run(); }); };  // break the resize loop
   const wire=()=>{
     run();
     try{
       const d=frame.contentDocument;
       if(d){
-        if(window.ResizeObserver && d.body){ new ResizeObserver(run).observe(d.body); }
+        if(window.ResizeObserver && d.body){ new ResizeObserver(runRAF).observe(d.body); }
         d.addEventListener('click', ()=>setTimeout(run,80), true);
         d.addEventListener('input', ()=>setTimeout(run,80), true);
         d.addEventListener('change', ()=>setTimeout(run,80), true);
-        if(d.defaultView) d.defaultView.addEventListener('resize', run);
+        if(d.defaultView) d.defaultView.addEventListener('resize', runRAF);
       }
     }catch(e){}
   };
