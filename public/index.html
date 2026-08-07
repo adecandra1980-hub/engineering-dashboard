@@ -282,6 +282,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
         Utility &amp; Facility WO
       </button>
+      <button class="nav-item" data-page="diesel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 22V8l7-4v18"/><path d="M10 10h6a2 2 0 0 1 2 2v10"/><path d="M14 22V4l4 2"/><path d="M3 22h18"/></svg>
+        Diesel Inventory
+      </button>
     </nav>
     <div class="sidebar-foot">
       Report an issue online — no paper, one source of truth. Built to extend to other group entities.
@@ -320,6 +324,10 @@
             <button class="qn-btn" onclick="nav('workorder2')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
               Work Order Request for Utility Facility
+            </button>
+            <button class="qn-btn" onclick="nav('diesel')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 22V8l7-4v18"/><path d="M10 10h6a2 2 0 0 1 2 2v10"/><path d="M14 22V4l4 2"/><path d="M3 22h18"/></svg>
+              Diesel Inventory Management
             </button>
           </div>
         </div>
@@ -3954,6 +3962,567 @@ function headline(){
 </html>
 "></iframe>
       </section>
+
+      <!-- ===== DIESEL INVENTORY (embedded app) ===== -->
+      <section class="page" id="page-diesel">
+        <iframe class="embed-frame" id="dieselFrame" title="Diesel Inventory Management" srcdoc="<!DOCTYPE html>
+<html lang=&quot;en&quot;><head>
+<meta charset=&quot;utf-8&quot;>
+<meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1, viewport-fit=cover&quot;>
+<title>Diesel Inventory Management</title>
+<script>/* shared-storage bridge -> Cloudflare D1 via /api/kv */
+(function(){
+  var API=&quot;/api/kv&quot;;
+  window.storage={
+    get:function(key){ return fetch(API+&quot;?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;})
+      .then(function(r){ return r.ok? r.json(): null; })
+      .then(function(j){ return (j&amp;&amp;j.value!=null)?{value:j.value}:null; })
+      .catch(function(){ return null; }); },
+    set:function(key,value){ return fetch(API,{method:&quot;POST&quot;,headers:{&quot;Content-Type&quot;:&quot;application/json&quot;},
+      body:JSON.stringify({key:key,value:String(value)})})
+      .then(function(r){ return r.ok; }).catch(function(){ return false; }); }
+  };
+})();</script>
+<style>
+  :root{
+    --concrete:#EDE9E2; --panel:#FFFFFF; --panel-2:#FBFAF7; --wash:#F4F1EA;
+    --ink:#1B1F23; --ink-soft:#5C666E; --muted:#8A8478; --rule:#D5CFC5;
+    --starch:#1F5673; --kraft:#B07845; --amber:#D98A0B; --good:#2E7D4F; --bad:#B3402F;
+    --disp:&quot;Barlow Condensed&quot;,&quot;Oswald&quot;,&quot;Arial Narrow&quot;,sans-serif;
+    --body:&quot;IBM Plex Sans&quot;,&quot;Segoe UI&quot;,system-ui,sans-serif;
+    --mono:&quot;IBM Plex Mono&quot;,ui-monospace,&quot;Courier New&quot;,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{font-family:var(--body);background:var(--concrete);color:var(--ink);font-size:14px;line-height:1.5}
+  .wrap{max-width:1080px;margin:0 auto;padding:20px 16px 64px}
+  a{color:var(--starch)}
+  h2.sec{font-family:var(--disp);font-size:22px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);position:relative}
+  .eyebrow[data-n]::before{content:attr(data-n);color:var(--amber);margin-right:6px;font-weight:600}
+
+  /* header */
+  .head{background:var(--ink);color:#F2EFE9;border-radius:3px;overflow:hidden;border-bottom:5px solid var(--amber)}
+  .head-in{padding:22px 22px 18px;display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between}
+  .head h1{font-family:var(--disp);font-weight:700;font-size:34px;letter-spacing:.03em;text-transform:uppercase;line-height:.96}
+  .head p{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#9AA6AE;margin-top:6px}
+  .stats{display:flex;gap:22px;flex-wrap:wrap}
+  .stat .k{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9AA6AE}
+  .stat .v{font-family:var(--disp);font-weight:700;font-size:26px;line-height:1;margin-top:3px}
+  .stat .v small{font-family:var(--mono);font-size:11px;color:#9AA6AE;font-weight:400;letter-spacing:.05em;margin-left:3px}
+  .v.good{color:#7FD1A2} .v.warn{color:#F0B45F}
+
+  /* tabs */
+  nav.tabs{display:flex;flex-wrap:wrap;gap:2px;margin:14px 0 0}
+  nav.tabs button{flex:0 1 auto;background:var(--wash);border:1px solid var(--rule);border-bottom:none;
+    font-family:var(--disp);font-size:16px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);
+    padding:11px 18px;cursor:pointer;border-radius:3px 3px 0 0}
+  nav.tabs button[aria-selected=&quot;true&quot;]{background:var(--panel);color:var(--ink);border-bottom:2px solid var(--amber);font-weight:600}
+
+  .panel{background:var(--panel);border:1px solid var(--rule);border-radius:2px;padding:18px;margin-top:14px}
+  label.f{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px}
+  input,select,textarea{width:100%;font-family:var(--mono);font-size:14px;color:var(--ink);background:var(--panel-2);
+    border:1px solid var(--rule);border-radius:2px;padding:9px 10px}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--starch);outline-offset:-1px;background:#fff}
+  textarea{font-family:var(--body);min-height:60px;resize:vertical}
+  .grid{display:grid;gap:12px}
+  .grid>*{min-width:0}
+  .g2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  @media(max-width:680px){ .g3{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} }
+  @media(max-width:460px){ .g2,.g3{grid-template-columns:1fr} }
+  .hint{font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-top:6px}
+  .ro{background:var(--wash);border:1px dashed var(--rule);border-radius:2px;padding:9px 10px;font-family:var(--mono);font-weight:600}
+
+  button.act{background:var(--starch);color:#fff;border:1px solid var(--starch);font-family:var(--disp);font-size:17px;
+    letter-spacing:.06em;text-transform:uppercase;font-weight:600;padding:11px 22px;border-radius:2px;cursor:pointer}
+  button.act:hover{background:#17455C}
+  button.ghost{background:var(--panel);color:var(--starch);border:1px solid var(--rule);font-family:var(--disp);font-size:15px;
+    letter-spacing:.05em;text-transform:uppercase;padding:10px 16px;border-radius:2px;cursor:pointer}
+  button.ghost:hover{border-color:var(--starch)}
+  button.tiny{font-family:var(--mono);font-size:11px;letter-spacing:.04em;padding:4px 9px;border:1px solid var(--rule);
+    background:var(--panel);color:var(--starch);border-radius:2px;cursor:pointer}
+  button.tiny.warn{color:var(--bad)} button.tiny.warn:hover{border-color:var(--bad)}
+
+  /* photo evidence */
+  .photo-slot{border:1px solid var(--rule);border-radius:2px;padding:10px;background:var(--panel-2)}
+  .photo-slot .pl{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px}
+  .photo-btns{display:flex;gap:6px;flex-wrap:wrap}
+  .photo-btns button{color:var(--good);border-color:var(--good)}
+  .strip{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .thumb{position:relative;width:70px;height:70px;border:1px solid var(--rule);border-radius:2px;background-size:cover;background-position:center}
+  .thumb button{position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;border:none;background:var(--ink);color:#fff;font-size:11px;cursor:pointer}
+
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px}
+  th{text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);
+    border-bottom:1px solid var(--ink);padding:6px 8px;font-weight:500;white-space:nowrap}
+  td{border-bottom:1px solid var(--rule);padding:7px 8px;vertical-align:top}
+  td.num{text-align:right}
+  .scroll{overflow-x:auto}
+  .flag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;border-radius:2px;border:1px solid currentColor}
+  .k-receive{color:#fff;background:var(--good);border-color:var(--good)}
+  .k-usage{color:#fff;background:var(--kraft);border-color:var(--kraft)}
+  .k-transfer{color:#3A2C00;background:var(--amber);border-color:var(--amber)}
+  .empty{border:1px dashed var(--rule);border-radius:2px;padding:26px;text-align:center;color:var(--ink-soft)}
+  .empty b{display:block;font-family:var(--disp);font-size:20px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);margin-bottom:4px}
+  .filters{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+  .filters>div{min-width:140px}
+
+  /* stock bars */
+  .sbar{display:flex;align-items:center;gap:10px;margin:8px 0}
+  .sbar .lbl{font-family:var(--mono);font-size:11px;min-width:150px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em}
+  .sbar .track{flex:1;height:16px;background:var(--wash);border-radius:3px;overflow:hidden}
+  .sbar .track>i{display:block;height:100%}
+  .sbar .val{font-family:var(--disp);font-weight:700;min-width:70px;text-align:right}
+
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:var(--ink);color:#F2EFE9;
+    font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;padding:10px 18px;border-radius:2px;opacity:0;pointer-events:none;transition:opacity .18s;z-index:60}
+  .toast.on{opacity:1}
+  .lb{position:fixed;inset:0;background:rgba(20,23,26,.86);display:flex;align-items:center;justify-content:center;padding:24px;z-index:50}
+  .lb[hidden]{display:none}
+  .lb-in{max-width:920px;width:100%;max-height:100%;overflow:auto;text-align:center}
+  .lb-in img{max-width:100%;border:1px solid #333;border-radius:2px;margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class=&quot;wrap&quot;>
+  <div class=&quot;head&quot;>
+    <div class=&quot;head-in&quot;>
+      <div>
+        <h1>Diesel Inventory<br>Management</h1>
+        <p>Receiving · Usage · Transfer — evidence &amp;amp; running stock</p>
+      </div>
+      <div class=&quot;stats&quot;>
+        <div class=&quot;stat&quot;><div class=&quot;k&quot;>Current stock</div><div class=&quot;v good&quot; id=&quot;sStock&quot;>0<small>L</small></div></div>
+        <div class=&quot;stat&quot;><div class=&quot;k&quot;>Received</div><div class=&quot;v&quot; id=&quot;sRecv&quot;>0<small>L</small></div></div>
+        <div class=&quot;stat&quot;><div class=&quot;k&quot;>Used</div><div class=&quot;v&quot; id=&quot;sUse&quot;>0<small>L</small></div></div>
+        <div class=&quot;stat&quot;><div class=&quot;k&quot;>Transferred</div><div class=&quot;v&quot; id=&quot;sXfer&quot;>0<small>L</small></div></div>
+      </div>
+    </div>
+  </div>
+
+  <nav class=&quot;tabs&quot; role=&quot;tablist&quot;>
+    <button role=&quot;tab&quot; id=&quot;t-recv&quot; aria-selected=&quot;true&quot;>Receiving</button>
+    <button role=&quot;tab&quot; id=&quot;t-use&quot; aria-selected=&quot;false&quot;>Usage</button>
+    <button role=&quot;tab&quot; id=&quot;t-xfer&quot; aria-selected=&quot;false&quot;>Transfer</button>
+    <button role=&quot;tab&quot; id=&quot;t-book&quot; aria-selected=&quot;false&quot;>Log book</button>
+    <button role=&quot;tab&quot; id=&quot;t-stock&quot; aria-selected=&quot;false&quot;>Stock</button>
+  </nav>
+
+  <!-- ============ RECEIVING ============ -->
+  <section id=&quot;v-recv&quot;>
+    <div class=&quot;panel&quot;>
+      <p class=&quot;eyebrow&quot; data-n=&quot;01 /&quot;>Diesel receiving from supplier</p>
+      <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;rWhen&quot;>Date &amp;amp; time receiving <span style=&quot;color:var(--bad)&quot;>*</span></label>
+          <div style=&quot;display:flex;gap:6px&quot;><input id=&quot;rWhen&quot; type=&quot;datetime-local&quot; style=&quot;flex:1;min-width:0&quot;>
+          <button class=&quot;ghost&quot; type=&quot;button&quot; id=&quot;rNow&quot; style=&quot;padding:8px 10px;white-space:nowrap&quot;>Now</button></div></div>
+        <div><label class=&quot;f&quot; for=&quot;rDriver&quot;>Driver name <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;rDriver&quot; type=&quot;text&quot; placeholder=&quot;Driver&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;rTruck&quot;>Truck number <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;rTruck&quot; type=&quot;text&quot; placeholder=&quot;e.g. BP 1234 XX&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;rSupplier&quot;>Supplier <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;rSupplier&quot; type=&quot;text&quot; placeholder=&quot;Supplier name&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;rDO&quot;>Delivery order no. <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;rDO&quot; type=&quot;text&quot; placeholder=&quot;DO / receipt no.&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;rTank&quot;>Tank level after (L) <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;rTank&quot; type=&quot;number&quot; inputmode=&quot;decimal&quot; min=&quot;0&quot; placeholder=&quot;e.g. 8500&quot;></div>
+      </div>
+      <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;rBefore&quot;>Flow meter BEFORE (L) <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;rBefore&quot; type=&quot;number&quot; inputmode=&quot;decimal&quot; min=&quot;0&quot; placeholder=&quot;reading before&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;rAfter&quot;>Flow meter AFTER (L) <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;rAfter&quot; type=&quot;number&quot; inputmode=&quot;decimal&quot; min=&quot;0&quot; placeholder=&quot;reading after&quot;></div>
+        <div><label class=&quot;f&quot;>Received quantity (L)</label><div class=&quot;ro&quot; id=&quot;rQty&quot;>0</div></div>
+      </div>
+
+      <p class=&quot;eyebrow&quot; style=&quot;margin-top:18px&quot;>Photo evidence (optional)</p>
+      <div class=&quot;grid g3&quot; id=&quot;rPhotos&quot; style=&quot;margin-top:10px&quot;></div>
+
+      <div style=&quot;margin-top:14px&quot;><label class=&quot;f&quot; for=&quot;rNote&quot;>Notes</label><textarea id=&quot;rNote&quot; placeholder=&quot;optional&quot;></textarea></div>
+      <div style=&quot;margin-top:14px;display:flex;gap:10px;flex-wrap:wrap&quot;>
+        <button class=&quot;ghost&quot; id=&quot;rReset&quot;>Reset</button>
+        <button class=&quot;act&quot; id=&quot;rSave&quot;>Submit receiving</button>
+      </div>
+      <div class=&quot;hint&quot; id=&quot;rNoteMsg&quot;></div>
+    </div>
+  </section>
+
+  <!-- ============ USAGE ============ -->
+  <section id=&quot;v-use&quot; hidden>
+    <div class=&quot;panel&quot;>
+      <p class=&quot;eyebrow&quot; data-n=&quot;02 /&quot;>Diesel usage</p>
+      <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;uWhen&quot;>Date &amp;amp; time <span style=&quot;color:var(--bad)&quot;>*</span></label>
+          <div style=&quot;display:flex;gap:6px&quot;><input id=&quot;uWhen&quot; type=&quot;datetime-local&quot; style=&quot;flex:1;min-width:0&quot;>
+          <button class=&quot;ghost&quot; type=&quot;button&quot; id=&quot;uNow&quot; style=&quot;padding:8px 10px;white-space:nowrap&quot;>Now</button></div></div>
+        <div><label class=&quot;f&quot; for=&quot;uType&quot;>Usage for <span style=&quot;color:var(--bad)&quot;>*</span></label>
+          <select id=&quot;uType&quot;>
+            <option>Boiler Primary Production (PMD)</option>
+            <option>Forklift usage from Warehouse</option>
+            <option>Others</option>
+          </select></div>
+        <div><label class=&quot;f&quot; for=&quot;uLitres&quot;>Litres used (L) <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;uLitres&quot; type=&quot;number&quot; inputmode=&quot;decimal&quot; min=&quot;0&quot; placeholder=&quot;e.g. 120&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;uDept&quot;>Department <span style=&quot;color:var(--bad)&quot;>*</span></label>
+          <select id=&quot;uDept&quot;><option value=&quot;&quot;></option><option>Production PMD</option><option>Production SMD</option><option>Quality</option><option>Warehouse &amp;amp; Logistic</option><option>PDI</option><option>HR / Admin</option><option>Safety / HSE</option><option>Finance</option><option>SCM</option><option>IT</option></select></div>
+      </div>
+      <div class=&quot;grid g2&quot; style=&quot;margin-top:12px&quot;>
+        <div id=&quot;uOtherWrap&quot; hidden><label class=&quot;f&quot; for=&quot;uOther&quot;>Specify (Others) <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;uOther&quot; type=&quot;text&quot; placeholder=&quot;describe the usage&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;uBy&quot;>Operator / taken by <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;uBy&quot; type=&quot;text&quot; placeholder=&quot;name&quot;></div>
+      </div>
+      <p class=&quot;eyebrow&quot; style=&quot;margin-top:18px&quot;>Photo (optional)</p>
+      <div class=&quot;grid g3&quot; id=&quot;uPhotos&quot; style=&quot;margin-top:10px&quot;></div>
+      <div style=&quot;margin-top:14px&quot;><label class=&quot;f&quot; for=&quot;uNote&quot;>Notes</label><textarea id=&quot;uNote&quot; placeholder=&quot;optional&quot;></textarea></div>
+      <div style=&quot;margin-top:14px;display:flex;gap:10px;flex-wrap:wrap&quot;>
+        <button class=&quot;ghost&quot; id=&quot;uReset&quot;>Reset</button>
+        <button class=&quot;act&quot; id=&quot;uSave&quot;>Submit usage</button>
+      </div>
+      <div class=&quot;hint&quot; id=&quot;uNoteMsg&quot;></div>
+    </div>
+  </section>
+
+  <!-- ============ TRANSFER ============ -->
+  <section id=&quot;v-xfer&quot; hidden>
+    <div class=&quot;panel&quot;>
+      <p class=&quot;eyebrow&quot; data-n=&quot;03 /&quot;>Transfer diesel to outside-area tank</p>
+      <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;xWhen&quot;>Date &amp;amp; time <span style=&quot;color:var(--bad)&quot;>*</span></label>
+          <div style=&quot;display:flex;gap:6px&quot;><input id=&quot;xWhen&quot; type=&quot;datetime-local&quot; style=&quot;flex:1;min-width:0&quot;>
+          <button class=&quot;ghost&quot; type=&quot;button&quot; id=&quot;xNow&quot; style=&quot;padding:8px 10px;white-space:nowrap&quot;>Now</button></div></div>
+        <div><label class=&quot;f&quot; for=&quot;xDest&quot;>Transfer to <span style=&quot;color:var(--bad)&quot;>*</span></label>
+          <select id=&quot;xDest&quot;>
+            <option>BOL — Tank 1</option>
+            <option>BOL — Tank 2</option>
+            <option>Sarana 12 — Tank 3</option>
+          </select></div>
+        <div><label class=&quot;f&quot; for=&quot;xLitres&quot;>Litres transferred (L) <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;xLitres&quot; type=&quot;number&quot; inputmode=&quot;decimal&quot; min=&quot;0&quot; placeholder=&quot;e.g. 500&quot;></div>
+      </div>
+      <div class=&quot;grid g2&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;xBy&quot;>Transferred by <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;xBy&quot; type=&quot;text&quot; placeholder=&quot;name&quot;></div>
+      </div>
+      <p class=&quot;eyebrow&quot; style=&quot;margin-top:18px&quot;>Photo (optional)</p>
+      <div class=&quot;grid g3&quot; id=&quot;xPhotos&quot; style=&quot;margin-top:10px&quot;></div>
+      <div style=&quot;margin-top:14px&quot;><label class=&quot;f&quot; for=&quot;xNote&quot;>Notes</label><textarea id=&quot;xNote&quot; placeholder=&quot;optional&quot;></textarea></div>
+      <div style=&quot;margin-top:14px;display:flex;gap:10px;flex-wrap:wrap&quot;>
+        <button class=&quot;ghost&quot; id=&quot;xReset&quot;>Reset</button>
+        <button class=&quot;act&quot; id=&quot;xSave&quot;>Submit transfer</button>
+      </div>
+      <div class=&quot;hint&quot; id=&quot;xNoteMsg&quot;></div>
+    </div>
+  </section>
+
+  <!-- ============ LOG BOOK ============ -->
+  <section id=&quot;v-book&quot; hidden>
+    <div class=&quot;panel&quot;>
+      <h2 class=&quot;sec&quot;>Log book</h2>
+      <div class=&quot;filters&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;bKind&quot;>Type</label>
+          <select id=&quot;bKind&quot;><option value=&quot;&quot;>All</option><option value=&quot;receive&quot;>Receiving</option><option value=&quot;usage&quot;>Usage</option><option value=&quot;transfer&quot;>Transfer</option></select></div>
+        <div style=&quot;flex:1&quot;><label class=&quot;f&quot; for=&quot;bSearch&quot;>Search</label><input id=&quot;bSearch&quot; placeholder=&quot;driver, truck, tank, note…&quot;></div>
+        <div><button class=&quot;ghost&quot; id=&quot;bCsv&quot;>Download CSV</button></div>
+      </div>
+      <div class=&quot;scroll&quot; id=&quot;book&quot; style=&quot;margin-top:12px&quot;></div>
+    </div>
+  </section>
+
+  <!-- ============ STOCK ============ -->
+  <section id=&quot;v-stock&quot; hidden>
+    <div class=&quot;panel&quot;>
+      <h2 class=&quot;sec&quot;>Diesel stock &amp;amp; totals</h2>
+      <div class=&quot;grid g2&quot; style=&quot;margin-top:14px&quot;>
+        <div>
+          <p class=&quot;eyebrow&quot;>Usage breakdown (L)</p>
+          <div id=&quot;useBreak&quot; style=&quot;margin-top:8px&quot;></div>
+        </div>
+        <div>
+          <p class=&quot;eyebrow&quot;>Transfer breakdown (L)</p>
+          <div id=&quot;xferBreak&quot; style=&quot;margin-top:8px&quot;></div>
+        </div>
+      </div>
+      <div class=&quot;hint&quot; id=&quot;stockNote&quot; style=&quot;margin-top:14px&quot;></div>
+    </div>
+  </section>
+</div>
+
+<div class=&quot;lb&quot; id=&quot;lb&quot; hidden><div class=&quot;lb-in&quot;><div id=&quot;lbBody&quot;></div><button class=&quot;ghost&quot; id=&quot;lbClose&quot; style=&quot;color:#F2EFE9;border-color:#5C666E&quot;>Close</button></div></div>
+<div class=&quot;toast&quot; id=&quot;toast&quot;></div>
+
+<script>
+function $(id){ return document.getElementById(id); }
+var mem={}, toastTimer;
+function toast(msg){ var t=$(&quot;toast&quot;); t.textContent=msg; t.classList.add(&quot;on&quot;); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove(&quot;on&quot;); },2600); }
+function esc(s){ return String(s==null?&quot;&quot;:s).replace(/[&amp;<>&quot;]/g,function(c){return({&quot;&amp;&quot;:&quot;&amp;amp;&quot;,&quot;<&quot;:&quot;&amp;lt;&quot;,&quot;>&quot;:&quot;&amp;gt;&quot;,&quot;\&quot;&quot;:&quot;&amp;quot;&quot;})[c];}); }
+function has(){ return typeof window!==&quot;undefined&quot; &amp;&amp; window.storage &amp;&amp; typeof window.storage.get===&quot;function&quot;; }
+function ls(){ try{ return window.localStorage||null; }catch(e){ return null; } }
+async function load(key,fallback){
+  if(has()){ try{ var r=await window.storage.get(key); if(r&amp;&amp;r.value) return JSON.parse(r.value); }catch(e){} }
+  var L=ls(); if(L){ try{ var v=L.getItem(key); if(v!==null) return JSON.parse(v); }catch(e){} }
+  return (key in mem)?mem[key]:fallback;
+}
+async function save(key,val){ mem[key]=val; var text=JSON.stringify(val);
+  if(has()){ try{ await window.storage.set(key,text); }catch(e){} }
+  var L=ls(); if(L){ try{ L.setItem(key,text); }catch(e){} }
+}
+var MAX_PH=4, PH_MAX_PX=1000;
+function shrink(file){ return new Promise(function(resolve,reject){
+  var draw=function(src,w,h){ var scale=Math.min(1,PH_MAX_PX/Math.max(w,h)); var cw=Math.max(1,Math.round(w*scale)),ch=Math.max(1,Math.round(h*scale));
+    var c=document.createElement(&quot;canvas&quot;); c.width=cw; c.height=ch; c.getContext(&quot;2d&quot;).drawImage(src,0,0,cw,ch); resolve(c.toDataURL(&quot;image/jpeg&quot;,0.6)); };
+  if(typeof createImageBitmap===&quot;function&quot;){ createImageBitmap(file,{imageOrientation:&quot;from-image&quot;}).then(function(bm){ draw(bm,bm.width,bm.height); }).catch(function(){ viaImage(); }); }
+  else { viaImage(); }
+  function viaImage(){ var fr=new FileReader(); fr.onload=function(){ var im=new Image(); im.onload=function(){ draw(im,im.naturalWidth,im.naturalHeight); }; im.onerror=function(){ reject(new Error(&quot;x&quot;)); }; im.src=fr.result; }; fr.onerror=function(){ reject(new Error(&quot;x&quot;)); }; fr.readAsDataURL(file); }
+}); }
+function kb(d){ return Math.round((d||&quot;&quot;).length*0.75/1024); }
+function nowLocalDT(){ var d=new Date(); function p(n){ return (n<10?&quot;0&quot;:&quot;&quot;)+n; } return d.getFullYear()+&quot;-&quot;+p(d.getMonth()+1)+&quot;-&quot;+p(d.getDate())+&quot;T&quot;+p(d.getHours())+&quot;:&quot;+p(d.getMinutes()); }
+function fmtDT(s){ if(!s) return &quot;—&quot;; return String(s).replace(&quot;T&quot;,&quot; &quot;); }
+function num(v){ var n=parseFloat(v); return isFinite(n)?n:0; }
+function litres(n){ return (Math.round(n*10)/10).toLocaleString(&quot;en-US&quot;); }
+
+var ENTRY_KEY=&quot;diesel:entries&quot;, PH_KEY=&quot;diesel:photo:&quot;;
+var entries=[];
+var DEVICE_ID=(function(){ try{ var k=&quot;tdl:deviceId&quot;; var v=localStorage.getItem(k); if(!v){ v=&quot;dev-&quot;+Date.now().toString(36)+&quot;-&quot;+Math.random().toString(36).slice(2,8); localStorage.setItem(k,v);} return v; }catch(e){ return &quot;dev-local&quot;; } })();
+function adminOK(){ var u=prompt(&quot;Not the submitter's device.\nAdministrator username:&quot;); if(u===null) return false; var p=prompt(&quot;Administrator password:&quot;); if(p===null) return false; if(u.trim().toLowerCase()===&quot;admin&quot;&amp;&amp;p===&quot;Engineering&quot;) return true; toast(&quot;Wrong administrator credentials.&quot;); return false; }
+function canDelete(rec){ var owner=!rec||!rec.deviceId||rec.deviceId===DEVICE_ID; if(!owner&amp;&amp;!adminOK()) return false; return confirm(&quot;Are you sure to delete this entry?&quot;); }
+
+/* ---- photo component: renders into a container, returns {items,clear,keysAfterSave} ---- */
+function photoField(container, slots){
+  // slots: [{key,label}]
+  var state={}; slots.forEach(function(s){ state[s.key]=[]; });
+  function render(){
+    container.innerHTML = slots.map(function(s){
+      return '<div class=&quot;photo-slot&quot; data-slot=&quot;'+s.key+'&quot;><div class=&quot;pl&quot;>'+esc(s.label)+' <span style=&quot;color:var(--bad)&quot;>*</span></div>'+
+        '<div class=&quot;photo-btns&quot;>'+
+        '<button class=&quot;tiny cam&quot; type=&quot;button&quot; data-k=&quot;'+s.key+'&quot;>Take photo</button>'+
+        '<button class=&quot;tiny file&quot; type=&quot;button&quot; data-k=&quot;'+s.key+'&quot;>Choose file</button>'+
+        '</div>'+
+        '<input type=&quot;file&quot; class=&quot;inCam&quot; accept=&quot;image/*&quot; capture=&quot;environment&quot; hidden>'+
+        '<input type=&quot;file&quot; class=&quot;inFile&quot; accept=&quot;image/*&quot; multiple hidden>'+
+        '<div class=&quot;strip&quot;></div></div>';
+    }).join(&quot;&quot;);
+    slots.forEach(function(s){
+      var slot=container.querySelector('[data-slot=&quot;'+s.key+'&quot;]');
+      var inCam=slot.querySelector(&quot;.inCam&quot;), inFile=slot.querySelector(&quot;.inFile&quot;);
+      slot.querySelector(&quot;.cam&quot;).onclick=function(){ inCam.click(); };
+      slot.querySelector(&quot;.file&quot;).onclick=function(){ inFile.click(); };
+      inCam.onchange=async function(e){ await take(s.key,e.target.files); e.target.value=&quot;&quot;; };
+      inFile.onchange=async function(e){ await take(s.key,e.target.files); e.target.value=&quot;&quot;; };
+      drawStrip(s.key);
+    });
+  }
+  async function take(key,files){
+    for(var i=0;i<files.length;i++){ if(state[key].length>=MAX_PH){ toast(MAX_PH+&quot; photos max per slot.&quot;); break; }
+      var f=files[i]; if(!/^image\//.test(f.type)){ toast(&quot;Skipped &quot;+f.name+&quot; — not an image.&quot;); continue; }
+      try{ state[key].push(await shrink(f)); }catch(e){ toast(&quot;Could not read that photo.&quot;); } }
+    drawStrip(key);
+  }
+  function drawStrip(key){
+    var slot=container.querySelector('[data-slot=&quot;'+key+'&quot;]'); if(!slot) return;
+    var strip=slot.querySelector(&quot;.strip&quot;);
+    strip.innerHTML=state[key].map(function(d,i){ return '<div class=&quot;thumb&quot; style=&quot;background-image:url('+d+')&quot;><button data-rm=&quot;'+i+'&quot; title=&quot;Remove&quot;>&amp;#10005;</button></div>'; }).join(&quot;&quot;);
+    strip.querySelectorAll(&quot;[data-rm]&quot;).forEach(function(b){ b.onclick=function(){ state[key].splice(parseInt(b.getAttribute(&quot;data-rm&quot;),10),1); drawStrip(key); }; });
+  }
+  render();
+  return {
+    clear:function(){ slots.forEach(function(s){ state[s.key]=[]; }); render(); },
+    data:function(){ return state; }
+  };
+}
+
+/* save all photos for an entry -> returns {slotKey:[storageKeys]} */
+async function savePhotos(id, dataMap){
+  var out={};
+  for(var slot in dataMap){ var arr=dataMap[slot]; if(!arr||!arr.length) continue; var keys=[];
+    for(var i=0;i<arr.length;i++){ var k=PH_KEY+id+&quot;:&quot;+slot+i; await save(k,arr[i]); keys.push(k); }
+    out[slot]=keys; }
+  return out;
+}
+function allPhotoKeys(rec){ var out=[]; var p=rec.photos||{}; for(var s in p){ (p[s]||[]).forEach(function(k){ out.push(k); }); } return out; }
+
+/* ---- tabs ---- */
+var TABS=[[&quot;t-recv&quot;,&quot;v-recv&quot;],[&quot;t-use&quot;,&quot;v-use&quot;],[&quot;t-xfer&quot;,&quot;v-xfer&quot;],[&quot;t-book&quot;,&quot;v-book&quot;],[&quot;t-stock&quot;,&quot;v-stock&quot;]];
+TABS.forEach(function(pair){ $(pair[0]).addEventListener(&quot;click&quot;,function(){
+  TABS.forEach(function(p){ var on=p[0]===pair[0]; $(p[0]).setAttribute(&quot;aria-selected&quot;,on?&quot;true&quot;:&quot;false&quot;); $(p[1]).hidden=!on; });
+  if(pair[0]===&quot;t-book&quot;) drawBook();
+  if(pair[0]===&quot;t-stock&quot;) drawStock();
+}); });
+
+/* ---- Now buttons ---- */
+[&quot;rNow:rWhen&quot;,&quot;uNow:uWhen&quot;,&quot;xNow:xWhen&quot;].forEach(function(pair){ var a=pair.split(&quot;:&quot;); $(a[0]).addEventListener(&quot;click&quot;,function(){ $(a[1]).value=nowLocalDT(); }); });
+
+/* ---- received qty auto ---- */
+function recalcRecv(){ var q=num($(&quot;rAfter&quot;).value)-num($(&quot;rBefore&quot;).value); if(q<0) q=0; $(&quot;rQty&quot;).textContent=litres(q); return q; }
+$(&quot;rBefore&quot;).addEventListener(&quot;input&quot;,recalcRecv);
+$(&quot;rAfter&quot;).addEventListener(&quot;input&quot;,recalcRecv);
+
+/* ---- usage Others toggle ---- */
+$(&quot;uType&quot;).addEventListener(&quot;change&quot;,function(){ $(&quot;uOtherWrap&quot;).hidden = $(&quot;uType&quot;).value!==&quot;Others&quot;; });
+
+/* ---- photo fields ---- */
+var RECV_PH=photoField($(&quot;rPhotos&quot;),[
+  {key:&quot;truck&quot;,label:&quot;Truck number&quot;},
+  {key:&quot;before&quot;,label:&quot;Flow meter before&quot;},
+  {key:&quot;after&quot;,label:&quot;Flow meter after&quot;},
+  {key:&quot;tank&quot;,label:&quot;Tank level&quot;},
+  {key:&quot;do&quot;,label:&quot;Delivery order receipt&quot;}
+]);
+var USE_PH=photoField($(&quot;uPhotos&quot;),[{key:&quot;photo&quot;,label:&quot;Usage photo&quot;}]);
+var XFER_PH=photoField($(&quot;xPhotos&quot;),[{key:&quot;photo&quot;,label:&quot;Transfer photo&quot;}]);
+
+/* ---- totals / header ---- */
+function totals(){
+  var recv=0,use=0,xfer=0;
+  entries.forEach(function(e){ if(e.kind===&quot;receive&quot;) recv+=num(e.received); else if(e.kind===&quot;usage&quot;) use+=num(e.litres); else if(e.kind===&quot;transfer&quot;) xfer+=num(e.litres); });
+  return {recv:recv,use:use,xfer:xfer,stock:recv-use-xfer};
+}
+function refreshHead(){ var t=totals();
+  $(&quot;sStock&quot;).innerHTML=litres(t.stock)+'<small>L</small>'; $(&quot;sStock&quot;).className=&quot;v &quot;+(t.stock<0?&quot;warn&quot;:&quot;good&quot;);
+  $(&quot;sRecv&quot;).innerHTML=litres(t.recv)+'<small>L</small>';
+  $(&quot;sUse&quot;).innerHTML=litres(t.use)+'<small>L</small>';
+  $(&quot;sXfer&quot;).innerHTML=litres(t.xfer)+'<small>L</small>';
+}
+
+/* ---- submit handlers ---- */
+$(&quot;rSave&quot;).addEventListener(&quot;click&quot;,async function(){
+  if(!$(&quot;rWhen&quot;).value){ toast(&quot;Enter date &amp; time receiving.&quot;); $(&quot;rWhen&quot;).focus(); return; }
+  if(!$(&quot;rDriver&quot;).value.trim()){ toast(&quot;Enter driver name.&quot;); $(&quot;rDriver&quot;).focus(); return; }
+  if(!$(&quot;rTruck&quot;).value.trim()){ toast(&quot;Enter truck number.&quot;); $(&quot;rTruck&quot;).focus(); return; }
+  if(!$(&quot;rSupplier&quot;).value.trim()){ toast(&quot;Enter supplier.&quot;); $(&quot;rSupplier&quot;).focus(); return; }
+  if(!$(&quot;rDO&quot;).value.trim()){ toast(&quot;Enter delivery order no.&quot;); $(&quot;rDO&quot;).focus(); return; }
+  if($(&quot;rTank&quot;).value.trim()===&quot;&quot;){ toast(&quot;Enter tank level after.&quot;); $(&quot;rTank&quot;).focus(); return; }
+  if($(&quot;rBefore&quot;).value===&quot;&quot;){ toast(&quot;Enter flow meter reading before.&quot;); $(&quot;rBefore&quot;).focus(); return; }
+  if($(&quot;rAfter&quot;).value===&quot;&quot;){ toast(&quot;Enter flow meter reading after.&quot;); $(&quot;rAfter&quot;).focus(); return; }
+  if(num($(&quot;rAfter&quot;).value)-num($(&quot;rBefore&quot;).value)<=0){ toast(&quot;Flow meter after must be greater than before.&quot;); $(&quot;rAfter&quot;).focus(); return; }
+  var rp=RECV_PH.data();
+  var reqShots=[[&quot;truck&quot;,&quot;truck number&quot;],[&quot;before&quot;,&quot;flow meter before&quot;],[&quot;after&quot;,&quot;flow meter after&quot;],[&quot;tank&quot;,&quot;tank level&quot;],[&quot;do&quot;,&quot;delivery order receipt&quot;]];
+  for(var ri=0;ri<reqShots.length;ri++){ if(!(rp[reqShots[ri][0]]||[]).length){ toast(&quot;Add the &quot;+reqShots[ri][1]+&quot; photo.&quot;); return; } }
+  var when=$(&quot;rWhen&quot;).value||nowLocalDT();
+  var received=recalcRecv();
+  var id=Date.now();
+  var photos=await savePhotos(id,RECV_PH.data());
+  entries.push({ id:id, ts:Date.parse(when)||Date.now(), kind:&quot;receive&quot;, date:when,
+    driver:$(&quot;rDriver&quot;).value.trim(), truck:$(&quot;rTruck&quot;).value.trim(), supplier:$(&quot;rSupplier&quot;).value.trim(),
+    doNo:$(&quot;rDO&quot;).value.trim(), tankLevel:$(&quot;rTank&quot;).value.trim(),
+    meterBefore:num($(&quot;rBefore&quot;).value), meterAfter:num($(&quot;rAfter&quot;).value), received:received,
+    note:$(&quot;rNote&quot;).value.trim(), photos:photos, deviceId:DEVICE_ID });
+  await save(ENTRY_KEY,entries); refreshHead();
+  $(&quot;rNoteMsg&quot;).textContent=&quot;Received &quot;+litres(received)+&quot; L logged.&quot;;
+  RECV_PH.clear(); [&quot;rDriver&quot;,&quot;rTruck&quot;,&quot;rSupplier&quot;,&quot;rDO&quot;,&quot;rTank&quot;,&quot;rBefore&quot;,&quot;rAfter&quot;,&quot;rNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); recalcRecv();
+  toast(&quot;Receiving submitted.&quot;);
+});
+$(&quot;rReset&quot;).addEventListener(&quot;click&quot;,function(){ RECV_PH.clear(); [&quot;rDriver&quot;,&quot;rTruck&quot;,&quot;rSupplier&quot;,&quot;rDO&quot;,&quot;rTank&quot;,&quot;rBefore&quot;,&quot;rAfter&quot;,&quot;rNote&quot;,&quot;rWhen&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); recalcRecv(); toast(&quot;Form reset.&quot;); });
+
+$(&quot;uSave&quot;).addEventListener(&quot;click&quot;,async function(){
+  if(!$(&quot;uWhen&quot;).value){ toast(&quot;Enter date &amp; time.&quot;); $(&quot;uWhen&quot;).focus(); return; }
+  if(num($(&quot;uLitres&quot;).value)<=0){ toast(&quot;Enter litres used.&quot;); $(&quot;uLitres&quot;).focus(); return; }
+  var type=$(&quot;uType&quot;).value; if(type===&quot;Others&quot; &amp;&amp; !$(&quot;uOther&quot;).value.trim()){ toast(&quot;Describe the 'Others' usage.&quot;); $(&quot;uOther&quot;).focus(); return; }
+  if(!$(&quot;uBy&quot;).value.trim()){ toast(&quot;Enter operator / taken by.&quot;); $(&quot;uBy&quot;).focus(); return; }
+  if(!$(&quot;uDept&quot;).value){ toast(&quot;Pick the department.&quot;); $(&quot;uDept&quot;).focus(); return; }
+  if(!(USE_PH.data().photo||[]).length){ toast(&quot;Add a usage photo.&quot;); return; }
+  var when=$(&quot;uWhen&quot;).value||nowLocalDT();
+  var id=Date.now(); var photos=await savePhotos(id,USE_PH.data());
+  entries.push({ id:id, ts:Date.parse(when)||Date.now(), kind:&quot;usage&quot;, date:when,
+    usageType:type, usageOther:$(&quot;uOther&quot;).value.trim(), dept:$(&quot;uDept&quot;).value, litres:num($(&quot;uLitres&quot;).value), by:$(&quot;uBy&quot;).value.trim(),
+    note:$(&quot;uNote&quot;).value.trim(), photos:photos, deviceId:DEVICE_ID });
+  await save(ENTRY_KEY,entries); refreshHead();
+  $(&quot;uNoteMsg&quot;).textContent=&quot;Usage &quot;+litres(num($(&quot;uLitres&quot;).value))+&quot; L logged.&quot;;
+  USE_PH.clear(); [&quot;uLitres&quot;,&quot;uOther&quot;,&quot;uBy&quot;,&quot;uNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;uDept&quot;).value=&quot;&quot;; $(&quot;uOtherWrap&quot;).hidden=true; $(&quot;uType&quot;).value=&quot;Boiler Primary Production (PMD)&quot;;
+  toast(&quot;Usage submitted.&quot;);
+});
+$(&quot;uReset&quot;).addEventListener(&quot;click&quot;,function(){ USE_PH.clear(); [&quot;uLitres&quot;,&quot;uOther&quot;,&quot;uBy&quot;,&quot;uNote&quot;,&quot;uWhen&quot;,&quot;uDept&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;uOtherWrap&quot;).hidden=true; toast(&quot;Form reset.&quot;); });
+
+$(&quot;xSave&quot;).addEventListener(&quot;click&quot;,async function(){
+  if(!$(&quot;xWhen&quot;).value){ toast(&quot;Enter date &amp; time.&quot;); $(&quot;xWhen&quot;).focus(); return; }
+  if(num($(&quot;xLitres&quot;).value)<=0){ toast(&quot;Enter litres transferred.&quot;); $(&quot;xLitres&quot;).focus(); return; }
+  if(!$(&quot;xBy&quot;).value.trim()){ toast(&quot;Enter transferred by.&quot;); $(&quot;xBy&quot;).focus(); return; }
+  if(!(XFER_PH.data().photo||[]).length){ toast(&quot;Add a transfer photo.&quot;); return; }
+  var when=$(&quot;xWhen&quot;).value||nowLocalDT();
+  var id=Date.now(); var photos=await savePhotos(id,XFER_PH.data());
+  entries.push({ id:id, ts:Date.parse(when)||Date.now(), kind:&quot;transfer&quot;, date:when,
+    dest:$(&quot;xDest&quot;).value, litres:num($(&quot;xLitres&quot;).value), by:$(&quot;xBy&quot;).value.trim(),
+    note:$(&quot;xNote&quot;).value.trim(), photos:photos, deviceId:DEVICE_ID });
+  await save(ENTRY_KEY,entries); refreshHead();
+  $(&quot;xNoteMsg&quot;).textContent=&quot;Transfer &quot;+litres(num($(&quot;xLitres&quot;).value))+&quot; L to &quot;+$(&quot;xDest&quot;).value+&quot; logged.&quot;;
+  XFER_PH.clear(); [&quot;xLitres&quot;,&quot;xBy&quot;,&quot;xNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; });
+  toast(&quot;Transfer submitted.&quot;);
+});
+$(&quot;xReset&quot;).addEventListener(&quot;click&quot;,function(){ XFER_PH.clear(); [&quot;xLitres&quot;,&quot;xBy&quot;,&quot;xNote&quot;,&quot;xWhen&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); toast(&quot;Form reset.&quot;); });
+
+/* ---- log book ---- */
+function detailOf(e){
+  if(e.kind===&quot;receive&quot;) return [e.truck,e.driver,e.supplier].filter(Boolean).join(&quot; · &quot;)||&quot;Receiving&quot;;
+  if(e.kind===&quot;usage&quot;) return (e.usageType===&quot;Others&quot;?(&quot;Others: &quot;+(e.usageOther||&quot;&quot;)):e.usageType);
+  if(e.kind===&quot;transfer&quot;) return e.dest;
+  return &quot;&quot;;
+}
+function kindFlag(k){ return '<span class=&quot;flag k-'+k+'&quot;>'+(k===&quot;receive&quot;?&quot;Receive&quot;:k===&quot;usage&quot;?&quot;Usage&quot;:&quot;Transfer&quot;)+'</span>'; }
+function drawBook(){
+  var kind=$(&quot;bKind&quot;).value, q=$(&quot;bSearch&quot;).value.trim().toLowerCase();
+  var list=entries.slice().sort(function(a,b){ return (b.ts||b.id)-(a.ts||a.id); }).filter(function(e){
+    if(kind &amp;&amp; e.kind!==kind) return false;
+    if(q){ var blob=[e.driver,e.truck,e.supplier,e.doNo,e.tankLevel,e.usageType,e.usageOther,e.dest,e.by,e.note].join(&quot; &quot;).toLowerCase(); if(blob.indexOf(q)<0) return false; }
+    return true;
+  });
+  if(!list.length){ $(&quot;book&quot;).innerHTML='<div class=&quot;empty&quot;><b>No entries</b>Submitted receiving, usage and transfers appear here.</div>'; return; }
+  var h='<table><thead><tr><th>Date &amp;amp; time</th><th>Type</th><th>Detail</th><th class=&quot;num&quot;>In (L)</th><th class=&quot;num&quot;>Out (L)</th><th>By</th><th>Photos</th><th></th></tr></thead><tbody>';
+  list.forEach(function(e){
+    var inL = e.kind===&quot;receive&quot;? num(e.received):0;
+    var outL = e.kind===&quot;receive&quot;?0:num(e.litres);
+    var nPh=allPhotoKeys(e).length;
+    h+='<tr><td style=&quot;white-space:nowrap&quot;>'+esc(fmtDT(e.date))+'</td><td>'+kindFlag(e.kind)+'</td>'+
+      '<td>'+esc(detailOf(e))+(e.note?'<div style=&quot;color:var(--ink-soft)&quot;>'+esc(e.note)+'</div>':&quot;&quot;)+'</td>'+
+      '<td class=&quot;num&quot;>'+(inL?litres(inL):&quot;—&quot;)+'</td><td class=&quot;num&quot;>'+(outL?litres(outL):&quot;—&quot;)+'</td>'+
+      '<td>'+esc(e.driver||e.by||&quot;—&quot;)+'</td>'+
+      '<td>'+(nPh?'<button class=&quot;tiny&quot; data-ph=&quot;'+e.id+'&quot;>View '+nPh+'</button>':&quot;—&quot;)+'</td>'+
+      '<td style=&quot;white-space:nowrap&quot;><button class=&quot;tiny warn&quot; data-del=&quot;'+e.id+'&quot;>Delete</button></td></tr>';
+  });
+  $(&quot;book&quot;).innerHTML=h+'</tbody></table>';
+  $(&quot;book&quot;).querySelectorAll(&quot;[data-ph]&quot;).forEach(function(b){ b.onclick=function(){ var e=byId(b.getAttribute(&quot;data-ph&quot;)); if(e) openPhotos(e); }; });
+  $(&quot;book&quot;).querySelectorAll(&quot;[data-del]&quot;).forEach(function(b){ b.onclick=async function(){
+    var e=byId(b.getAttribute(&quot;data-del&quot;)); if(!canDelete(e)) return;
+    var keys=allPhotoKeys(e); for(var i=0;i<keys.length;i++){ try{ if(has()&amp;&amp;window.storage.delete) await window.storage.delete(keys[i]); }catch(x){} }
+    entries=entries.filter(function(v){ return String(v.id)!==String(e.id); });
+    await save(ENTRY_KEY,entries); refreshHead(); drawBook(); toast(&quot;Entry deleted.&quot;);
+  }; });
+}
+function byId(id){ var f=null; entries.forEach(function(e){ if(String(e.id)===String(id)) f=e; }); return f; }
+async function openPhotos(e){
+  $(&quot;lbBody&quot;).innerHTML='<div style=&quot;color:#ccc;font-family:var(--mono)&quot;>Loading…</div>'; $(&quot;lb&quot;).hidden=false;
+  var p=e.photos||{}, html=&quot;&quot;;
+  for(var slot in p){ for(var i=0;i<p[slot].length;i++){ var d=await load(p[slot][i],null); if(d) html+='<div><img src=&quot;'+d+'&quot;><div style=&quot;color:#9AA6AE;font-family:var(--mono);font-size:11px;margin-bottom:12px&quot;>'+esc(slot)+'</div></div>'; } }
+  $(&quot;lbBody&quot;).innerHTML=html||'<div style=&quot;color:#ccc;font-family:var(--mono)&quot;>No photos stored.</div>';
+}
+$(&quot;lbClose&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;lb&quot;).hidden=true; });
+$(&quot;lb&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.target===$(&quot;lb&quot;)) $(&quot;lb&quot;).hidden=true; });
+$(&quot;bKind&quot;).addEventListener(&quot;change&quot;,drawBook);
+$(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
+$(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
+  var head=[&quot;datetime&quot;,&quot;type&quot;,&quot;detail&quot;,&quot;in_litres&quot;,&quot;out_litres&quot;,&quot;meter_before&quot;,&quot;meter_after&quot;,&quot;tank_level&quot;,&quot;do_no&quot;,&quot;by&quot;,&quot;note&quot;];
+  var rows=entries.slice().sort(function(a,b){ return (a.ts||a.id)-(b.ts||b.id); }).map(function(e){
+    return [fmtDT(e.date), e.kind, detailOf(e), e.kind===&quot;receive&quot;?num(e.received):0, e.kind===&quot;receive&quot;?0:num(e.litres),
+      e.meterBefore||&quot;&quot;, e.meterAfter||&quot;&quot;, e.tankLevel||&quot;&quot;, e.doNo||&quot;&quot;, e.driver||e.by||&quot;&quot;, (e.note||&quot;&quot;).replace(/[\r\n]+/g,&quot; &quot;)];
+  });
+  var csv=[head].concat(rows).map(function(r){ return r.map(function(c){ return '&quot;'+String(c).replace(/&quot;/g,'&quot;&quot;')+'&quot;'; }).join(&quot;,&quot;); }).join(&quot;\n&quot;);
+  var a=document.createElement(&quot;a&quot;); a.href=&quot;data:text/csv;charset=utf-8,&quot;+encodeURIComponent(csv); a.download=&quot;diesel_log.csv&quot;; a.click();
+});
+
+/* ---- stock breakdowns ---- */
+function drawStock(){
+  var byUse={}, byX={};
+  entries.forEach(function(e){ if(e.kind===&quot;usage&quot;){ var k=e.usageType===&quot;Others&quot;?(&quot;Others: &quot;+(e.usageOther||&quot;other&quot;)):e.usageType; byUse[k]=(byUse[k]||0)+num(e.litres); }
+    else if(e.kind===&quot;transfer&quot;){ byX[e.dest]=(byX[e.dest]||0)+num(e.litres); } });
+  function bars(map,color){ var keys=Object.keys(map); if(!keys.length) return '<div class=&quot;hint&quot;>No records yet.</div>';
+    var max=1; keys.forEach(function(k){ max=Math.max(max,map[k]); });
+    return keys.map(function(k){ var pct=Math.max(3,Math.round(map[k]/max*100));
+      return '<div class=&quot;sbar&quot;><div class=&quot;lbl&quot;>'+esc(k)+'</div><div class=&quot;track&quot;><i style=&quot;width:'+pct+'%;background:'+color+'&quot;></i></div><div class=&quot;val&quot;>'+litres(map[k])+'</div></div>'; }).join(&quot;&quot;);
+  }
+  $(&quot;useBreak&quot;).innerHTML=bars(byUse,&quot;var(--kraft)&quot;);
+  $(&quot;xferBreak&quot;).innerHTML=bars(byX,&quot;var(--amber)&quot;);
+  var t=totals();
+  $(&quot;stockNote&quot;).textContent=&quot;Current stock = received (&quot;+litres(t.recv)+&quot; L) − used (&quot;+litres(t.use)+&quot; L) − transferred (&quot;+litres(t.xfer)+&quot; L) = &quot;+litres(t.stock)+&quot; L.&quot;;
+}
+
+/* ---- boot ---- */
+(async function(){
+  entries=await load(ENTRY_KEY,[]); if(!Array.isArray(entries)) entries=[];
+  $(&quot;rWhen&quot;).value=nowLocalDT(); $(&quot;uWhen&quot;).value=nowLocalDT(); $(&quot;xWhen&quot;).value=nowLocalDT();
+  recalcRecv(); refreshHead();
+})();
+</script>
+</body></html>
+"></iframe>
+      </section>
     </div>
   </div>
 </div>
@@ -4050,7 +4619,7 @@ const REPORTKINDS = {
 };
 
 /* ---------- navigation ---------- */
-const TITLES={dashboard:"Engineering Dashboard",downtime:"Technician Downtime Report",workorder:"Utility & Facility Work Order",downtime2:"Technician Downtime Log Book",workorder2:"Work Order Request — Utility Facility",linedt:"Downtime by Line"};
+const TITLES={dashboard:"Engineering Dashboard",downtime:"Technician Downtime Report",workorder:"Utility & Facility Work Order",downtime2:"Technician Downtime Log Book",workorder2:"Work Order Request — Utility Facility",linedt:"Downtime by Line",diesel:"Diesel Inventory Management"};
 function nav(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -4435,7 +5004,8 @@ function autoFit(frame){
 }
 autoFit(document.getElementById('logbookFrame'));
 autoFit(document.getElementById('workorderFrame'));
-window.addEventListener('resize', ()=>{ fitFrame(document.getElementById('logbookFrame')); fitFrame(document.getElementById('workorderFrame')); });
+autoFit(document.getElementById('dieselFrame'));
+window.addEventListener('resize', ()=>{ fitFrame(document.getElementById('logbookFrame')); fitFrame(document.getElementById('workorderFrame')); fitFrame(document.getElementById('dieselFrame')); });
 
 /* ---------- boot ---------- */
 initEntities();
