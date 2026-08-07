@@ -234,7 +234,8 @@
   html { -webkit-text-size-adjust: 100%; }
   @media (max-width: 680px) {
     .topbar { flex-wrap: wrap; padding: 10px 14px; gap: 10px 12px; }
-    .topbar h1 { font-size: 18px; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .topbar-main { flex: 1 1 100%; min-width: 0; }
+    .topbar h1 { font-size: 18px; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.12; }
     .topbar .field-inline { flex: 0 1 auto; }
     .topbar .field-inline select { flex: 0 1 auto; width: auto; min-width: 0; }
     .content { padding: 16px 14px 40px; }
@@ -470,10 +471,11 @@
     display:flex;align-items:center;gap:10px}
 
   .grid{display:grid;gap:12px}
-  .g5{grid-template-columns:repeat(5,1fr)}
-  .g4{grid-template-columns:repeat(4,1fr)}
-  .g3{grid-template-columns:repeat(3,1fr)}
-  .g2{grid-template-columns:1fr 1fr}
+  .grid>*{min-width:0}
+  .g5{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .g2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
   label.f{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px}
   input,select,textarea{width:100%;font-family:var(--mono);font-size:14px;color:var(--ink);background:#FBFAF7;
     border:1px solid var(--rule);border-radius:2px;padding:8px 9px}
@@ -538,7 +540,13 @@
 
   .flag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
     padding:2px 6px;border:1px solid currentColor;border-radius:2px}
-  .st-closed{color:var(--good)} .st-parts{color:var(--amber)} .st-temp{color:var(--kraft)} .st-open{color:var(--bad)}
+  /* traffic-light status blocks */
+  .st-closed{color:#fff;background:#2E7D4F;border-color:#2E7D4F}
+  .st-parts{color:#3A2C00;background:#EAB308;border-color:#EAB308}
+  .st-temp{color:#3A2C00;background:#EAB308;border-color:#EAB308}
+  .st-open{color:#fff;background:#C0392B;border-color:#C0392B}
+  .vbadge{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;padding:1px 5px;border-radius:2px;border:1px solid currentColor;margin:1px 0}
+  .v-ok{color:#2E7D4F}.v-no{color:#C0392B}.v-none{color:var(--ink-soft)}
 
   .thumb{position:relative;width:96px;height:96px;border:1px solid var(--rule);border-radius:2px;
     background-size:cover;background-position:center;background-color:#F4F1EA}
@@ -556,11 +564,11 @@
 
   @media (max-width:900px){ .g5{grid-template-columns:repeat(3,1fr)} .reads{grid-template-columns:repeat(3,1fr)} }
   @media (max-width:760px){
-    .g5,.g4,.g3,.g2{grid-template-columns:1fr 1fr}
+    .g5,.g4,.g3,.g2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
     .reads,.reads.four{grid-template-columns:1fr 1fr}
     .card-head h1{font-size:24px}
   }
-  @media (max-width:460px){ .g5,.g4,.g3,.g2{grid-template-columns:1fr} }
+  @media (max-width:460px){ .g5,.g4,.g3,.g2{grid-template-columns:minmax(0,1fr)} }
 
   /* ---- touch and small screens ---- */
   html{-webkit-text-size-adjust:100%}
@@ -599,7 +607,7 @@
   #book td.pa-col, #book th.pa-col{ min-width:200px; white-space:normal; }
   #book td.tech-col, #book th.tech-col{ min-width:72px; max-width:72px; width:72px; white-space:normal; }
   /* action buttons match the status flag size */
-  #book [data-del], #book [data-close]{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:2px 6px; line-height:1.5; }
+  #book [data-del], #book [data-close], #book [data-edit], #book [data-verify]{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:2px 6px; line-height:1.5; }
 </style>
 
 <div class=&quot;wrap&quot;>
@@ -633,21 +641,21 @@
           <select id=&quot;eShift&quot;><option>1 (07–15)</option><option>2 (15–23)</option><option>3 (23–07)</option><option>Day</option></select></div>
         <div><label class=&quot;f&quot; for=&quot;eCat&quot;>Machine</label><select id=&quot;eCat&quot;></select></div>
         <div><label class=&quot;f&quot; for=&quot;eLine&quot;>Line</label><select id=&quot;eLine&quot;></select></div>
-        <div><label class=&quot;f&quot; for=&quot;eBy&quot;>Reported by</label><input id=&quot;eBy&quot; placeholder=&quot;Technician Name&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;eBy&quot;>Reported by <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;eBy&quot; placeholder=&quot;Technician Name&quot;></div>
       </div>
     </div>
 
     <div class=&quot;panel&quot;>
       <p class=&quot;eyebrow&quot;>Clock</p>
       <div class=&quot;grid g3&quot;>
-        <div><label class=&quot;f&quot; for=&quot;tCall&quot;>Line stopped / called</label>
-          <div style=&quot;display:flex;gap:6px&quot;><input type=&quot;datetime-local&quot; id=&quot;tCall&quot; style=&quot;flex:1&quot;>
+        <div><label class=&quot;f&quot; for=&quot;tCall&quot;>Line stopped / called <span style=&quot;color:var(--bad)&quot;>*</span></label>
+          <div style=&quot;display:flex;gap:6px&quot;><input type=&quot;datetime-local&quot; id=&quot;tCall&quot; style=&quot;flex:1;min-width:0&quot;>
           <button class=&quot;ghost&quot; type=&quot;button&quot; data-now=&quot;tCall&quot; style=&quot;padding:8px 10px;white-space:nowrap&quot;>Now</button></div></div>
-        <div><label class=&quot;f&quot; for=&quot;tStart&quot;>Technician started</label>
-          <div style=&quot;display:flex;gap:6px&quot;><input type=&quot;datetime-local&quot; id=&quot;tStart&quot; style=&quot;flex:1&quot;>
+        <div><label class=&quot;f&quot; for=&quot;tStart&quot;>Technician started <span style=&quot;color:var(--bad)&quot;>*</span></label>
+          <div style=&quot;display:flex;gap:6px&quot;><input type=&quot;datetime-local&quot; id=&quot;tStart&quot; style=&quot;flex:1;min-width:0&quot;>
           <button class=&quot;ghost&quot; type=&quot;button&quot; data-now=&quot;tStart&quot; style=&quot;padding:8px 10px;white-space:nowrap&quot;>Now</button></div></div>
-        <div><label class=&quot;f&quot; for=&quot;tEnd&quot;>Line running again</label>
-          <div style=&quot;display:flex;gap:6px&quot;><input type=&quot;datetime-local&quot; id=&quot;tEnd&quot; style=&quot;flex:1&quot;>
+        <div><label class=&quot;f&quot; for=&quot;tEnd&quot;>Line running again <span style=&quot;color:var(--bad)&quot;>*</span></label>
+          <div style=&quot;display:flex;gap:6px&quot;><input type=&quot;datetime-local&quot; id=&quot;tEnd&quot; style=&quot;flex:1;min-width:0&quot;>
           <button class=&quot;ghost&quot; type=&quot;button&quot; data-now=&quot;tEnd&quot; style=&quot;padding:8px 10px;white-space:nowrap&quot;>Now</button></div></div>
       </div>
       <input type=&quot;hidden&quot; id=&quot;tDays&quot; value=&quot;0&quot;>
@@ -708,7 +716,7 @@
     <div class=&quot;panel&quot;>
       <p class=&quot;eyebrow&quot;>Close out</p>
       <div class=&quot;grid g3&quot;>
-        <div><label class=&quot;f&quot; for=&quot;eTech&quot;>Technician</label>
+        <div><label class=&quot;f&quot; for=&quot;eTech&quot;>Technician <span style=&quot;color:var(--bad)&quot;>*</span></label>
           <input id=&quot;eTech&quot; list=&quot;techNames&quot; placeholder=&quot;type name&quot; autocomplete=&quot;off&quot;></div>
         <div><label class=&quot;f&quot; for=&quot;eTech2&quot;>Second technician</label>
           <input id=&quot;eTech2&quot; list=&quot;techNames&quot; placeholder=&quot;optional&quot; autocomplete=&quot;off&quot;></div>
@@ -733,8 +741,11 @@
         <input id=&quot;eFollow&quot; placeholder=&quot;e.g. order bearing, schedule alignment next PM&quot;>
       </div>
       <div style=&quot;margin-top:16px;display:flex;gap:10px;flex-wrap:wrap&quot;>
-        <button class=&quot;act&quot; id=&quot;saveEvt&quot;>Submit form</button>
         <button class=&quot;ghost&quot; id=&quot;clearForm&quot;>Reset form</button>
+        <button class=&quot;ghost&quot; id=&quot;saveDraft&quot; style=&quot;color:var(--starch);border-color:var(--starch)&quot;>Save as Draft</button>
+      </div>
+      <div style=&quot;margin-top:10px&quot;>
+        <button class=&quot;act&quot; id=&quot;saveEvt&quot;>Submit form</button>
       </div>
       <div class=&quot;hint&quot; id=&quot;saveNote&quot;></div>
       <datalist id=&quot;techNames&quot;></datalist>
@@ -805,9 +816,11 @@
           <select id=&quot;bStatus&quot;><option value=&quot;&quot;>All</option><option>Open</option><option>Waiting parts</option><option>Temporary fix</option><option>Closed</option></select></div>
         <div><label class=&quot;f&quot; for=&quot;bSearch&quot;>Search</label><input id=&quot;bSearch&quot; placeholder=&quot;component, cause, part…&quot;></div>
         <div><button class=&quot;ghost&quot; id=&quot;csv&quot;>Download CSV</button></div>
+        <div><button class=&quot;ghost&quot; id=&quot;histBtn&quot;>Deleted history</button></div>
         <div><button class=&quot;ghost&quot; id=&quot;wipe&quot; style=&quot;color:var(--bad)&quot;>Delete all stops</button></div>
       </div>
       <div class=&quot;scroll&quot; id=&quot;book&quot;></div>
+      <div class=&quot;scroll&quot; id=&quot;trash&quot; hidden></div>
     </div>
   </section>
 
@@ -869,6 +882,23 @@
 
 <div class=&quot;lb&quot; id=&quot;lb&quot; hidden><div class=&quot;lb-in&quot;><div id=&quot;lbBody&quot;></div><button class=&quot;ghost&quot; id=&quot;lbClose&quot; style=&quot;color:#F2EFE9;border-color:#5C666E&quot;>Close</button></div></div>
 
+<div class=&quot;lb&quot; id=&quot;vbModal&quot; hidden><div class=&quot;lb-in&quot; style=&quot;max-width:440px;text-align:left;background:var(--panel);border-radius:3px;padding:22px&quot;>
+  <h3 style=&quot;font-family:var(--disp);text-transform:uppercase;letter-spacing:.05em;margin:0 0 4px;color:var(--ink)&quot;>Verify report</h3>
+  <div id=&quot;vbMeta&quot; class=&quot;hint&quot; style=&quot;margin-bottom:14px&quot;></div>
+  <label class=&quot;f&quot; for=&quot;vbRole&quot;>Role</label>
+  <select id=&quot;vbRole&quot;><option value=&quot;lead&quot;>Shift Lead</option><option value=&quot;sup&quot;>Supervisor</option></select>
+  <label class=&quot;f&quot; for=&quot;vbDecision&quot; style=&quot;margin-top:10px;display:block&quot;>Decision</label>
+  <select id=&quot;vbDecision&quot;><option value=&quot;Approved&quot;>Approve</option><option value=&quot;Rejected&quot;>Reject</option></select>
+  <label class=&quot;f&quot; for=&quot;vbBy&quot; style=&quot;margin-top:10px;display:block&quot;>Your name</label>
+  <input id=&quot;vbBy&quot; placeholder=&quot;Name&quot;>
+  <label class=&quot;f&quot; for=&quot;vbNote&quot; style=&quot;margin-top:10px;display:block&quot;>Note (optional)</label>
+  <textarea id=&quot;vbNote&quot; placeholder=&quot;Comment / reason&quot;></textarea>
+  <div style=&quot;margin-top:16px;display:flex;gap:10px;flex-wrap:wrap&quot;>
+    <button class=&quot;act&quot; id=&quot;vbSave&quot;>Save verification</button>
+    <button class=&quot;ghost&quot; id=&quot;vbCancel&quot;>Cancel</button>
+  </div>
+</div></div>
+
 <div class=&quot;toast&quot; id=&quot;toast&quot;></div>
 
 <script>
@@ -917,7 +947,25 @@ async function drop(key){
   if(L){ try{ L.removeItem(key); }catch(e){} }
 }
 
-var CFG_KEY = &quot;tdl:config&quot;, EVT_KEY = &quot;tdl:events&quot;, PH_KEY = &quot;tdl:photo:&quot;;
+var CFG_KEY = &quot;tdl:config&quot;, EVT_KEY = &quot;tdl:events&quot;, PH_KEY = &quot;tdl:photo:&quot;, DEL_KEY = &quot;tdl:deleted&quot;;
+var deleted = [], showingTrash = false;
+/* device-local owner token: only the device that submitted a report may edit it */
+var DEVICE_ID = (function(){ try{ var k=&quot;tdl:deviceId&quot;; var v=localStorage.getItem(k);
+  if(!v){ v=&quot;dev-&quot;+Date.now().toString(36)+&quot;-&quot;+Math.random().toString(36).slice(2,8); localStorage.setItem(k,v); }
+  return v; }catch(e){ return &quot;dev-local&quot;; } })();
+var editingId = null;
+/* delete permissions: submitter's device, else administrator (admin / Engineering) */
+function adminOK(){
+  var u = prompt(&quot;Not the submitter's device.\nAdministrator username:&quot;); if(u === null) return false;
+  var p = prompt(&quot;Administrator password:&quot;); if(p === null) return false;
+  if(u.trim().toLowerCase() === &quot;admin&quot; &amp;&amp; p === &quot;Engineering&quot;) return true;
+  toast(&quot;Wrong administrator credentials.&quot;); return false;
+}
+function canDelete(rec){
+  var owner = !rec || !rec.deviceId || rec.deviceId === DEVICE_ID;
+  if(!owner &amp;&amp; !adminOK()) return false;
+  return confirm(&quot;Are you sure to delete this report?&quot;);
+}
 function mkLines(prefix, n){
   var out = [];
   for(var i=1;i<=n;i++) out.push({ id: prefix + &quot;l&quot; + i, name: &quot;Line &quot; + i });
@@ -1732,7 +1780,7 @@ function shrink(file){
     }
   });
 }
-function kb(dataUrl){ return Math.round(dataUrl.length * 0.75 / 1024); }
+function kb(dataUrl){ return Math.round((dataUrl||&quot;&quot;).length * 0.75 / 1024); }
 
 /* one independent set of photo controls per field */
 function photoSet(ids, emptyNote){
@@ -1771,6 +1819,7 @@ function photoSet(ids, emptyNote){
   return {
     items: function(){ return pend; },
     clear: function(){ pend.length = 0; draw(); },
+    set: function(arr){ pend.length = 0; (arr||[]).forEach(function(d){ if(d) pend.push({ data:d }); }); draw(); },
     draw: draw
   };
 }
@@ -1833,9 +1882,22 @@ function partsList(listId, addBtnId){
     }).filter(function(r){ return r.part || r.desc || r.qty || r.photos.length; });
   }
   function clear(){ box.innerHTML = &quot;&quot;; addRow(); }
+  function load(list){
+    box.innerHTML = &quot;&quot;;
+    if(!list || !list.length){ addRow(); return; }
+    list.forEach(function(it){
+      box.insertAdjacentHTML(&quot;beforeend&quot;, rowHtml());
+      var row = box.lastElementChild; wireRow(row);
+      row.querySelector(&quot;.p-name&quot;).value = it.part || &quot;&quot;;
+      var dsc = row.querySelector(&quot;.p-desc&quot;); if(dsc) dsc.value = it.desc || &quot;&quot;;
+      row.querySelector(&quot;.p-qty&quot;).value = it.qty || &quot;&quot;;
+      row._ph = (it.photos || []).slice();
+      drawStripFor(row);
+    });
+  }
   $(addBtnId).addEventListener(&quot;click&quot;, addRow);
   clear();
-  return { rows: rows, clear: clear };
+  return { rows: rows, clear: clear, load: load };
 }
 var USED = partsList(&quot;usedList&quot;, &quot;addUsed&quot;);
 var ORDER = partsList(&quot;orderList&quot;, &quot;addOrder&quot;);
@@ -2056,16 +2118,105 @@ $(&quot;clearForm&quot;).addEventListener(&quot;click&quot;, function(){
   fillTypes(&quot;&quot;);
   $(&quot;tDays&quot;).value = &quot;0&quot;; $(&quot;eStatus&quot;).value = &quot;Closed&quot;;
   PH_FAULT.clear();
+  editingId = null; $(&quot;saveEvt&quot;).textContent = &quot;Submit form&quot;;
+  clearDraft();
   calc(); toast(&quot;Form reset.&quot;);
 });
+
+/* ---------------- Save as Draft (device-local, per technician) ---------------- */
+var DRAFT_KEY = &quot;tdl:draft&quot;;
+function collectDraft(){
+  return {
+    date:$(&quot;eDate&quot;).value, shift:$(&quot;eShift&quot;).value, catId:$(&quot;eCat&quot;).value, lineId:$(&quot;eLine&quot;).value, unitIdx:$(&quot;eUnit&quot;).value,
+    stopCat:$(&quot;eStopCat&quot;).value, type:$(&quot;eType&quot;).value, typeBox:$(&quot;eTypeBox&quot;).value,
+    tCall:$(&quot;tCall&quot;).value, tStart:$(&quot;tStart&quot;).value, tEnd:$(&quot;tEnd&quot;).value,
+    reportedBy:$(&quot;eBy&quot;).value, problem:$(&quot;eProb&quot;).value, cause:$(&quot;eCause&quot;).value, action:$(&quot;eAction&quot;).value,
+    counter:$(&quot;eCounter&quot;).value, tech:$(&quot;eTech&quot;).value, tech2:$(&quot;eTech2&quot;).value, follow:$(&quot;eFollow&quot;).value, status:$(&quot;eStatus&quot;).value,
+    fault:PH_FAULT.items().map(function(p){ return p.data; }),
+    used:USED.rows(), order:ORDER.rows()
+  };
+}
+function clearDraft(){ try{ localStorage.removeItem(DRAFT_KEY); }catch(e){} }
+function saveDraft(){
+  var d = collectDraft();
+  try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); toast(&quot;Draft saved on this device.&quot;); return; }
+  catch(e){
+    var strip = function(list){ return (list||[]).map(function(r){ return { part:r.part, desc:r.desc, qty:r.qty, photos:[] }; }); };
+    d.fault = []; d.used = strip(d.used); d.order = strip(d.order);
+    try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); toast(&quot;Draft saved (photos too large — text only).&quot;); }
+    catch(e2){ toast(&quot;Could not save draft on this device.&quot;); }
+  }
+}
+function restoreDraft(){
+  var raw; try{ raw = localStorage.getItem(DRAFT_KEY); }catch(e){ return; }
+  if(!raw) return;
+  var d; try{ d = JSON.parse(raw); }catch(e){ return; }
+  if(!d) return;
+  if(d.catId){ $(&quot;eCat&quot;).value = d.catId; fillLineSelect(); }
+  if(d.lineId){ $(&quot;eLine&quot;).value = d.lineId; fillUnits(false); }
+  if(d.unitIdx !== undefined &amp;&amp; d.unitIdx !== &quot;&quot;) $(&quot;eUnit&quot;).value = d.unitIdx;
+  $(&quot;eStopCat&quot;).innerHTML = options(cfg.stopcats, d.stopCat || &quot;&quot;); if(d.stopCat) $(&quot;eStopCat&quot;).value = d.stopCat;
+  if(d.date) $(&quot;eDate&quot;).value = d.date; if(d.shift) $(&quot;eShift&quot;).value = d.shift;
+  $(&quot;tCall&quot;).value = d.tCall || &quot;&quot;; $(&quot;tStart&quot;).value = d.tStart || &quot;&quot;; $(&quot;tEnd&quot;).value = d.tEnd || &quot;&quot;;
+  $(&quot;eBy&quot;).value = d.reportedBy || &quot;&quot;;
+  $(&quot;eType&quot;).value = d.type || &quot;&quot;; $(&quot;eTypeBox&quot;).value = d.typeBox || d.type || &quot;&quot;; typeNote();
+  $(&quot;eProb&quot;).value = d.problem || &quot;&quot;; $(&quot;eCause&quot;).value = d.cause || &quot;&quot;; $(&quot;eAction&quot;).value = d.action || &quot;&quot;; $(&quot;eCounter&quot;).value = d.counter || &quot;&quot;;
+  $(&quot;eTech&quot;).value = d.tech || &quot;&quot;; $(&quot;eTech2&quot;).value = d.tech2 || &quot;&quot;; $(&quot;eFollow&quot;).value = d.follow || &quot;&quot;;
+  if(d.status) $(&quot;eStatus&quot;).value = d.status;
+  PH_FAULT.set(d.fault || []);
+  var norm = function(list){ return (list||[]).map(function(r){ return { part:r.part, desc:r.desc, qty:r.qty, photos:r.photos || [] }; }); };
+  USED.load(norm(d.used)); ORDER.load(norm(d.order));
+  calc();
+  toast(&quot;Draft restored on this device.&quot;);
+}
+$(&quot;saveDraft&quot;).addEventListener(&quot;click&quot;, saveDraft);
+
+/* load an existing report back into the form for editing (owner device only) */
+async function editEvt(id){
+  var e = null; evts.forEach(function(v){ if(v.id === id) e = v; });
+  if(!e){ toast(&quot;Report not found.&quot;); return; }
+  if(e.deviceId &amp;&amp; e.deviceId !== DEVICE_ID){ toast(&quot;Only the device that submitted this report can edit it.&quot;); return; }
+  editingId = id;
+  $(&quot;eCat&quot;).value = e.catId; fillLineSelect();
+  $(&quot;eLine&quot;).value = e.lineId; fillUnits(false);
+  // best-effort unit match by label
+  (function(){ var set = setForLine($(&quot;eLine&quot;).value); if(set){ var gs = normGroups(set);
+    for(var i=0;i<gs.length;i++){ if(gs[i].label === e.unit){ $(&quot;eUnit&quot;).value = String(i); break; } } } })();
+  $(&quot;eStopCat&quot;).innerHTML = options(cfg.stopcats, e.stopCat || &quot;&quot;); $(&quot;eStopCat&quot;).value = e.stopCat || &quot;&quot;;
+  $(&quot;eDate&quot;).value = e.date || &quot;&quot;; $(&quot;eShift&quot;).value = e.shift || &quot;&quot;;
+  $(&quot;tCall&quot;).value = e.call || &quot;&quot;; $(&quot;tStart&quot;).value = e.start || &quot;&quot;; $(&quot;tEnd&quot;).value = e.end || &quot;&quot;;
+  $(&quot;eBy&quot;).value = e.reportedBy || &quot;&quot;;
+  $(&quot;eType&quot;).value = e.type || &quot;&quot;; $(&quot;eTypeBox&quot;).value = e.type || &quot;&quot;; typeNote();
+  $(&quot;eProb&quot;).value = e.problem || &quot;&quot;; $(&quot;eCause&quot;).value = e.cause || &quot;&quot;;
+  $(&quot;eAction&quot;).value = e.action || &quot;&quot;; $(&quot;eCounter&quot;).value = e.counter || &quot;&quot;;
+  $(&quot;eTech&quot;).value = e.tech || &quot;&quot;; $(&quot;eTech2&quot;).value = e.tech2 || &quot;&quot;; $(&quot;eFollow&quot;).value = e.follow || &quot;&quot;;
+  $(&quot;eStatus&quot;).value = e.status || &quot;Open&quot;;
+  calc();
+  // reload photos
+  var fault = []; for(var fi=0; fi<(e.photosFault||[]).length; fi++){ var df = await load(e.photosFault[fi], null); if(df) fault.push(df); }
+  PH_FAULT.set(fault);
+  async function rebuild(list){ var out = []; for(var r=0;r<(list||[]).length;r++){ var pr=list[r], ph=[];
+    for(var p=0;p<(pr.photoKeys||[]).length;p++){ var d=await load(pr.photoKeys[p],null); if(d) ph.push(d); }
+    out.push({ part:pr.part, desc:pr.desc, qty:pr.qty, photos:ph }); } return out; }
+  USED.load(await rebuild(e.partsUsed));
+  ORDER.load(await rebuild(e.partsOrder));
+  $(&quot;t-log&quot;).click();
+  $(&quot;saveEvt&quot;).textContent = &quot;Update report&quot;;
+  if(window.scrollTo) window.scrollTo(0,0);
+  toast(&quot;Editing report — make changes, then press Update report.&quot;);
+}
 
 $(&quot;saveEvt&quot;).addEventListener(&quot;click&quot;, async function(){
   var t = currentTimes();
   var cat = catById($(&quot;eCat&quot;).value), line = lineById(cat, $(&quot;eLine&quot;).value);
   if(!cat || !line){ toast(&quot;Pick a machine and a line.&quot;); return; }
-  if(!t.call || !t.end){ toast(&quot;Enter at least when the line stopped and when it ran again.&quot;); $(&quot;tCall&quot;).focus(); return; }
+  if(!t.call){ toast(&quot;Enter when the line stopped / was called.&quot;); $(&quot;tCall&quot;).focus(); return; }
+  if(!t.start){ toast(&quot;Enter when the technician started.&quot;); $(&quot;tStart&quot;).focus(); return; }
+  if(!t.end){ toast(&quot;Enter when the line was running again.&quot;); $(&quot;tEnd&quot;).focus(); return; }
   if(!$(&quot;eType&quot;).value){ toast(&quot;Pick a downtime type from the list.&quot;); $(&quot;eTypeBox&quot;).focus(); return; }
   if(!$(&quot;eProb&quot;).value.trim()){ toast(&quot;Describe what happened.&quot;); $(&quot;eProb&quot;).focus(); return; }
+  if(!$(&quot;eBy&quot;).value.trim()){ toast(&quot;Enter who reported this stop.&quot;); $(&quot;eBy&quot;).focus(); return; }
+  if(!$(&quot;eTech&quot;).value.trim()){ toast(&quot;Enter the technician name.&quot;); $(&quot;eTech&quot;).focus(); return; }
   if(PH_FAULT.items().length === 0){ toast(&quot;Add at least one photo of the fault as found.&quot;); return; }
   var usedRows = USED.rows(), orderRows = ORDER.rows();
   for(var ui=0; ui<usedRows.length; ui++){
@@ -2080,7 +2231,8 @@ $(&quot;saveEvt&quot;).addEventListener(&quot;click&quot;, async function(){
     if(orderRows[oi].qty &amp;&amp; !orderRows[oi].part){ toast(&quot;Enter the part name for a part to order.&quot;); return; }
   }
   var d = $(&quot;eDate&quot;).value;
-  var eid = Date.now();
+  var orig = editingId ? (function(){ var f=null; evts.forEach(function(v){ if(v.id===editingId) f=v; }); return f; })() : null;
+  var eid = editingId || Date.now();
   var faultKeys = [], photoKeys = [], orderKeys = [];
   var faultShots = PH_FAULT.items();
   for(var fi=0; fi<faultShots.length; fi++){
@@ -2106,7 +2258,7 @@ $(&quot;saveEvt&quot;).addEventListener(&quot;click&quot;, async function(){
     }
     orderRows[orr] = { part: orderRows[orr].part, desc: orderRows[orr].desc, qty: orderRows[orr].qty, photoKeys: ok };
   }
-  evts.push({
+  var rec = {
     id: eid,
     ts: (t.call ? Date.parse(t.call) : NaN) || Date.parse((d || &quot;1970-01-01&quot;) + &quot;T00:00:00&quot;) || Date.now(),
     date: d, shift: $(&quot;eShift&quot;).value,
@@ -2127,18 +2279,29 @@ $(&quot;saveEvt&quot;).addEventListener(&quot;click&quot;, async function(){
     parts: partsToStr(usedRows), partsUsed: usedRows, order: partsToStr(orderRows), partsOrder: orderRows,
     follow: $(&quot;eFollow&quot;).value.trim(),
     status: $(&quot;eStatus&quot;).value,
-    photosFault: faultKeys, photos: photoKeys, photosOrder: orderKeys
-  });
+    photosFault: faultKeys, photos: photoKeys, photosOrder: orderKeys,
+    deviceId: (orig &amp;&amp; orig.deviceId) || DEVICE_ID,
+    verify: (orig &amp;&amp; orig.verify) || null
+  };
+  if(editingId){
+    var ix = -1; evts.forEach(function(v,i){ if(v.id === editingId) ix = i; });
+    if(ix >= 0) evts[ix] = rec; else evts.push(rec);
+  } else {
+    evts.push(rec);
+  }
   $(&quot;eTech&quot;).value = titleName($(&quot;eTech&quot;).value);
   $(&quot;eTech2&quot;).value = titleName($(&quot;eTech2&quot;).value);
   await save(EVT_KEY, evts);
   fillLists();
   headline();
   var phN = faultKeys.length + photoKeys.length + orderKeys.length;
+  var wasEditing = !!editingId;
   PH_FAULT.clear(); USED.clear(); ORDER.clear();
   $(&quot;saveNote&quot;).textContent = line.name + &quot; · &quot; + $(&quot;eType&quot;).value + &quot; · &quot; + hhmm(t.total) + &quot; down · &quot; +
-    $(&quot;eStatus&quot;).value + (phN ? &quot; · &quot; + phN + &quot; photo&quot; + (phN > 1 ? &quot;s&quot; : &quot;&quot;) : &quot;&quot;) + &quot; — saved.&quot;;
-  toast(&quot;Form submitted.&quot;);
+    $(&quot;eStatus&quot;).value + (phN ? &quot; · &quot; + phN + &quot; photo&quot; + (phN > 1 ? &quot;s&quot; : &quot;&quot;) : &quot;&quot;) + (wasEditing ? &quot; — updated.&quot; : &quot; — saved.&quot;);
+  editingId = null; $(&quot;saveEvt&quot;).textContent = &quot;Submit form&quot;;
+  clearDraft();
+  toast(wasEditing ? &quot;Report updated.&quot; : &quot;Form submitted.&quot;);
 });
 
 /* ---------------- analysis ---------------- */
@@ -2315,6 +2478,16 @@ $(&quot;fTech&quot;).addEventListener(&quot;change&quot;, drawAnalysis);
 $(&quot;fLast&quot;).addEventListener(&quot;change&quot;, drawAnalysis);
 
 /* ---------------- log book ---------------- */
+function vBadge(role, v){
+  if(!v || !v.decision) return '<span class=&quot;vbadge v-none&quot;>'+role+' —</span>';
+  var ok = v.decision === &quot;Approved&quot;;
+  var tip = (v.by||&quot;?&quot;) + (v.note ? (&quot; — &quot; + v.note) : &quot;&quot;) + (v.ts ? (&quot;  ·  &quot; + v.ts) : &quot;&quot;);
+  return '<span class=&quot;vbadge '+(ok?&quot;v-ok&quot;:&quot;v-no&quot;)+'&quot; title=&quot;'+esc(tip)+'&quot;>'+role+' '+(ok?&quot;✓&quot;:&quot;✗&quot;)+'</span>';
+}
+function vCell(e){
+  var v = e.verify || {};
+  return vBadge(&quot;Lead&quot;, v.lead) + '<br>' + vBadge(&quot;SPV&quot;, v.sup);
+}
 function drawBook(){
   if(!evts.length){ $(&quot;book&quot;).innerHTML = '<div class=&quot;empty&quot;><b>No stops yet</b>Your first breakdown report lands here.</div>'; return; }
   var st = $(&quot;bStatus&quot;).value, q = $(&quot;bSearch&quot;).value.trim().toLowerCase();
@@ -2329,7 +2502,7 @@ function drawBook(){
   if(!list.length){ $(&quot;book&quot;).innerHTML = '<div class=&quot;empty&quot;><b>No match</b>Change the status filter or clear the search.</div>'; return; }
   var h = '<table><thead><tr><th>Date</th><th>Sh</th><th>Line</th><th class=&quot;tech-col&quot;>Tech</th><th>Stopages</th><th>Type</th>' +
     '<th class=&quot;num&quot;>Resp</th><th class=&quot;num&quot;>Repair</th><th class=&quot;num&quot;>Down</th><th class=&quot;pa-col&quot;>Problem</th><th class=&quot;pa-col&quot;>Root cause</th><th class=&quot;pa-col&quot;>Action</th><th class=&quot;pa-col&quot;>Counter measure</th>' +
-    '<th>Parts used</th><th>To order</th><th>Photos</th><th>Status</th><th></th></tr></thead><tbody>';
+    '<th>Parts used</th><th>To order</th><th>Photos</th><th>Status</th><th>Verification</th><th></th></tr></thead><tbody>';
   list.forEach(function(e){
     var probCell = esc(e.problem || &quot;—&quot;);
     var causeCell = esc(e.cause || &quot;—&quot;);
@@ -2355,8 +2528,12 @@ function drawBook(){
         ((!(e.photosFault||[]).length &amp;&amp; !(e.photos||[]).length &amp;&amp; !(e.photosOrder||[]).length) ? &quot;—&quot; : &quot;&quot;) +
       '</td>' +
       '<td><span class=&quot;flag '+statusClass(e.status)+'&quot;>'+esc(e.status)+'</span></td>' +
-      '<td>'+(e.status !== &quot;Closed&quot; ? '<button class=&quot;tiny&quot; data-close=&quot;'+e.id+'&quot;>Close</button> ' : &quot;&quot;) +
-      '<button class=&quot;tiny warn&quot; data-del=&quot;'+e.id+'&quot;>Delete</button></td></tr>';
+      '<td class=&quot;wrap&quot; style=&quot;min-width:120px&quot;>'+vCell(e)+'</td>' +
+      '<td style=&quot;white-space:nowrap&quot;>'+
+        ((!e.deviceId || e.deviceId === DEVICE_ID) ? '<button class=&quot;tiny&quot; data-edit=&quot;'+e.id+'&quot;>Edit</button> ' : &quot;&quot;) +
+        '<button class=&quot;tiny&quot; data-verify=&quot;'+e.id+'&quot;>Verify</button> ' +
+        (e.status !== &quot;Closed&quot; ? '<button class=&quot;tiny&quot; data-close=&quot;'+e.id+'&quot;>Close</button> ' : &quot;&quot;) +
+        '<button class=&quot;tiny warn&quot; data-del=&quot;'+e.id+'&quot;>Delete</button></td></tr>';
   });
   $(&quot;book&quot;).innerHTML = h + '</tbody></table>';
   var bindPh = function(attr, which){
@@ -2385,12 +2562,24 @@ function drawBook(){
       var id = parseInt(e.target.getAttribute(&quot;data-del&quot;),10);
       var gone = null;
       evts.forEach(function(v){ if(v.id === id) gone = v; });
-      if(gone){
-        var all = (gone.photosFault||[]).concat(gone.photos||[], gone.photosOrder||[]);
-        for(var x=0;x<all.length;x++) await drop(all[x]);
-      }
+      if(!canDelete(gone)) return;
+      if(gone){ gone.deletedAt = nowLocalDT().replace(&quot;T&quot;,&quot; &quot;); deleted.unshift(gone); }
       evts = evts.filter(function(v){ return v.id !== id; });
-      await save(EVT_KEY, evts); headline(); drawBook(); toast(&quot;Stop deleted.&quot;);
+      await save(EVT_KEY, evts); await save(DEL_KEY, deleted);
+      headline(); drawBook(); if(showingTrash) drawTrash();
+      toast(&quot;Moved to deleted history.&quot;);
+    });
+  }
+  var eb = $(&quot;book&quot;).querySelectorAll(&quot;[data-edit]&quot;);
+  for(var k=0;k<eb.length;k++){
+    eb[k].addEventListener(&quot;click&quot;, function(e){ editEvt(parseInt(e.currentTarget.getAttribute(&quot;data-edit&quot;),10)); });
+  }
+  var vbb = $(&quot;book&quot;).querySelectorAll(&quot;[data-verify]&quot;);
+  for(var m=0;m<vbb.length;m++){
+    vbb[m].addEventListener(&quot;click&quot;, function(e){
+      var id = parseInt(e.currentTarget.getAttribute(&quot;data-verify&quot;),10);
+      var evt = null; evts.forEach(function(v){ if(v.id === id) evt = v; });
+      if(evt) openVerify(evt);
     });
   }
 }
@@ -2398,12 +2587,102 @@ $(&quot;bStatus&quot;).addEventListener(&quot;change&quot;, drawBook);
 $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;, drawBook);
 $(&quot;wipe&quot;).addEventListener(&quot;click&quot;, async function(){
   if(!evts.length){ toast(&quot;Nothing to delete.&quot;); return; }
-  if(!confirm(&quot;Delete all &quot; + evts.length + &quot; stops and their photos? This cannot be undone.&quot;)) return;
-  for(var i=0;i<evts.length;i++){
-    var ph = (evts[i].photosFault || []).concat(evts[i].photos || [], evts[i].photosOrder || []);
-    for(var j=0;j<ph.length;j++) await drop(ph[j]);
+  if(!adminOK()) return;
+  if(!confirm(&quot;Move all &quot; + evts.length + &quot; stops to deleted history? You can restore them later.&quot;)) return;
+  var stamp = nowLocalDT().replace(&quot;T&quot;,&quot; &quot;);
+  evts.forEach(function(e){ e.deletedAt = stamp; });
+  deleted = evts.concat(deleted); evts = [];
+  await save(EVT_KEY, evts); await save(DEL_KEY, deleted);
+  headline(); drawBook(); if(showingTrash) drawTrash();
+  toast(&quot;All stops moved to deleted history.&quot;);
+});
+
+/* ---------------- deleted history (recycle bin) ---------------- */
+$(&quot;histBtn&quot;).addEventListener(&quot;click&quot;, function(){
+  showingTrash = !showingTrash;
+  $(&quot;book&quot;).hidden = showingTrash; $(&quot;trash&quot;).hidden = !showingTrash;
+  $(&quot;histBtn&quot;).textContent = showingTrash ? &quot;Back to log book&quot; : &quot;Deleted history&quot;;
+  if(showingTrash) drawTrash(); else drawBook();
+});
+function drawTrash(){
+  if(!deleted.length){ $(&quot;trash&quot;).innerHTML = '<div class=&quot;empty&quot;><b>No deleted reports</b>Deleted stops appear here and can be restored.</div>'; return; }
+  var h = '<div style=&quot;margin:8px 0 12px&quot;><button class=&quot;ghost warn&quot; id=&quot;emptyTrash&quot; style=&quot;color:var(--bad)&quot;>Empty history (permanent)</button></div>';
+  h += '<table><thead><tr><th>Deleted</th><th>Date</th><th>Line</th><th>Type</th><th class=&quot;pa-col&quot;>Problem</th><th>Tech</th><th>Status</th><th></th></tr></thead><tbody>';
+  deleted.forEach(function(e){
+    h += '<tr><td class=&quot;wrap&quot;>'+esc(e.deletedAt||&quot;—&quot;)+'</td><td>'+esc(e.date||&quot;—&quot;)+'</td><td>'+esc(e.line||&quot;—&quot;)+'</td>' +
+      '<td class=&quot;wrap&quot;>'+esc(e.type||&quot;—&quot;)+'</td><td class=&quot;wrap pa-col&quot;>'+esc(e.problem||&quot;—&quot;)+'</td>' +
+      '<td class=&quot;wrap&quot;>'+esc(e.tech||&quot;—&quot;)+'</td><td><span class=&quot;flag '+statusClass(e.status)+'&quot;>'+esc(e.status)+'</span></td>' +
+      '<td style=&quot;white-space:nowrap&quot;><button class=&quot;tiny&quot; data-restore=&quot;'+e.id+'&quot;>Restore</button> ' +
+      '<button class=&quot;tiny warn&quot; data-purge=&quot;'+e.id+'&quot;>Delete</button></td></tr>';
+  });
+  $(&quot;trash&quot;).innerHTML = h + '</tbody></table>';
+  var rb = $(&quot;trash&quot;).querySelectorAll(&quot;[data-restore]&quot;);
+  for(var i=0;i<rb.length;i++){
+    rb[i].addEventListener(&quot;click&quot;, async function(e){
+      var id = parseInt(e.currentTarget.getAttribute(&quot;data-restore&quot;),10);
+      var rec = null; deleted.forEach(function(v){ if(v.id === id) rec = v; });
+      if(!rec) return;
+      delete rec.deletedAt;
+      evts.push(rec); deleted = deleted.filter(function(v){ return v.id !== id; });
+      await save(EVT_KEY, evts); await save(DEL_KEY, deleted);
+      headline(); drawBook(); drawTrash(); toast(&quot;Report restored to log book.&quot;);
+    });
   }
-  evts = []; await save(EVT_KEY, evts); headline(); drawBook(); toast(&quot;All stops deleted.&quot;);
+  var pb = $(&quot;trash&quot;).querySelectorAll(&quot;[data-purge]&quot;);
+  for(var j=0;j<pb.length;j++){
+    pb[j].addEventListener(&quot;click&quot;, async function(e){
+      var id = parseInt(e.currentTarget.getAttribute(&quot;data-purge&quot;),10);
+      var rec = null; deleted.forEach(function(v){ if(v.id === id) rec = v; });
+      if(!canDelete(rec)) return;
+      if(rec){
+        var all = (rec.photosFault||[]).concat(rec.photos||[], rec.photosOrder||[]);
+        for(var x=0;x<all.length;x++) await drop(all[x]);
+      }
+      deleted = deleted.filter(function(v){ return v.id !== id; });
+      await save(DEL_KEY, deleted); drawTrash(); toast(&quot;Deleted permanently.&quot;);
+    });
+  }
+  var et = $(&quot;trash&quot;).querySelector(&quot;#emptyTrash&quot;);
+  if(et) et.addEventListener(&quot;click&quot;, async function(){
+    if(!adminOK()) return;
+    if(!confirm(&quot;Permanently delete all &quot; + deleted.length + &quot; reports in history? This cannot be undone.&quot;)) return;
+    for(var i=0;i<deleted.length;i++){
+      var ph = (deleted[i].photosFault||[]).concat(deleted[i].photos||[], deleted[i].photosOrder||[]);
+      for(var k=0;k<ph.length;k++) await drop(ph[k]);
+    }
+    deleted = []; await save(DEL_KEY, deleted); drawTrash(); toast(&quot;History emptied.&quot;);
+  });
+}
+
+/* ---------------- verification (Shift Lead &amp; Supervisor) ---------------- */
+var vbTargetId = null;
+function openVerify(evt){
+  vbTargetId = evt.id;
+  $(&quot;vbMeta&quot;).textContent = (evt.date || &quot;&quot;) + &quot;  ·  &quot; + (evt.line || &quot;&quot;) + &quot;  ·  &quot; + (evt.type || &quot;&quot;);
+  $(&quot;vbRole&quot;).value = &quot;lead&quot;;
+  syncVerifyFields();
+  $(&quot;vbModal&quot;).hidden = false;
+}
+function syncVerifyFields(){
+  var evt = null; evts.forEach(function(x){ if(x.id === vbTargetId) evt = x; });
+  var v = (evt &amp;&amp; evt.verify) || {}; var cur = v[$(&quot;vbRole&quot;).value];
+  $(&quot;vbDecision&quot;).value = (cur &amp;&amp; cur.decision) || &quot;Approved&quot;;
+  $(&quot;vbBy&quot;).value = (cur &amp;&amp; cur.by) || &quot;&quot;;
+  $(&quot;vbNote&quot;).value = (cur &amp;&amp; cur.note) || &quot;&quot;;
+}
+$(&quot;vbRole&quot;).addEventListener(&quot;change&quot;, syncVerifyFields);
+$(&quot;vbCancel&quot;).addEventListener(&quot;click&quot;, function(){ $(&quot;vbModal&quot;).hidden = true; vbTargetId = null; });
+$(&quot;vbModal&quot;).addEventListener(&quot;click&quot;, function(e){ if(e.target === $(&quot;vbModal&quot;)){ $(&quot;vbModal&quot;).hidden = true; vbTargetId = null; } });
+$(&quot;vbSave&quot;).addEventListener(&quot;click&quot;, async function(){
+  var by = $(&quot;vbBy&quot;).value.trim();
+  if(!by){ toast(&quot;Enter your name.&quot;); return; }
+  var evt = null; evts.forEach(function(x){ if(x.id === vbTargetId) evt = x; });
+  if(!evt){ $(&quot;vbModal&quot;).hidden = true; return; }
+  evt.verify = evt.verify || {};
+  evt.verify[$(&quot;vbRole&quot;).value] = { decision:$(&quot;vbDecision&quot;).value, by:by, note:$(&quot;vbNote&quot;).value.trim(), ts: nowLocalDT().replace(&quot;T&quot;,&quot; &quot;) };
+  await save(EVT_KEY, evts); drawBook();
+  $(&quot;vbModal&quot;).hidden = true; vbTargetId = null;
+  toast(&quot;Verification saved.&quot;);
 });
 $(&quot;csv&quot;).addEventListener(&quot;click&quot;, function(){
   if(!evts.length){ toast(&quot;No stops to download.&quot;); return; }
@@ -2540,6 +2819,8 @@ function headline(){
   if(applyNames()) await save(CFG_KEY, cfg);
   evts = await load(EVT_KEY, []);
   if(!Array.isArray(evts)) evts = [];
+  deleted = await load(DEL_KEY, []);
+  if(!Array.isArray(deleted)) deleted = [];
   var fixed = 0;
   evts.forEach(function(e){
     var a = titleName(e.tech), b = titleName(e.tech2);
@@ -2551,6 +2832,7 @@ function headline(){
   $(&quot;eDate&quot;).value = new Date().toISOString().slice(0,10);
   fillCatSelects(); fillLineSelect(); fillFilterLines(); fillLists(); fillUnits(true); fillTypes(&quot;&quot;);
   drawStrip(); calc(); headline();
+  restoreDraft();
 })();
 </script>
 "></iframe>
@@ -2644,8 +2926,9 @@ function headline(){
   h3.grp{font-family:var(--disp);font-size:16px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin:18px 0 8px;color:var(--ink)}
 
   .grid{display:grid;gap:12px}
-  .g5{grid-template-columns:repeat(5,1fr)} .g4{grid-template-columns:repeat(4,1fr)}
-  .g3{grid-template-columns:repeat(3,1fr)} .g2{grid-template-columns:1fr 1fr}
+  .grid>*{min-width:0}
+  .g5{grid-template-columns:repeat(5,minmax(0,1fr))} .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .g3{grid-template-columns:repeat(3,minmax(0,1fr))} .g2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
   label.f{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px}
   .ro{font-family:var(--mono);font-size:13px;color:var(--ink);padding:6px 2px;border-bottom:1px solid var(--rule);min-height:29px}
   input,select,textarea{width:100%;font-family:var(--mono);font-size:14px;color:var(--ink);background:#FBFAF7;
@@ -2712,13 +2995,13 @@ function headline(){
 
   @media (max-width:900px){ .g5{grid-template-columns:repeat(3,1fr)} .reads{grid-template-columns:repeat(2,1fr)} }
   @media (max-width:760px){
-    .g5,.g4,.g3,.g2{grid-template-columns:1fr 1fr}
+    .g5,.g4,.g3,.g2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
     .sig-grid{grid-template-columns:1fr}
     .card-head{padding-right:150px} .card-head h1{font-size:23px} .brand img{height:34px}
     input,select,textarea{font-size:16px;padding:10px}
     nav.tabs button{flex:1 1 auto;padding:12px 10px;font-size:15px}
   }
-  @media (max-width:460px){ .g5,.g4,.g3,.g2{grid-template-columns:1fr} .reads{grid-template-columns:1fr} }
+  @media (max-width:460px){ .g5,.g4,.g3,.g2{grid-template-columns:minmax(0,1fr)} .reads{grid-template-columns:minmax(0,1fr)} }
 
   @media print{
     body{background:#fff}
@@ -2779,6 +3062,9 @@ function headline(){
           </select>
         </div>
       </div>
+      <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;rDueDate&quot;>Requested completion date</label><input id=&quot;rDueDate&quot; type=&quot;date&quot;></div>
+      </div>
     </div>
 
     <!-- 2. REQUEST TYPE -->
@@ -2826,7 +3112,7 @@ function headline(){
         <div><label class=&quot;f&quot; for=&quot;dAsset&quot;>Machine / Asset no.</label><input id=&quot;dAsset&quot; type=&quot;text&quot;></div>
         <div><label class=&quot;f&quot; for=&quot;dWhen&quot;>Reported (date &amp;amp; time)</label>
           <div style=&quot;display:flex;gap:6px&quot;>
-            <input id=&quot;dWhen&quot; type=&quot;datetime-local&quot; style=&quot;flex:1&quot;>
+            <input id=&quot;dWhen&quot; type=&quot;datetime-local&quot; style=&quot;flex:1;min-width:0&quot;>
             <button class=&quot;ghost&quot; type=&quot;button&quot; id=&quot;dWhenNow&quot; style=&quot;padding:8px 12px;white-space:nowrap&quot;>Now</button>
           </div>
         </div>
@@ -2849,14 +3135,6 @@ function headline(){
         <input type=&quot;file&quot; id=&quot;inCam&quot; accept=&quot;image/*&quot; capture=&quot;environment&quot; hidden>
         <input type=&quot;file&quot; id=&quot;inFile&quot; multiple hidden>
         <div class=&quot;att-strip&quot; id=&quot;attStrip&quot;></div>
-      </div>
-    </div>
-
-    <!-- 4. APPROVAL -->
-    <div class=&quot;panel&quot;>
-      <p class=&quot;eyebrow&quot; data-n=&quot;04 /&quot;>Request &amp;amp; approval</p>
-      <div class=&quot;sig-grid&quot;>
-        <div class=&quot;sig&quot;><div class=&quot;role&quot;>Requested by</div><div class=&quot;cap&quot;>Name &amp;amp; signature</div><div class=&quot;dt&quot;>Date <input type=&quot;text&quot;></div></div>
       </div>
     </div>
 
@@ -2895,8 +3173,10 @@ function headline(){
             <select id=&quot;fDept&quot;><option value=&quot;&quot;>All</option></select></div>
           <div style=&quot;flex:1&quot;><label class=&quot;f&quot; for=&quot;fSearch&quot;>Search</label><input id=&quot;fSearch&quot; type=&quot;text&quot; placeholder=&quot;WO no, location, asset, description…&quot;></div>
           <div><button class=&quot;ghost&quot; id=&quot;csv&quot;>Download CSV</button></div>
+          <div><button class=&quot;ghost&quot; id=&quot;histBtn&quot;>Deleted history</button></div>
         </div>
         <div class=&quot;scroll&quot; id=&quot;book&quot;></div>
+        <div class=&quot;scroll&quot; id=&quot;trash&quot; hidden></div>
       </div>
       <div class=&quot;foot&quot;>
         <span id=&quot;storeNote&quot;>Records save in this browser on this device.</span>
@@ -2916,6 +3196,7 @@ function headline(){
         <div class=&quot;grid g3&quot;>
           <div><label class=&quot;f&quot;>WO No.</label><div class=&quot;ro&quot; id=&quot;vWo&quot;>—</div></div>
           <div><label class=&quot;f&quot;>Date raised</label><div class=&quot;ro&quot; id=&quot;vDate&quot;>—</div></div>
+          <div><label class=&quot;f&quot;>Requested completion</label><div class=&quot;ro&quot; id=&quot;vDue&quot;>—</div></div>
           <div><label class=&quot;f&quot;>Status</label><div class=&quot;ro&quot; id=&quot;vStatus&quot;>—</div></div>
           <div><label class=&quot;f&quot;>Assignment</label><div class=&quot;ro&quot; id=&quot;vAssign&quot;>—</div></div>
           <div><label class=&quot;f&quot;>Requesting department</label><div class=&quot;ro&quot; id=&quot;vDept&quot;>—</div></div>
@@ -3023,6 +3304,21 @@ function headline(){
 
 </div>
 <div class=&quot;lb&quot; id=&quot;lb&quot; hidden><div class=&quot;lb-in&quot;><h3 id=&quot;lbTitle&quot;>Attachments</h3><div class=&quot;lb-gallery&quot; id=&quot;lbBody&quot;></div><div style=&quot;margin-top:16px&quot;><button class=&quot;ghost&quot; id=&quot;lbClose&quot;>Close</button></div></div></div>
+
+<div class=&quot;lb&quot; id=&quot;vbModalWO&quot; hidden><div class=&quot;lb-in&quot; style=&quot;max-width:440px;text-align:left;background:var(--panel);border-radius:3px;padding:22px&quot;>
+  <h3 style=&quot;font-family:var(--disp);text-transform:uppercase;letter-spacing:.05em;margin:0 0 4px;color:var(--ink)&quot;>Supervisor verification</h3>
+  <div id=&quot;vbMetaWO&quot; class=&quot;hint&quot; style=&quot;margin-bottom:14px&quot;></div>
+  <label class=&quot;f&quot; for=&quot;vbDecisionWO&quot; style=&quot;display:block&quot;>Decision</label>
+  <select id=&quot;vbDecisionWO&quot;><option value=&quot;Approved&quot;>Approve</option><option value=&quot;Rejected&quot;>Reject</option></select>
+  <label class=&quot;f&quot; for=&quot;vbByWO&quot; style=&quot;margin-top:10px;display:block&quot;>Supervisor name</label>
+  <input id=&quot;vbByWO&quot; placeholder=&quot;Name&quot;>
+  <label class=&quot;f&quot; for=&quot;vbNoteWO&quot; style=&quot;margin-top:10px;display:block&quot;>Note (optional)</label>
+  <textarea id=&quot;vbNoteWO&quot; placeholder=&quot;Comment / reason&quot;></textarea>
+  <div style=&quot;margin-top:16px;display:flex;gap:10px;flex-wrap:wrap&quot;>
+    <button class=&quot;act&quot; id=&quot;vbSaveWO&quot;>Save verification</button>
+    <button class=&quot;ghost&quot; id=&quot;vbCancelWO&quot;>Cancel</button>
+  </div>
+</div></div>
 <div class=&quot;toast&quot; id=&quot;toast&quot;></div>
 
 <script>
@@ -3124,8 +3420,23 @@ function headline(){
     var L=ls(); if(L){ try{ L.setItem(key,text); ok=true; }catch(e){ toast(&quot;Storage full. Download CSV, then remove old records.&quot;); return; } }
     if(!ok &amp;&amp; !warnedNoStore){ warnedNoStore=true; toast(&quot;Saved for this session only — this browser blocks storage.&quot;); }
   }
-  var WO_KEY=&quot;alco:workorders&quot;;
-  var recs=[];
+  var WO_KEY=&quot;alco:workorders&quot;, WO_DEL_KEY=&quot;alco:workorders:deleted&quot;;
+  var recs=[], delRecs=[], woShowTrash=false;
+  /* delete permissions: submitter's device, else administrator (admin / Engineering) */
+  var DEVICE_ID=(function(){ try{ var k=&quot;tdl:deviceId&quot;; var v=localStorage.getItem(k);
+    if(!v){ v=&quot;dev-&quot;+Date.now().toString(36)+&quot;-&quot;+Math.random().toString(36).slice(2,8); localStorage.setItem(k,v); }
+    return v; }catch(e){ return &quot;dev-local&quot;; } })();
+  function adminOK(){
+    var u=prompt(&quot;Not the submitter's device.\nAdministrator username:&quot;); if(u===null) return false;
+    var p=prompt(&quot;Administrator password:&quot;); if(p===null) return false;
+    if(u.trim().toLowerCase()===&quot;admin&quot; &amp;&amp; p===&quot;Engineering&quot;) return true;
+    toast(&quot;Wrong administrator credentials.&quot;); return false;
+  }
+  function canDeleteWO(rec){
+    var owner = !rec || !rec.deviceId || rec.deviceId===DEVICE_ID;
+    if(!owner &amp;&amp; !adminOK()) return false;
+    return confirm(&quot;Are you sure to delete this work order?&quot;);
+  }
 
   /* ---- WO number ---- */
   var now=new Date();
@@ -3156,6 +3467,7 @@ function headline(){
       requester: $(&quot;rName&quot;).value.trim(),
       contact: $(&quot;rContact&quot;).value.trim(),
       dept: $(&quot;rDept&quot;).value,
+      dueDate: $(&quot;rDueDate&quot;).value,
       types: reqTypes(),
       location: $(&quot;dLoc&quot;).value.trim(),
       asset: $(&quot;dAsset&quot;).value.trim(),
@@ -3188,6 +3500,7 @@ function headline(){
     if(!r.attachments.length){ toast(&quot;Attach at least one photo before submitting.&quot;); $(&quot;btnCam&quot;).focus(); return; }
     r.id = r.wo + &quot;-&quot; + recs.length;
     r.saved = now.getFullYear()+&quot;-&quot;+mm+&quot;-&quot;+dd;
+    r.deviceId = DEVICE_ID;
     recs.push(r);
     await save(WO_KEY, recs);
     toast(&quot;Work order &quot;+r.wo+&quot; saved to log.&quot;);
@@ -3208,6 +3521,44 @@ function headline(){
 
   /* ---- head counter ---- */
   function refreshHead(){ $(&quot;hCount&quot;).textContent = recs.length ? String(recs.length) : &quot;—&quot;; }
+  function stampNow(){ var d=new Date(); function p(n){ return (n<10?&quot;0&quot;:&quot;&quot;)+n; }
+    return d.getFullYear()+&quot;-&quot;+p(d.getMonth()+1)+&quot;-&quot;+p(d.getDate())+&quot; &quot;+p(d.getHours())+&quot;:&quot;+p(d.getMinutes()); }
+
+  /* ---- deleted history (recycle bin) ---- */
+  $(&quot;histBtn&quot;).addEventListener(&quot;click&quot;, function(){
+    woShowTrash=!woShowTrash;
+    $(&quot;book&quot;).hidden=woShowTrash; $(&quot;trash&quot;).hidden=!woShowTrash;
+    $(&quot;histBtn&quot;).textContent=woShowTrash?&quot;Back to log book&quot;:&quot;Deleted history&quot;;
+    if(woShowTrash) drawTrashWO(); else drawBook();
+  });
+  function drawTrashWO(){
+    var box=$(&quot;trash&quot;);
+    if(!delRecs.length){ box.innerHTML='<div class=&quot;empty&quot;><b>No deleted work orders</b>Deleted work orders appear here and can be restored.</div>'; return; }
+    var h='<div style=&quot;margin:8px 0 12px&quot;><button class=&quot;ghost&quot; id=&quot;emptyTrashWO&quot; style=&quot;color:var(--bad)&quot;>Empty history (permanent)</button></div>';
+    h+='<table><thead><tr><th>Deleted</th><th>WO No.</th><th>Date</th><th>Department</th><th>Location / Asset</th><th>Priority</th><th>Status</th><th></th></tr></thead><tbody>';
+    delRecs.forEach(function(r){
+      h+='<tr><td class=&quot;wrap&quot;>'+esc(r.deletedAt||&quot;—&quot;)+'</td><td>'+esc(r.wo)+'</td><td>'+esc(r.date)+'</td><td>'+esc(r.dept)+'</td>'
+        +'<td class=&quot;clip&quot; title=&quot;'+esc([r.location,r.asset].filter(Boolean).join(&quot; / &quot;))+'&quot;>'+esc([r.location,r.asset].filter(Boolean).join(&quot; / &quot;))+'</td>'
+        +'<td class=&quot;'+priClass(r.priority)+'&quot;>'+esc(r.priority||&quot;—&quot;)+'</td>'
+        +'<td><span class=&quot;flag '+statusClass(r.status)+'&quot;>'+esc(r.status||&quot;Open&quot;)+'</span></td>'
+        +'<td style=&quot;white-space:nowrap&quot;><button class=&quot;tiny&quot; data-restore=&quot;'+esc(r.id)+'&quot;>Restore</button> <button class=&quot;tiny warn&quot; data-purge=&quot;'+esc(r.id)+'&quot;>Delete</button></td></tr>';
+    });
+    box.innerHTML=h+'</tbody></table>';
+    box.querySelectorAll(&quot;[data-restore]&quot;).forEach(function(b){ b.addEventListener(&quot;click&quot;, async function(){
+      var id=b.getAttribute(&quot;data-restore&quot;); var rec=delRecs.filter(function(r){ return r.id===id; })[0]; if(!rec) return;
+      delete rec.deletedAt; recs.push(rec); delRecs=delRecs.filter(function(r){ return r.id!==id; });
+      await save(WO_KEY,recs); await save(WO_DEL_KEY,delRecs); refreshHead(); drawBook(); drawTrashWO(); toast(&quot;Work order restored.&quot;);
+    }); });
+    box.querySelectorAll(&quot;[data-purge]&quot;).forEach(function(b){ b.addEventListener(&quot;click&quot;, async function(){
+      var id=b.getAttribute(&quot;data-purge&quot;); var rec=delRecs.filter(function(r){ return r.id===id; })[0];
+      if(!canDeleteWO(rec)) return;
+      delRecs=delRecs.filter(function(r){ return r.id!==id; }); await save(WO_DEL_KEY,delRecs); drawTrashWO(); toast(&quot;Deleted permanently.&quot;);
+    }); });
+    var et=box.querySelector(&quot;#emptyTrashWO&quot;); if(et) et.addEventListener(&quot;click&quot;, async function(){
+      if(!adminOK()) return; if(!confirm(&quot;Permanently delete all &quot;+delRecs.length+&quot; work orders in history? This cannot be undone.&quot;)) return;
+      delRecs=[]; await save(WO_DEL_KEY,delRecs); drawTrashWO(); toast(&quot;History emptied.&quot;);
+    });
+  }
 
   /* ---- log report ---- */
   function statusClass(s){ s=(s||&quot;&quot;).toLowerCase();
@@ -3215,6 +3566,36 @@ function headline(){
     if(s.indexOf(&quot;progress&quot;)>=0||s.indexOf(&quot;pending&quot;)>=0) return &quot;st-prog&quot;;
     return &quot;st-open&quot;; }
   function priClass(p){ p=(p||&quot;&quot;).toLowerCase(); if(p.indexOf(&quot;emerg&quot;)>=0) return &quot;pr-emg&quot;; if(p.indexOf(&quot;high&quot;)>=0) return &quot;pr-high&quot;; return &quot;&quot;; }
+
+  /* ---- supervisor verification ---- */
+  function vBadgeWO(v){
+    if(!v || !v.decision) return '<span style=&quot;font-family:var(--mono);font-size:9.5px;padding:1px 5px;border:1px solid var(--ink-soft);border-radius:2px;color:var(--ink-soft)&quot;>SPV —</span>';
+    var ok=v.decision===&quot;Approved&quot;, col=ok?&quot;#2E7D4F&quot;:&quot;#C0392B&quot;;
+    var tip=(v.by||&quot;?&quot;)+(v.note?(&quot; — &quot;+v.note):&quot;&quot;)+(v.ts?(&quot;  ·  &quot;+v.ts):&quot;&quot;);
+    return '<span title=&quot;'+esc(tip)+'&quot; style=&quot;font-family:var(--mono);font-size:9.5px;padding:1px 5px;border:1px solid '+col+';border-radius:2px;color:'+col+'&quot;>SPV '+(ok?&quot;✓&quot;:&quot;✗&quot;)+'</span>';
+  }
+  function vCellWO(r){ return vBadgeWO((r.verify||{}).sup); }
+  var vbTargetWO=null;
+  function openVerifyWO(rec){
+    vbTargetWO=rec.id;
+    $(&quot;vbMetaWO&quot;).textContent=(rec.wo||&quot;&quot;)+&quot;  ·  &quot;+(rec.date||&quot;&quot;)+&quot;  ·  &quot;+(rec.dept||&quot;&quot;);
+    var cur=(rec.verify||{}).sup;
+    $(&quot;vbDecisionWO&quot;).value=(cur&amp;&amp;cur.decision)||&quot;Approved&quot;;
+    $(&quot;vbByWO&quot;).value=(cur&amp;&amp;cur.by)||&quot;&quot;;
+    $(&quot;vbNoteWO&quot;).value=(cur&amp;&amp;cur.note)||&quot;&quot;;
+    $(&quot;vbModalWO&quot;).hidden=false;
+  }
+  $(&quot;vbCancelWO&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;vbModalWO&quot;).hidden=true; vbTargetWO=null; });
+  $(&quot;vbModalWO&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.target===$(&quot;vbModalWO&quot;)){ $(&quot;vbModalWO&quot;).hidden=true; vbTargetWO=null; } });
+  $(&quot;vbSaveWO&quot;).addEventListener(&quot;click&quot;, async function(){
+    var by=$(&quot;vbByWO&quot;).value.trim(); if(!by){ toast(&quot;Enter the supervisor name.&quot;); return; }
+    var rec=recs.filter(function(r){ return r.id===vbTargetWO; })[0];
+    if(!rec){ $(&quot;vbModalWO&quot;).hidden=true; return; }
+    rec.verify=rec.verify||{};
+    rec.verify.sup={ decision:$(&quot;vbDecisionWO&quot;).value, by:by, note:$(&quot;vbNoteWO&quot;).value.trim(), ts:stampNow() };
+    await save(WO_KEY,recs); drawBook(); $(&quot;vbModalWO&quot;).hidden=true; vbTargetWO=null;
+    toast(&quot;Verification saved.&quot;);
+  });
 
   function fillDeptFilter(){
     var cur=$(&quot;fDept&quot;).value, seen={}, opts='<option value=&quot;&quot;>All</option>';
@@ -3276,7 +3657,7 @@ function headline(){
     if(!recs.length){ $(&quot;book&quot;).innerHTML='<div class=&quot;empty&quot;><b>No work orders yet</b>Saved requests from the New request tab land here.</div>'; return; }
     var list=filtered();
     if(!list.length){ $(&quot;book&quot;).innerHTML='<div class=&quot;empty&quot;><b>No match</b>Change the filters or clear the search.</div>'; return; }
-    var h='<table><thead><tr><th>WO No.</th><th>Date</th><th>Department</th><th>Type</th><th>Location / Asset</th><th>Priority</th><th>Description</th><th>Files</th><th>Assignment</th><th>Status</th><th></th></tr></thead><tbody>';
+    var h='<table><thead><tr><th>WO No.</th><th>Date</th><th>Department</th><th>Type</th><th>Location / Asset</th><th>Priority</th><th>Description</th><th>Files</th><th>Assignment</th><th>Status</th><th>Verification</th><th></th></tr></thead><tbody>';
     list.forEach(function(r){
       var nAtt=(r.attachments||[]).length;
       h+='<tr>'
@@ -3290,8 +3671,10 @@ function headline(){
         +'<td>'+(nAtt ? '<button class=&quot;tiny&quot; data-att=&quot;'+esc(r.id)+'&quot;>View '+nAtt+'</button>' : '—')+'</td>'
         +'<td>'+(r.tech ? esc(r.tech) : '<span style=&quot;color:var(--ink-soft)&quot;>Unassigned</span>')+'</td>'
         +'<td><span class=&quot;flag '+statusClass(r.status)+'&quot;>'+esc(r.status||&quot;Open&quot;)+'</span></td>'
+        +'<td>'+vCellWO(r)+'</td>'
         +'<td style=&quot;white-space:nowrap&quot;>'
           +'<button class=&quot;tiny&quot; data-open=&quot;'+esc(r.id)+'&quot;>Open</button> '
+          +'<button class=&quot;tiny&quot; data-verify=&quot;'+esc(r.id)+'&quot;>Verify</button> '
           +'<button class=&quot;tiny warn&quot; data-del=&quot;'+esc(r.id)+'&quot;>Delete</button>'
         +'</td></tr>';
     });
@@ -3305,12 +3688,22 @@ function headline(){
     $(&quot;book&quot;).querySelectorAll(&quot;[data-open]&quot;).forEach(function(b){
       b.addEventListener(&quot;click&quot;, function(){ openDetail(b.getAttribute(&quot;data-open&quot;)); });
     });
+    $(&quot;book&quot;).querySelectorAll(&quot;[data-verify]&quot;).forEach(function(b){
+      b.addEventListener(&quot;click&quot;, function(){
+        var rec=recs.filter(function(r){ return r.id===b.getAttribute(&quot;data-verify&quot;); })[0];
+        if(rec) openVerifyWO(rec);
+      });
+    });
     $(&quot;book&quot;).querySelectorAll(&quot;[data-del]&quot;).forEach(function(b){
       b.addEventListener(&quot;click&quot;, async function(){
         var id=b.getAttribute(&quot;data-del&quot;);
-        if(!confirm(&quot;Delete this work order from the log?&quot;)) return;
+        var rec=recs.filter(function(r){ return r.id===id; })[0];
+        if(!canDeleteWO(rec)) return;
+        if(rec){ rec.deletedAt=stampNow(); delRecs.unshift(rec); }
         recs=recs.filter(function(r){ return r.id!==id; });
-        await save(WO_KEY,recs); refreshHead(); drawBook(); toast(&quot;Deleted.&quot;);
+        await save(WO_KEY,recs); await save(WO_DEL_KEY,delRecs);
+        refreshHead(); drawBook(); if(woShowTrash) drawTrashWO();
+        toast(&quot;Moved to deleted history.&quot;);
       });
     });
   }
@@ -3323,7 +3716,7 @@ function headline(){
     var r=recs.filter(function(x){ return x.id===id; })[0]; if(!r) return;
     detailId=id;
     $(&quot;dtWo&quot;).textContent=&quot;Work order &quot;+r.wo;
-    setRO(&quot;vWo&quot;,r.wo); setRO(&quot;vDate&quot;,r.date);
+    setRO(&quot;vWo&quot;,r.wo); setRO(&quot;vDate&quot;,r.date); setRO(&quot;vDue&quot;, r.dueDate || &quot;—&quot;);
     $(&quot;vStatus&quot;).innerHTML='<span class=&quot;flag '+statusClass(r.status)+'&quot;>'+esc(r.status||&quot;Open&quot;)+'</span>';
     setRO(&quot;vAssign&quot;, r.tech ? r.tech : &quot;Unassigned&quot;);
     setRO(&quot;vDept&quot;,r.dept); setRO(&quot;vBy&quot;,r.requester); setRO(&quot;vContact&quot;,r.contact);
@@ -3396,9 +3789,12 @@ function headline(){
   });
   $(&quot;delDetail&quot;).addEventListener(&quot;click&quot;, async function(){
     if(!detailId) return;
-    if(!confirm(&quot;Delete this work order from the log?&quot;)) return;
+    var rec=recs.filter(function(r){ return r.id===detailId; })[0];
+    if(!canDeleteWO(rec)) return;
+    if(rec){ rec.deletedAt=stampNow(); delRecs.unshift(rec); }
     recs=recs.filter(function(r){ return r.id!==detailId; });
-    await save(WO_KEY,recs); refreshHead(); backToList(); toast(&quot;Deleted.&quot;);
+    await save(WO_KEY,recs); await save(WO_DEL_KEY,delRecs);
+    refreshHead(); backToList(); toast(&quot;Moved to deleted history.&quot;);
   });
 
   /* ---- analysis ---- */
@@ -3503,6 +3899,8 @@ function headline(){
   (async function(){
     recs = await load(WO_KEY, []);
     if(!Array.isArray(recs)) recs=[];
+    delRecs = await load(WO_DEL_KEY, []);
+    if(!Array.isArray(delRecs)) delRecs=[];
     setWoNumber(); refreshHead();
   })();
 })();
