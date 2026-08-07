@@ -4061,15 +4061,15 @@ function nav(page){
 
 /* ---------- Downtime by line (making & packing), paired by line number ---------- */
 const LINE_GROUPS=[
-  {label:"Line 1", make:"Line 1 (Protos 80-1)",  pack:"Line 1 (Focke 350-1)"},
-  {label:"Line 2", make:"Line 2 (Protos 80-2)",  pack:"Line 2 (Focke 350-2)"},
-  {label:"Line 3", make:"Line 3 (Protos 80-3)",  pack:"Line 3 (Focke 350-3)"},
-  {label:"Line 4", make:"Line 4 (Protos 80-4)",  pack:"Line 4 (GDX6P)"},
-  {label:"Line 5", make:"Line 5 (Protos 90T-5)", pack:"Line 5 (GDX6R)"},
-  {label:"Line 6", make:"Line 6 (Super 9-SS)",   pack:"Line A1 (HLP - SS)"},
-  {label:"Filter 1", make:"Line F1 (KDF2-1)",    pack:"Line A2 (HLP - 25)"},
-  {label:"Filter 2", make:"Line F2 (KDF2-2)",    pack:""},
-  {label:"Filter 3", make:"Line F3 (KDF6)",      pack:""}
+  {label:"Line 1", make:"Line 1 (Protos 80-1)",  packs:["Line 1 (Focke 350-1)"]},
+  {label:"Line 2", make:"Line 2 (Protos 80-2)",  packs:["Line 2 (Focke 350-2)","Line A2 (HLP - 25)"]},
+  {label:"Line 3", make:"Line 3 (Protos 80-3)",  packs:["Line 3 (Focke 350-3)"]},
+  {label:"Line 4", make:"Line 4 (Protos 80-4)",  packs:["Line 4 (GDX6P)"]},
+  {label:"Line 5", make:"Line 5 (Protos 90T-5)", packs:["Line 5 (GDX6R)"]},
+  {label:"Line 6", make:"Line 6 (Super 9-SS)",   packs:["Line A1 (HLP - SS)"]},
+  {label:"Filter 1", make:"Line F1 (KDF2-1)",    packs:[]},
+  {label:"Filter 2", make:"Line F2 (KDF2-2)",    packs:[]},
+  {label:"Filter 3", make:"Line F3 (KDF6)",      packs:[]}
 ];
 let ldPeriod="month";
 function ldStart(period){
@@ -4094,20 +4094,21 @@ function renderLineDowntime(){
   document.querySelectorAll('.ld-per').forEach(b=>b.classList.toggle('active',b.dataset.per===ldPeriod));
   const inScope=logbookInScope();
   const map=inScope? ldMinutesByLine(ldPeriod) : {};
-  let max=1; LINE_GROUPS.forEach(g=>{ max=Math.max(max, map[g.make]||0, g.pack?(map[g.pack]||0):0); });
+  let max=1; LINE_GROUPS.forEach(g=>{ max=Math.max(max, map[g.make]||0); (g.packs||[]).forEach(p=>{ max=Math.max(max, map[p]||0); }); });
   const seg=(role,line,mins)=>{
-    if(!line) return '<div class="ld-seg"><div class="ld-role">'+role+'</div><div class="ld-line" style="color:var(--muted)">— none —</div></div>';
     const pct=Math.round(((mins||0)/max)*100);
     return '<div class="ld-seg"><div class="ld-role">'+role+'</div><div class="ld-line">'+esc(line)+'</div>'+
       '<div class="ld-min">'+(mins||0)+'<small>min</small></div>'+
       '<div class="ld-bar"><i style="width:'+pct+'%"></i></div></div>';
   };
-  $('#lineGrid').innerHTML = LINE_GROUPS.map(g=>
-    '<div class="ld-box"><div class="ld-head">'+esc(g.label)+'</div>'+
-    seg('Making', g.make, map[g.make])+
-    seg('Packing', g.pack, g.pack?map[g.pack]:0)+
-    '</div>'
-  ).join('');
+  $('#lineGrid').innerHTML = LINE_GROUPS.map(g=>{
+    var packs=g.packs||[];
+    var packHtml = packs.length
+      ? packs.map(function(p,i){ return seg(packs.length>1?('Packing '+(i+1)):'Packing', p, map[p]); }).join('')
+      : '';
+    return '<div class="ld-box"><div class="ld-head">'+esc(g.label)+'</div>'+
+      seg('Making', g.make, map[g.make]) + packHtml + '</div>';
+  }).join('');
   const pl={today:"today",week:"last 7 days",month:"this month",all:"all time"}[ldPeriod];
   $('#ldScope').textContent = inScope
     ? 'Total downtime minutes per line group ('+pl+') · making on top, packing below.'
