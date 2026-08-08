@@ -302,6 +302,9 @@
       <div class="topbar-main">
         <h1 id="pageTitle">Engineering Dashboard</h1>
         <div class="field-inline">
+          <button class="icon-btn" id="homeBtn" onclick="nav('dashboard')" title="Home — Engineering Dashboard" aria-label="Home — Engineering Dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          </button>
           <label for="entitySel">Entity</label>
           <select id="entitySel"></select>
         </div>
@@ -338,7 +341,7 @@
 
         <h3 class="ov-sec" style="font-family:var(--disp);font-size:18px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin:6px 0 10px;color:var(--ink)">SMD Downtime</h3>
         <div class="tiles">
-          <div class="card tile" onclick="nav('downtime2')" style="cursor:pointer"><div class="t-label"><span class="dot" style="background:var(--critical)"></span>Open Downtime</div><div class="t-value" id="kOpenDT">0</div><div class="t-sub">open stops · from Log Book</div></div>
+          <div class="card tile" onclick="openDTLog({status:'Open'})" style="cursor:pointer" title="Open downtime stops"><div class="t-label"><span class="dot" style="background:var(--critical)"></span>Open Downtime</div><div class="t-value" id="kOpenDT">0</div><div class="t-sub">open stops · <span style="color:var(--brand)">view open →</span></div></div>
           <div class="card tile" onclick="nav('linedt')" style="cursor:pointer" title="Open downtime by line"><div class="t-label"><span class="dot" style="background:var(--brand-2)"></span>Downtime Hours</div><div class="t-value" id="kHours">0</div><div class="t-sub">hours · from Log Book · <span style="color:var(--brand)">view by line →</span></div></div>
         </div>
 
@@ -4910,6 +4913,19 @@ function openWOLog(opts){
     } else if(tries++<50){ setTimeout(go,100); }
   })();
 }
+/* open the Technician Downtime Log Book pre-filtered by status ('Open'|'Waiting parts'|'Temporary fix'|'Closed'|'') */
+function openDTLog(opts){
+  opts=opts||{}; nav('downtime2');
+  var tries=0;
+  (function go(){
+    var f=document.getElementById('logbookFrame'); var d=f&&f.contentDocument;
+    if(d && d.getElementById('t-book') && d.getElementById('bStatus')){
+      var sel=d.getElementById('bStatus'); sel.value = opts.status||'';
+      sel.dispatchEvent(new Event('change',{bubbles:true}));
+      d.getElementById('t-book').click();
+    } else if(tries++<50){ setTimeout(go,100); }
+  })();
+}
 /* open the Diesel Inventory Log Book pre-filtered by kind ('receive'|'usage'|'transfer'|'') */
 function openDieselLog(kind){
   nav('diesel');
@@ -5040,7 +5056,7 @@ function renderDashboard(){
   // ---- Downtime metrics — Technician Downtime Log Book, filtered by entity ----
   const evts = logbookInScope() ? logbookEvents() : [];
   if(evts){
-    $('#kOpenDT').textContent = evts.filter(e=>e.status!=="Closed").length;
+    $('#kOpenDT').textContent = evts.filter(e=>e.status==="Open").length;
     const totalMin = evts.reduce((s,e)=>s+(+e.total||0),0);
     $('#kHours').textContent = (totalMin/60).toFixed(1);
     // Open downtime + downtime hours broken down per machine line
