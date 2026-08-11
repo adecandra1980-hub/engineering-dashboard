@@ -4236,7 +4236,15 @@ function headline(){
           <button class=&quot;ghost&quot; type=&quot;button&quot; id=&quot;rNow&quot; style=&quot;padding:8px 10px;white-space:nowrap&quot;>Now</button></div></div>
         <div><label class=&quot;f&quot; for=&quot;rDriver&quot;>Driver name <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;rDriver&quot; type=&quot;text&quot; placeholder=&quot;Driver&quot;></div>
         <div><label class=&quot;f&quot; for=&quot;rTruck&quot;>Truck number <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;rTruck&quot; type=&quot;text&quot; placeholder=&quot;e.g. BP 1234 XX&quot;></div>
-        <div><label class=&quot;f&quot; for=&quot;rSupplier&quot;>Supplier <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;rSupplier&quot; type=&quot;text&quot; placeholder=&quot;Supplier name&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;rSupplier&quot;>Supplier <span style=&quot;color:var(--bad)&quot;>*</span></label>
+          <select id=&quot;rSupplier&quot;>
+            <option value=&quot;&quot;>Select supplier…</option>
+            <option>PT. SARANA TRANSPORTIR NUSANTARA</option>
+            <option>PT. IVORY FORTUNER MAS</option>
+            <option>PT. SARANA RUSSEL VICTORY</option>
+            <option>PT. MAJESTY PROSPERINDO</option>
+            <option>PT. SHA SOLO</option>
+          </select></div>
         <div><label class=&quot;f&quot; for=&quot;rDO&quot;>Delivery order no. <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;rDO&quot; type=&quot;text&quot; placeholder=&quot;DO / receipt no.&quot;></div>
         <div><label class=&quot;f&quot; for=&quot;rTankSel&quot;>Receiving tank <span style=&quot;color:var(--bad)&quot;>*</span></label>
           <select id=&quot;rTankSel&quot;></select></div>
@@ -4558,7 +4566,7 @@ $(&quot;rSave&quot;).addEventListener(&quot;click&quot;,async function(){
   if(!$(&quot;rWhen&quot;).value){ toast(&quot;Enter date &amp; time receiving.&quot;); $(&quot;rWhen&quot;).focus(); return; }
   if(!$(&quot;rDriver&quot;).value.trim()){ toast(&quot;Enter driver name.&quot;); $(&quot;rDriver&quot;).focus(); return; }
   if(!$(&quot;rTruck&quot;).value.trim()){ toast(&quot;Enter truck number.&quot;); $(&quot;rTruck&quot;).focus(); return; }
-  if(!$(&quot;rSupplier&quot;).value.trim()){ toast(&quot;Enter supplier.&quot;); $(&quot;rSupplier&quot;).focus(); return; }
+  if(!$(&quot;rSupplier&quot;).value.trim()){ toast(&quot;Select the supplier.&quot;); $(&quot;rSupplier&quot;).focus(); return; }
   if(!$(&quot;rDO&quot;).value.trim()){ toast(&quot;Enter delivery order no.&quot;); $(&quot;rDO&quot;).focus(); return; }
   if(!$(&quot;rTankSel&quot;).value){ toast(&quot;Select the receiving tank.&quot;); $(&quot;rTankSel&quot;).focus(); return; }
   if($(&quot;rTank&quot;).value.trim()===&quot;&quot;){ toast(&quot;Enter tank level after.&quot;); $(&quot;rTank&quot;).focus(); return; }
