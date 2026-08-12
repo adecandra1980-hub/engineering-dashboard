@@ -5029,20 +5029,54 @@ function renderDieselChart(){
   const dows=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const div='<div style="width:1px;background:var(--rule);align-self:stretch;margin:0 2px"></div>';
   const sumColor='var(--ink)';
+  const nowT=now.getTime();
+  const visIdx=days.map((d,i)=>i).filter(i=>dayStart[i]<=nowT);   // only days that have started (hide future days)
+  // Usage split by usage type (stacked)
+  const USAGE_TYPES=[
+    {key:'Boiler Primary Production (PMD)', label:'Boiler PMD',        color:'#B07845'},
+    {key:'Forklift usage from Warehouse',   label:'Forklift Warehouse',color:'#1F5673'},
+    {key:'Others',                          label:'Others',            color:'#8A8478'}
+  ];
+  const usageBreak=(a,b,tank)=>{ const o=[0,0,0]; entries.forEach(x=>{ if(x.kind!=='usage')return; if(tank && x.from!==tank) return; const t=tsOf(x); if(t<a||t>b) return; let k=USAGE_TYPES.findIndex(u=>u.key===x.usageType); if(k<0) k=2; o[k]+=(+x.litres||0); }); return o; };
+  const sumArr=o=>o.reduce((a,b)=>a+b,0);
+  const stacked=dwkMetric==='usage';
   function box(label, tank){
-    const s=seriesFor(tank);
-    const dailyMax=Math.max(1,...s.daily.map(v=>Math.abs(v)));
-    const sumMax=Math.max(1,Math.abs(s.lastVal),Math.abs(s.ytdVal));
-    const col=(val,scale,color,l1,l2)=>{
+    const s = stacked ? null : seriesFor(tank);
+    let dailyVals, lastV, ytdV, dailyBrk, lastBrk, ytdBrk;
+    if(stacked){
+      dailyBrk=days.map((d,i)=>usageBreak(dayStart[i],dayEnd[i],tank));
+      lastBrk=usageBreak(lastStart,lastEnd,tank); ytdBrk=usageBreak(ytdStart,endToday,tank);
+      dailyVals=dailyBrk.map(sumArr); lastV=sumArr(lastBrk); ytdV=sumArr(ytdBrk);
+    } else {
+      dailyVals=s.daily; lastV=s.lastVal; ytdV=s.ytdVal;
+    }
+    const dailyMax=Math.max(1,...visIdx.map(i=>Math.abs(dailyVals[i])));
+    const sumMax=Math.max(1,Math.abs(lastV),Math.abs(ytdV));
+    const col=(val,scale,color,l1,l2,hide)=>{
       const pct = val===0 ? 0 : Math.max(3, Math.round(Math.abs(val)/scale*100));
-      return `<div class="ld-col"><div class="ld-colval">${fmt(val)}<small>L</small></div><div class="ld-barwrap"><i style="height:${pct}%;background:${color}"></i></div><div class="ld-collabel">${l1}<br>${l2}</div></div>`;
+      const h = hide ? ' style="visibility:hidden"' : '';
+      return `<div class="ld-col"><div class="ld-colval"${h}>${fmt(val)}<small>L</small></div><div class="ld-barwrap"${h}><i style="height:${pct}%;background:${color}"></i></div><div class="ld-collabel">${l1}<br>${l2}</div></div>`;
     };
-    const dailyCols=days.map((d,i)=>col(s.daily[i],dailyMax,m.color,dows[d.getDay()],(d.getMonth()+1)+'/'+d.getDate())).join('');
-    const left=col(s.lastVal,sumMax,sumColor,'Last wk','W'+isoWeek(lastMon));
-    const right=col(s.ytdVal,sumMax,sumColor,'YTD',String(now.getFullYear()));
+    const scol=(brk,total,scale,l1,l2,hide)=>{
+      const pct = total===0 ? 0 : Math.max(3, Math.round(total/scale*100));
+      const h = hide ? ' style="visibility:hidden"' : '';
+      const segs = USAGE_TYPES.map((u,k)=> brk[k]>0 ? `<i style="flex:${brk[k]};background:${u.color};display:block"></i>` : '').join('');
+      return `<div class="ld-col"><div class="ld-colval"${h}>${fmt(total)}<small>L</small></div><div class="ld-barwrap"${h}><div style="width:100%;height:${pct}%;display:flex;flex-direction:column;justify-content:flex-end">${segs}</div></div><div class="ld-collabel">${l1}<br>${l2}</div></div>`;
+    };
+    let dailyCols, left, right;
+    if(stacked){
+      dailyCols=days.map((d,i)=>scol(dailyBrk[i],dailyVals[i],dailyMax,dows[d.getDay()],(d.getMonth()+1)+'/'+d.getDate(), dayStart[i]>nowT)).join('');
+      left=scol(lastBrk,lastV,sumMax,'Last wk','W'+isoWeek(lastMon));
+      right=scol(ytdBrk,ytdV,sumMax,'YTD',String(now.getFullYear()));
+    } else {
+      dailyCols=days.map((d,i)=>col(dailyVals[i],dailyMax,m.color,dows[d.getDay()],(d.getMonth()+1)+'/'+d.getDate(), dayStart[i]>nowT)).join('');
+      left=col(lastV,sumMax,sumColor,'Last wk','W'+isoWeek(lastMon));
+      right=col(ytdV,sumMax,sumColor,'YTD',String(now.getFullYear()));
+    }
     return `<div class="ld-box" style="margin-bottom:14px"><div class="ld-head">${esc(label)} <span class="ld-role">${esc(m.label)} · Mon–Sun · last wk &amp; YTD</span></div><div class="ld-chart">${left}${div}${dailyCols}${div}${right}</div></div>`;
   }
-  let html = box('All tanks', null);
+  const legend = stacked ? '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-family:var(--mono);font-size:11px;color:var(--ink)">'+USAGE_TYPES.map(u=>'<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:13px;height:13px;border-radius:2px;display:inline-block;background:'+u.color+'"></i>'+esc(u.label)+'</span>').join('')+'</div>' : '';
+  let html = legend + box('All tanks', null);
   DIESEL_TANKS.forEach(t=>{ html += box(t, t); });
   $('#dwkChart').innerHTML = html;
 }
