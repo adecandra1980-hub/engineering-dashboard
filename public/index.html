@@ -4970,7 +4970,8 @@ function nav(page){
   if(page==='downtime2') syncDTEntity();
 }
 
-/* ---------- Diesel weekly (last 7 days) bar chart ---------- */
+/* ---------- Diesel weekly (Mon–Sun) bar chart, per tank ---------- */
+const DIESEL_TANKS=["Tank 01A - ALCO 20K","Tank 01B - ALCO 6.5K","Tank 01C - ALCO 1.5K","Tank 02 - BOL","Tank 03 - BOL","Tank 04 - Sarana"];
 const DWK_META = {
   stock:    { label:'Diesel Stock',     unit:'litres in tank (end of day)', color:'var(--good)',  mode:'stock' },
   receive:  { label:'Diesel Receiving', unit:'litres received',             color:'var(--brand)', mode:'sum', kind:'receive',  field:'received' },
@@ -5003,34 +5004,47 @@ function renderDieselChart(){
   const lastStart=lastMon.getTime(), lastEnd=curMon.getTime()-1;
   const ytdStart=new Date(now.getFullYear(),0,1).getTime();
   const endToday=(function(){ const e=new Date(now); e.setHours(23,59,59,999); return e.getTime(); })();
-  const sumIn=(a,b)=>{ let s=0; entries.forEach(x=>{ if(x.kind!==m.kind) return; const t=tsOf(x); if(t>=a&&t<=b) s+=(+x[m.field]||0); }); return s; };
-  const stockAt=t1=>{ let r=0,u=0,x2=0; entries.forEach(x=>{ const t=tsOf(x); if(t<=t1){ if(x.kind==='receive')r+=(+x.received||0); else if(x.kind==='usage')u+=(+x.litres||0); else if(x.kind==='transfer')x2+=(+x.litres||0);} }); return r-u-x2; };
-  let daily, lastVal, ytdVal;
-  if(m.mode==='sum'){
-    daily=days.map((d,i)=>sumIn(dayStart[i],dayEnd[i]));
-    lastVal=sumIn(lastStart,lastEnd);
-    ytdVal=sumIn(ytdStart,endToday);
-  } else {
-    daily=days.map((d,i)=>stockAt(dayEnd[i]));
-    lastVal=stockAt(lastEnd);
-    ytdVal=stockAt(endToday);
+  // tank filter: receiving keys on the receiving tank; usage & transfer on the source tank
+  const sumIn=(a,b,tank)=>{ let s=0; entries.forEach(x=>{ if(x.kind!==m.kind) return; if(tank){ const tk=(m.kind==='receive')?x.tank:x.from; if(tk!==tank) return; } const t=tsOf(x); if(t>=a&&t<=b) s+=(+x[m.field]||0); }); return s; };
+  const stockAll=t1=>{ let r=0,u=0,x2=0; entries.forEach(x=>{ const t=tsOf(x); if(t<=t1){ if(x.kind==='receive')r+=(+x.received||0); else if(x.kind==='usage')u+=(+x.litres||0); else if(x.kind==='transfer')x2+=(+x.litres||0);} }); return r-u-x2; };
+  const stockTank=(t1,tank)=>{ let baseVal=0,baseTs=-Infinity; entries.forEach(x=>{ if(x.kind!=='opname')return; const t=tsOf(x); if(t>t1)return; const rec=(x.tanks||[]).find(rr=>rr.name===tank); if(rec&&t>=baseTs){baseTs=t;baseVal=+rec.litres||0;} }); let bal=baseVal; entries.forEach(x=>{ const t=tsOf(x); if(t>baseTs&&t<=t1){ if(x.kind==='receive'&&x.tank===tank)bal+=(+x.received||0); else if(x.kind==='usage'&&x.from===tank)bal-=(+x.litres||0); else if(x.kind==='transfer'){ if(x.dest===tank)bal+=(+x.litres||0); if(x.from===tank)bal-=(+x.litres||0);} } }); return bal; };
+  function seriesFor(tank){
+    let daily,lastVal,ytdVal;
+    if(m.mode==='sum'){
+      daily=days.map((d,i)=>sumIn(dayStart[i],dayEnd[i],tank));
+      lastVal=sumIn(lastStart,lastEnd,tank);
+      ytdVal=sumIn(ytdStart,endToday,tank);
+    } else if(tank){
+      daily=days.map((d,i)=>stockTank(dayEnd[i],tank));
+      lastVal=stockTank(lastEnd,tank);
+      ytdVal=stockTank(endToday,tank);
+    } else {
+      daily=days.map((d,i)=>stockAll(dayEnd[i]));
+      lastVal=stockAll(lastEnd);
+      ytdVal=stockAll(endToday);
+    }
+    return {daily,lastVal,ytdVal};
   }
   const fmt=n=>Math.round(n).toLocaleString('en-US');
   const dows=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const dailyMax=Math.max(1,...daily.map(v=>Math.abs(v)));
-  const sumMax=Math.max(1,Math.abs(lastVal),Math.abs(ytdVal));
-  const col=(val,scale,color,l1,l2)=>{
-    const pct = val===0 ? 0 : Math.max(3, Math.round(Math.abs(val)/scale*100));
-    return `<div class="ld-col"><div class="ld-colval">${fmt(val)}<small>L</small></div><div class="ld-barwrap"><i style="height:${pct}%;background:${color}"></i></div><div class="ld-collabel">${l1}<br>${l2}</div></div>`;
-  };
   const div='<div style="width:1px;background:var(--rule);align-self:stretch;margin:0 2px"></div>';
   const sumColor='var(--ink)';
-  const dailyCols=days.map((d,i)=>col(daily[i],dailyMax,m.color,dows[d.getDay()],(d.getMonth()+1)+'/'+d.getDate())).join('');
-  const left=col(lastVal,sumMax,sumColor,'Last wk','W'+isoWeek(lastMon));
-  const right=col(ytdVal,sumMax,sumColor,'YTD',String(now.getFullYear()));
-  const role = m.mode==='sum' ? 'last week & YTD totals · daily and totals scaled separately'
-                              : 'last-week end & current level · daily and totals scaled separately';
-  $('#dwkChart').innerHTML = `<div class="ld-box"><div class="ld-head">${esc(m.label)} <span class="ld-role">${role}</span></div><div class="ld-chart">${left}${div}${dailyCols}${div}${right}</div></div>`;
+  function box(label, tank){
+    const s=seriesFor(tank);
+    const dailyMax=Math.max(1,...s.daily.map(v=>Math.abs(v)));
+    const sumMax=Math.max(1,Math.abs(s.lastVal),Math.abs(s.ytdVal));
+    const col=(val,scale,color,l1,l2)=>{
+      const pct = val===0 ? 0 : Math.max(3, Math.round(Math.abs(val)/scale*100));
+      return `<div class="ld-col"><div class="ld-colval">${fmt(val)}<small>L</small></div><div class="ld-barwrap"><i style="height:${pct}%;background:${color}"></i></div><div class="ld-collabel">${l1}<br>${l2}</div></div>`;
+    };
+    const dailyCols=days.map((d,i)=>col(s.daily[i],dailyMax,m.color,dows[d.getDay()],(d.getMonth()+1)+'/'+d.getDate())).join('');
+    const left=col(s.lastVal,sumMax,sumColor,'Last wk','W'+isoWeek(lastMon));
+    const right=col(s.ytdVal,sumMax,sumColor,'YTD',String(now.getFullYear()));
+    return `<div class="ld-box" style="margin-bottom:14px"><div class="ld-head">${esc(label)} <span class="ld-role">${esc(m.label)} · Mon–Sun · last wk &amp; YTD</span></div><div class="ld-chart">${left}${div}${dailyCols}${div}${right}</div></div>`;
+  }
+  let html = box('All tanks', null);
+  DIESEL_TANKS.forEach(t=>{ html += box(t, t); });
+  $('#dwkChart').innerHTML = html;
 }
 /* tell the embedded downtime log which entity's machine list + log to show */
 function syncDTEntity(tries){
