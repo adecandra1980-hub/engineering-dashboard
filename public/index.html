@@ -4504,7 +4504,7 @@ function adminOK(){ var u=prompt(&quot;Not the submitter's device.\nAdministrato
 function canDelete(rec){ var owner=!rec||!rec.deviceId||rec.deviceId===DEVICE_ID; if(!owner&amp;&amp;!adminOK()) return false; return confirm(&quot;Are you sure to delete this entry?&quot;); }
 
 /* ---- canonical tank list (single source of truth) ---- */
-var TANKS=[&quot;Tank 01 - ALCO&quot;,&quot;Tank 01A - ALCO 20K&quot;,&quot;Tank 01B - ALCO 6.5K&quot;,&quot;Tank 01C - ALCO 1.5K&quot;,&quot;Tank 02 - BOL&quot;,&quot;Tank 03 - BOL&quot;,&quot;Tank 04 - Sarana&quot;];
+var TANKS=[&quot;Container - ALCO 1000L&quot;,&quot;Tank 01A - ALCO 10K&quot;,&quot;Tank 01B - ALCO 6.5K&quot;,&quot;Tank 01C - ALCO 1.5K&quot;,&quot;Tank 02 - BOL&quot;,&quot;Tank 03 - BOL&quot;,&quot;Tank 04 - Sarana&quot;];
 function fillTankSelect(id, placeholder){
   var s=$(id); if(!s) return;
   var html = placeholder ? '<option value=&quot;&quot;>Select tank…</option>' : &quot;&quot;;
@@ -4971,7 +4971,7 @@ function nav(page){
 }
 
 /* ---------- Diesel weekly (Mon–Sun) bar chart, per tank ---------- */
-const DIESEL_TANKS=["Tank 01 - ALCO","Tank 01A - ALCO 20K","Tank 01B - ALCO 6.5K","Tank 01C - ALCO 1.5K","Tank 02 - BOL","Tank 03 - BOL","Tank 04 - Sarana"];
+const DIESEL_TANKS=["Container - ALCO 1000L","Tank 01A - ALCO 10K","Tank 01B - ALCO 6.5K","Tank 01C - ALCO 1.5K","Tank 02 - BOL","Tank 03 - BOL","Tank 04 - Sarana"];
 const DWK_META = {
   stock:    { label:'Diesel Stock',     unit:'litres in tank (end of day)', color:'var(--good)',  mode:'stock' },
   receive:  { label:'Diesel Receiving', unit:'litres received',             color:'var(--brand)', mode:'sum', kind:'receive',  field:'received' },
