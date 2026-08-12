@@ -363,9 +363,10 @@
 
         <h3 class="ov-sec" style="font-family:var(--disp);font-size:18px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin:22px 0 10px;color:var(--ink)">Diesel Inventory</h3>
         <div class="tiles">
-          <div class="card tile" onclick="openDieselLog('receive')" style="cursor:pointer" title="Open diesel log — receiving"><div class="t-label"><span class="dot" style="background:var(--good)"></span>Diesel Stock</div><div class="t-value" id="kDieselStock">0</div><div class="t-sub">litres in tank · <span style="color:var(--brand)">view receiving →</span></div></div>
-          <div class="card tile" onclick="openDieselLog('usage')" style="cursor:pointer" title="Open diesel log — usage"><div class="t-label"><span class="dot" style="background:var(--kraft)"></span>Diesel Usage</div><div class="t-value" id="kDieselUse">0</div><div class="t-sub">litres used · <span style="color:var(--brand)">view usage →</span></div></div>
-          <div class="card tile" onclick="openDieselLog('transfer')" style="cursor:pointer" title="Open diesel log — transfer"><div class="t-label"><span class="dot" style="background:var(--amber)"></span>Diesel Transfer</div><div class="t-value" id="kDieselXfer">0</div><div class="t-sub">litres transferred · <span style="color:var(--brand)">view transfer →</span></div></div>
+          <div class="card tile" onclick="openDieselChart('stock')" style="cursor:pointer" title="7-day stock chart"><div class="t-label"><span class="dot" style="background:var(--good)"></span>Diesel Stock</div><div class="t-value" id="kDieselStock">0</div><div class="t-sub">litres in tank · <span style="color:var(--brand)">view 7-day chart →</span></div></div>
+          <div class="card tile" onclick="openDieselChart('receive')" style="cursor:pointer" title="7-day receiving chart"><div class="t-label"><span class="dot" style="background:var(--brand)"></span>Diesel Receiving</div><div class="t-value" id="kDieselRecv">0</div><div class="t-sub">litres received · <span style="color:var(--brand)">view 7-day chart →</span></div></div>
+          <div class="card tile" onclick="openDieselChart('usage')" style="cursor:pointer" title="7-day usage chart"><div class="t-label"><span class="dot" style="background:var(--kraft)"></span>Diesel Usage</div><div class="t-value" id="kDieselUse">0</div><div class="t-sub">litres used · <span style="color:var(--brand)">view 7-day chart →</span></div></div>
+          <div class="card tile" onclick="openDieselChart('transfer')" style="cursor:pointer" title="7-day transfer chart"><div class="t-label"><span class="dot" style="background:var(--amber)"></span>Diesel Transfer</div><div class="t-value" id="kDieselXfer">0</div><div class="t-sub">litres transferred · <span style="color:var(--brand)">view 7-day chart →</span></div></div>
         </div>
 
         <div class="card">
@@ -427,6 +428,27 @@
           </div>
         </div>
         <div id="lineGrid" class="line-grid"></div>
+      </section>
+
+      <!-- ===== DIESEL WEEKLY ANALYSIS ===== -->
+      <section class="page" id="page-dieselwk">
+        <style>
+          .dwk-m.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+        </style>
+        <div class="page-head" style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
+          <div style="flex:1;min-width:220px">
+            <button class="btn" onclick="nav('dashboard')" style="margin-bottom:8px">← Back to overview</button>
+            <h2 id="dwkTitle">Diesel — last 7 days</h2>
+            <p id="dwkSub"></p>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-self:center">
+            <button class="btn dwk-m" data-m="stock" onclick="openDieselChart('stock')">Stock</button>
+            <button class="btn dwk-m" data-m="receive" onclick="openDieselChart('receive')">Receiving</button>
+            <button class="btn dwk-m" data-m="usage" onclick="openDieselChart('usage')">Usage</button>
+            <button class="btn dwk-m" data-m="transfer" onclick="openDieselChart('transfer')">Transfer</button>
+          </div>
+        </div>
+        <div id="dwkChart"></div>
       </section>
 
       <!-- ===== DOWNTIME ===== -->
@@ -714,7 +736,7 @@
         <div><label class=&quot;f&quot; for=&quot;eShift&quot;>Shift</label>
           <select id=&quot;eShift&quot;><option>1 (07–15)</option><option>2 (15–23)</option><option>3 (23–07)</option><option>Day</option></select></div>
         <div><label class=&quot;f&quot; for=&quot;eCat&quot;>Machine</label><select id=&quot;eCat&quot;></select></div>
-        <div><label class=&quot;f&quot; for=&quot;eLine&quot;>Line</label><select id=&quot;eLine&quot;></select></div>
+        <div id=&quot;eLineWrap&quot;><label class=&quot;f&quot; for=&quot;eLine&quot;>Line</label><select id=&quot;eLine&quot;></select></div>
         <div><label class=&quot;f&quot; for=&quot;eBy&quot;>Reported by <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;eBy&quot; placeholder=&quot;Technician Name&quot;></div>
       </div>
     </div>
@@ -1085,6 +1107,22 @@ var DEFAULT_CFG = {
     &quot;Cartoner&quot;,&quot;Case packer&quot;,&quot;Checkweigher&quot;,&quot;Filter rod maker garniture&quot;,&quot;Plasticiser / triacetin unit&quot;,&quot;Tow processing unit&quot;,&quot;Rod tray filler&quot;,&quot;Other&quot;]
 };
 var cfg = DEFAULT_CFG, evts = [];
+
+/* ---- entity-dedicated machine lists ---- */
+var IKG_MACHINES = [&quot;Manroland&quot;,&quot;DCN - ATN&quot;,&quot;Bobst Expertcut&quot;,&quot;Bobst Novacut&quot;,&quot;Cutting&quot;,
+  &quot;Label Master1&quot;,&quot;Digital 1&quot;,&quot;DCM Slitting&quot;,&quot;Soma Slitting&quot;,&quot;Reborn&quot;,&quot;Folder Gluer&quot;,
+  &quot;Boiler&quot;,&quot;Compressor 37Kw&quot;,&quot;Compressor 55Kw&quot;];
+var IKG_CFG = {
+  nameV: 1,
+  /* each machine is its own &quot;Machine&quot; entry; a hidden single line mirrors it so
+     the record still stores a line and the analysis keys per machine. */
+  categories: IKG_MACHINES.map(function(m,i){
+    return { id:&quot;ikg&quot;+(i+1), name:m, lines:[{ id:&quot;ikg&quot;+(i+1)+&quot;L&quot;, name:m }] };
+  }),
+  stopcats: DEFAULT_CFG.stopcats.slice(),
+  types: DEFAULT_CFG.types.slice()
+};
+var ENT = &quot;ALCO&quot;, ALCO_CFG = null;
 
 /* ---- machine specific downtime lists ----
    Taken from the Protos 80 stoppage list. Codes are kept exactly as the machine
@@ -2948,12 +2986,34 @@ function headline(){
   var open = evts.filter(function(e){ return e.status !== &quot;Closed&quot;; }).length;
   $(&quot;hOpen&quot;).textContent = open;
 }
+/* Switch the whole downtime app to an entity: swap the machine list and use a
+   separate log store per entity (ALCO keeps the original keys). Called by the
+   parent dashboard when the Entity selector changes. */
+async function setEntity(ent){
+  ent = (ent === &quot;IKG&quot;) ? &quot;IKG&quot; : &quot;ALCO&quot;;   /* only ALCO + IKG have dedicated lists so far */
+  if(ent === ENT) return;
+  ENT = ent;
+  cfg = (ent === &quot;IKG&quot;) ? IKG_CFG : (ALCO_CFG || DEFAULT_CFG);
+  EVT_KEY   = (ent === &quot;ALCO&quot;) ? &quot;tdl:events&quot;  : &quot;tdl:events:&quot;  + ent;
+  DEL_KEY   = (ent === &quot;ALCO&quot;) ? &quot;tdl:deleted&quot; : &quot;tdl:deleted:&quot; + ent;
+  DRAFT_KEY = (ent === &quot;ALCO&quot;) ? &quot;tdl:draft&quot;   : &quot;tdl:draft:&quot;   + ent;
+  evts = await load(EVT_KEY, []); if(!Array.isArray(evts)) evts = [];
+  deleted = await load(DEL_KEY, []); if(!Array.isArray(deleted)) deleted = [];
+  var lw = document.getElementById(&quot;eLineWrap&quot;); if(lw) lw.style.display = (ent === &quot;IKG&quot;) ? &quot;none&quot; : &quot;&quot;;
+  fillCatSelects(); fillLineSelect(); fillFilterLines(); fillLists(); fillUnits(true); fillTypes(&quot;&quot;);
+  if(typeof drawBook === &quot;function&quot;) drawBook();
+  if(typeof drawAnalysis === &quot;function&quot;) drawAnalysis();
+  if(typeof drawTrash === &quot;function&quot;) drawTrash();
+  headline();
+}
+window.setEntity = setEntity;
 (async function init(){
   cfg = await load(CFG_KEY, DEFAULT_CFG);
   if(!cfg || !cfg.categories || !cfg.categories.length) cfg = DEFAULT_CFG;
   cfg.categories.forEach(function(c){ if(!c.lines || !c.lines.length) c.lines = mkLines(c.id, 6); });
   [&quot;stopcats&quot;,&quot;types&quot;].forEach(function(k){ if(!cfg[k] || !cfg[k].length) cfg[k] = DEFAULT_CFG[k].slice(); });
   if(applyNames()) await save(CFG_KEY, cfg);
+  ALCO_CFG = cfg;
   evts = await load(EVT_KEY, []);
   if(!Array.isArray(evts)) evts = [];
   deleted = await load(DEL_KEY, []);
@@ -4897,7 +4957,7 @@ const REPORTKINDS = {
 };
 
 /* ---------- navigation ---------- */
-const TITLES={dashboard:"Engineering Dashboard",downtime:"Technician Downtime Report",workorder:"Utility & Facility Work Order",downtime2:"Technician Downtime Log Book",workorder2:"Work Order Request — Utility Facility",linedt:"Downtime by Line",diesel:"Diesel Inventory Management"};
+const TITLES={dashboard:"Engineering Dashboard",downtime:"Technician Downtime Report",workorder:"Utility & Facility Work Order",downtime2:"Technician Downtime Log Book",workorder2:"Work Order Request — Utility Facility",linedt:"Downtime by Line",dieselwk:"Diesel — Weekly Analysis",diesel:"Diesel Inventory Management"};
 function nav(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -4906,6 +4966,80 @@ function nav(page){
   closeSidebar();
   if(page==='dashboard') renderDashboard();
   if(page==='linedt') renderLineDowntime();
+  if(page==='dieselwk') renderDieselChart();
+  if(page==='downtime2') syncDTEntity();
+}
+
+/* ---------- Diesel weekly (last 7 days) bar chart ---------- */
+const DWK_META = {
+  stock:    { label:'Diesel Stock',     unit:'litres in tank (end of day)', color:'var(--good)',  mode:'stock' },
+  receive:  { label:'Diesel Receiving', unit:'litres received',             color:'var(--brand)', mode:'sum', kind:'receive',  field:'received' },
+  usage:    { label:'Diesel Usage',     unit:'litres used',                 color:'var(--kraft)', mode:'sum', kind:'usage',    field:'litres' },
+  transfer: { label:'Diesel Transfer',  unit:'litres transferred',          color:'var(--amber)', mode:'sum', kind:'transfer', field:'litres' }
+};
+let dwkMetric='receive';
+function openDieselChart(metric){ dwkMetric=DWK_META[metric]?metric:'receive'; nav('dieselwk'); }
+function mondayOf(d){ const x=new Date(d); x.setHours(0,0,0,0); const off=(x.getDay()+6)%7; x.setDate(x.getDate()-off); return x; }
+function isoWeek(d){
+  const date=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  const day=(date.getUTCDay()+6)%7; date.setUTCDate(date.getUTCDate()-day+3);
+  const firstThu=new Date(Date.UTC(date.getUTCFullYear(),0,4));
+  const fd=(firstThu.getUTCDay()+6)%7; firstThu.setUTCDate(firstThu.getUTCDate()-fd+3);
+  return 1+Math.round((date-firstThu)/(7*86400000));
+}
+function renderDieselChart(){
+  const m=DWK_META[dwkMetric]||DWK_META.receive;
+  const now=new Date();
+  const curMon=mondayOf(now);
+  $('#dwkTitle').textContent = m.label + ' — this week (W'+isoWeek(curMon)+')';
+  $('#dwkSub').textContent = m.unit + (m.mode==='sum'? ' per day · Mon–Sun' : ' · end of each day, Mon–Sun') + (logbookInScope()? '.' : ' · (no linked log for this entity).');
+  document.querySelectorAll('.dwk-m').forEach(b=>b.classList.toggle('active', b.dataset.m===dwkMetric));
+  const entries = logbookInScope() ? (dieselEntries()||[]) : [];
+  const tsOf=x=>(+x.ts)||(x.date?Date.parse(x.date):0)||0;
+  const days=[]; for(let i=0;i<7;i++){ const d=new Date(curMon); d.setDate(curMon.getDate()+i); days.push(d); }
+  const dayStart=days.map(d=>d.getTime());
+  const dayEnd=days.map(d=>{ const e=new Date(d); e.setHours(23,59,59,999); return e.getTime(); });
+  const lastMon=new Date(curMon); lastMon.setDate(curMon.getDate()-7);
+  const lastStart=lastMon.getTime(), lastEnd=curMon.getTime()-1;
+  const ytdStart=new Date(now.getFullYear(),0,1).getTime();
+  const endToday=(function(){ const e=new Date(now); e.setHours(23,59,59,999); return e.getTime(); })();
+  const sumIn=(a,b)=>{ let s=0; entries.forEach(x=>{ if(x.kind!==m.kind) return; const t=tsOf(x); if(t>=a&&t<=b) s+=(+x[m.field]||0); }); return s; };
+  const stockAt=t1=>{ let r=0,u=0,x2=0; entries.forEach(x=>{ const t=tsOf(x); if(t<=t1){ if(x.kind==='receive')r+=(+x.received||0); else if(x.kind==='usage')u+=(+x.litres||0); else if(x.kind==='transfer')x2+=(+x.litres||0);} }); return r-u-x2; };
+  let daily, lastVal, ytdVal;
+  if(m.mode==='sum'){
+    daily=days.map((d,i)=>sumIn(dayStart[i],dayEnd[i]));
+    lastVal=sumIn(lastStart,lastEnd);
+    ytdVal=sumIn(ytdStart,endToday);
+  } else {
+    daily=days.map((d,i)=>stockAt(dayEnd[i]));
+    lastVal=stockAt(lastEnd);
+    ytdVal=stockAt(endToday);
+  }
+  const fmt=n=>Math.round(n).toLocaleString('en-US');
+  const dows=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dailyMax=Math.max(1,...daily.map(v=>Math.abs(v)));
+  const sumMax=Math.max(1,Math.abs(lastVal),Math.abs(ytdVal));
+  const col=(val,scale,color,l1,l2)=>{
+    const pct = val===0 ? 0 : Math.max(3, Math.round(Math.abs(val)/scale*100));
+    return `<div class="ld-col"><div class="ld-colval">${fmt(val)}<small>L</small></div><div class="ld-barwrap"><i style="height:${pct}%;background:${color}"></i></div><div class="ld-collabel">${l1}<br>${l2}</div></div>`;
+  };
+  const div='<div style="width:1px;background:var(--rule);align-self:stretch;margin:0 2px"></div>';
+  const sumColor='var(--ink)';
+  const dailyCols=days.map((d,i)=>col(daily[i],dailyMax,m.color,dows[d.getDay()],(d.getMonth()+1)+'/'+d.getDate())).join('');
+  const left=col(lastVal,sumMax,sumColor,'Last wk','W'+isoWeek(lastMon));
+  const right=col(ytdVal,sumMax,sumColor,'YTD',String(now.getFullYear()));
+  const role = m.mode==='sum' ? 'last week & YTD totals · daily and totals scaled separately'
+                              : 'last-week end & current level · daily and totals scaled separately';
+  $('#dwkChart').innerHTML = `<div class="ld-box"><div class="ld-head">${esc(m.label)} <span class="ld-role">${role}</span></div><div class="ld-chart">${left}${div}${dailyCols}${div}${right}</div></div>`;
+}
+/* tell the embedded downtime log which entity's machine list + log to show */
+function syncDTEntity(tries){
+  tries = tries||0;
+  try{
+    var f=document.getElementById('logbookFrame'); var w=f&&f.contentWindow;
+    if(w && typeof w.setEntity==='function'){ w.setEntity(state.entity); return; }
+  }catch(e){}
+  if(tries<60) setTimeout(function(){ syncDTEntity(tries+1); }, 100);
 }
 
 /* open the Work Order Log Book pre-filtered ({status} or {pri}) */
@@ -5010,7 +5144,7 @@ function initEntities(){
   sel.innerHTML=ENTITIES.map(e=>`<option>${esc(e)}</option>`).join('');
   if(!ENTITIES.includes(state.entity)) state.entity=ENTITIES[0];
   sel.value=state.entity;
-  sel.onchange=()=>{ state.entity=sel.value; renderAll(); };
+  sel.onchange=()=>{ state.entity=sel.value; renderAll(); syncDTEntity(); };
 }
 
 /* ---------- dashboard ---------- */
@@ -5104,12 +5238,14 @@ function renderDashboard(){
   // ---- Diesel tiles — stock / usage / transfer, filtered by entity ----
   if(!logbookInScope() || !Array.isArray(SHARED.diesel)){
     $('#kDieselStock').textContent = logbookInScope()? "—" : "0";
+    $('#kDieselRecv').textContent = logbookInScope()? "—" : "0";
     $('#kDieselUse').textContent = logbookInScope()? "—" : "0";
     $('#kDieselXfer').textContent = logbookInScope()? "—" : "0";
   } else {
     const dt=dieselTotals();
     const fmtL=n=>Math.round(n).toLocaleString('en-US');
     $('#kDieselStock').textContent = fmtL(dt.stock);
+    $('#kDieselRecv').textContent = fmtL(dt.recv);
     $('#kDieselUse').textContent = fmtL(dt.use);
     $('#kDieselXfer').textContent = fmtL(dt.xfer);
   }
