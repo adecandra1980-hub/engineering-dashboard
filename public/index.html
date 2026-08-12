@@ -4399,6 +4399,13 @@ window.setEntity = setEntity;
         <div><button class=&quot;ghost&quot; id=&quot;bCsv&quot;>Download CSV</button></div>
       </div>
       <div class=&quot;scroll&quot; id=&quot;book&quot; style=&quot;margin-top:12px&quot;></div>
+      <div style=&quot;margin-top:16px;border-top:1px solid var(--rule);padding-top:12px&quot;>
+        <button class=&quot;ghost&quot; id=&quot;dTrashToggle&quot;>Deleted history <span id=&quot;dTrashCount&quot;></span></button>
+        <div id=&quot;dTrashWrap&quot; hidden style=&quot;margin-top:12px&quot;>
+          <div class=&quot;scroll&quot; id=&quot;dTrash&quot;></div>
+          <div style=&quot;margin-top:10px&quot;><button class=&quot;ghost&quot; id=&quot;dTrashEmpty&quot; style=&quot;color:var(--bad);border-color:var(--bad)&quot;>Empty history (admin)</button></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -4497,14 +4504,14 @@ function fmtDT(s){ if(!s) return &quot;—&quot;; return String(s).replace(&quot
 function num(v){ var n=parseFloat(v); return isFinite(n)?n:0; }
 function litres(n){ return (Math.round(n*10)/10).toLocaleString(&quot;en-US&quot;); }
 
-var ENTRY_KEY=&quot;diesel:entries&quot;, PH_KEY=&quot;diesel:photo:&quot;;
-var entries=[];
+var ENTRY_KEY=&quot;diesel:entries&quot;, PH_KEY=&quot;diesel:photo:&quot;, DEL_KEY=&quot;diesel:entries:deleted&quot;;
+var entries=[], deletedD=[], editingId=null;
 var DEVICE_ID=(function(){ try{ var k=&quot;tdl:deviceId&quot;; var v=localStorage.getItem(k); if(!v){ v=&quot;dev-&quot;+Date.now().toString(36)+&quot;-&quot;+Math.random().toString(36).slice(2,8); localStorage.setItem(k,v);} return v; }catch(e){ return &quot;dev-local&quot;; } })();
 function adminOK(){ var u=prompt(&quot;Not the submitter's device.\nAdministrator username:&quot;); if(u===null) return false; var p=prompt(&quot;Administrator password:&quot;); if(p===null) return false; if(u.trim().toLowerCase()===&quot;admin&quot;&amp;&amp;p===&quot;Engineering&quot;) return true; toast(&quot;Wrong administrator credentials.&quot;); return false; }
 function canDelete(rec){ var owner=!rec||!rec.deviceId||rec.deviceId===DEVICE_ID; if(!owner&amp;&amp;!adminOK()) return false; return confirm(&quot;Are you sure to delete this entry?&quot;); }
 
 /* ---- canonical tank list (single source of truth) ---- */
-var TANKS=[&quot;Container - ALCO 1000L&quot;,&quot;Tank 01A - ALCO 10K&quot;,&quot;Tank 01A - ALCO 20K&quot;,&quot;Tank 01B - ALCO 6.5K&quot;,&quot;Tank 01C - ALCO 1.5K&quot;,&quot;Tank 02 - BOL&quot;,&quot;Tank 03 - BOL&quot;,&quot;Tank 04 - Sarana&quot;];
+var TANKS=[&quot;Container - ALCO 1000L&quot;,&quot;Tank 01A - ALCO 10K&quot;,&quot;Tank 01B - ALCO 6.5K&quot;,&quot;Tank 01C - ALCO 1.5K&quot;,&quot;Tank 02 - BOL&quot;,&quot;Tank 03 - BOL&quot;,&quot;Tank 04 - Sarana&quot;];
 function fillTankSelect(id, placeholder){
   var s=$(id); if(!s) return;
   var html = placeholder ? '<option value=&quot;&quot;>Select tank…</option>' : &quot;&quot;;
@@ -4552,7 +4559,8 @@ function photoField(container, slots){
   render();
   return {
     clear:function(){ slots.forEach(function(s){ state[s.key]=[]; }); render(); },
-    data:function(){ return state; }
+    data:function(){ return state; },
+    load:function(map){ slots.forEach(function(s){ state[s.key]=(map&amp;&amp;map[s.key])?map[s.key].slice():[]; }); render(); }
   };
 }
 
@@ -4570,9 +4578,72 @@ function allPhotoKeys(rec){ var out=[]; var p=rec.photos||{}; for(var s in p){ (
 var TABS=[[&quot;t-stock&quot;,&quot;v-stock&quot;],[&quot;t-recv&quot;,&quot;v-recv&quot;],[&quot;t-use&quot;,&quot;v-use&quot;],[&quot;t-xfer&quot;,&quot;v-xfer&quot;],[&quot;t-book&quot;,&quot;v-book&quot;]];
 TABS.forEach(function(pair){ $(pair[0]).addEventListener(&quot;click&quot;,function(){
   TABS.forEach(function(p){ var on=p[0]===pair[0]; $(p[0]).setAttribute(&quot;aria-selected&quot;,on?&quot;true&quot;:&quot;false&quot;); $(p[1]).hidden=!on; });
-  if(pair[0]===&quot;t-book&quot;) drawBook();
+  resetEditState();
+  if(pair[0]===&quot;t-book&quot;){ drawBook(); drawTrashD(); }
   if(pair[0]===&quot;t-stock&quot;) drawStock();
 }); });
+function resetEditState(){ editingId=null;
+  if($(&quot;rSave&quot;)) $(&quot;rSave&quot;).textContent=&quot;Submit receiving&quot;;
+  if($(&quot;uSave&quot;)) $(&quot;uSave&quot;).textContent=&quot;Submit usage&quot;;
+  if($(&quot;xSave&quot;)) $(&quot;xSave&quot;).textContent=&quot;Submit transfer&quot;;
+}
+function canEditRec(rec){ var owner=!rec||!rec.deviceId||rec.deviceId===DEVICE_ID; if(!owner&amp;&amp;!adminOK()) return false; return true; }
+async function loadPhotoData(e){ var out={}, p=e.photos||{}; for(var slot in p){ var arr=[]; for(var i=0;i<(p[slot]||[]).length;i++){ var d=await load(p[slot][i],null); if(d) arr.push(d); } out[slot]=arr; } return out; }
+async function editEntry(e){
+  if(!e || !canEditRec(e)) return;
+  var ph=await loadPhotoData(e);
+  if(e.kind===&quot;receive&quot;){
+    $(&quot;t-recv&quot;).click(); editingId=e.id;
+    $(&quot;rWhen&quot;).value=e.date||nowLocalDT(); $(&quot;rDriver&quot;).value=e.driver||&quot;&quot;; $(&quot;rTruck&quot;).value=e.truck||&quot;&quot;;
+    $(&quot;rSupplier&quot;).value=e.supplier||&quot;&quot;; $(&quot;rDO&quot;).value=e.doNo||&quot;&quot;; $(&quot;rTankSel&quot;).value=e.tank||&quot;&quot;;
+    $(&quot;rTank&quot;).value=e.tankLevel||&quot;&quot;; $(&quot;rBefore&quot;).value=(e.meterBefore!=null?e.meterBefore:&quot;&quot;); $(&quot;rAfter&quot;).value=(e.meterAfter!=null?e.meterAfter:&quot;&quot;);
+    $(&quot;rNote&quot;).value=e.note||&quot;&quot;; recalcRecv(); RECV_PH.load(ph); $(&quot;rSave&quot;).textContent=&quot;Update receiving&quot;;
+  } else if(e.kind===&quot;usage&quot;){
+    $(&quot;t-use&quot;).click(); editingId=e.id;
+    $(&quot;uWhen&quot;).value=e.date||nowLocalDT(); $(&quot;uType&quot;).value=e.usageType||&quot;Boiler Primary Production (PMD)&quot;;
+    $(&quot;uOtherWrap&quot;).hidden=(e.usageType!==&quot;Others&quot;); $(&quot;uOther&quot;).value=e.usageOther||&quot;&quot;;
+    $(&quot;uLitres&quot;).value=e.litres||&quot;&quot;; $(&quot;uFrom&quot;).value=e.from||&quot;&quot;; $(&quot;uDept&quot;).value=e.dept||&quot;&quot;; $(&quot;uBy&quot;).value=e.by||&quot;&quot;; $(&quot;uNote&quot;).value=e.note||&quot;&quot;;
+    USE_PH.load(ph); $(&quot;uSave&quot;).textContent=&quot;Update usage&quot;;
+  } else if(e.kind===&quot;transfer&quot;){
+    $(&quot;t-xfer&quot;).click(); editingId=e.id;
+    $(&quot;xWhen&quot;).value=e.date||nowLocalDT(); $(&quot;xFrom&quot;).value=e.from||&quot;&quot;; $(&quot;xDest&quot;).value=e.dest||&quot;&quot;;
+    $(&quot;xLitres&quot;).value=e.litres||&quot;&quot;; $(&quot;xBy&quot;).value=e.by||&quot;&quot;; $(&quot;xNote&quot;).value=e.note||&quot;&quot;;
+    XFER_PH.load(ph); $(&quot;xSave&quot;).textContent=&quot;Update transfer&quot;;
+  } else { toast(&quot;Stock opname entries can't be edited — delete and re-enter.&quot;); return; }
+  toast(&quot;Editing entry — change the fields and press Update.&quot;);
+}
+/* ---- deleted history ---- */
+function drawTrashD(){
+  var wrap=$(&quot;dTrash&quot;); if(!wrap) return;
+  $(&quot;dTrashCount&quot;).textContent = deletedD.length ? &quot;(&quot;+deletedD.length+&quot;)&quot; : &quot;&quot;;
+  if(!deletedD.length){ wrap.innerHTML='<div class=&quot;empty&quot; style=&quot;padding:16px&quot;>Nothing deleted.</div>'; return; }
+  var h='<table><thead><tr><th>Date &amp;amp; time</th><th>Type</th><th>Detail</th><th>Deleted</th><th></th></tr></thead><tbody>';
+  deletedD.forEach(function(e){
+    h+='<tr><td style=&quot;white-space:nowrap&quot;>'+esc(fmtDT(e.date))+'</td><td>'+kindFlag(e.kind)+'</td>'+
+      '<td>'+esc(detailOf(e))+'</td><td style=&quot;white-space:nowrap;color:var(--ink-soft)&quot;>'+esc(e.deletedAt?fmtDT(nowLocalFromTs(e.deletedAt)):&quot;—&quot;)+'</td>'+
+      '<td style=&quot;white-space:nowrap&quot;><button class=&quot;tiny&quot; data-rst=&quot;'+e.id+'&quot;>Restore</button> <button class=&quot;tiny warn&quot; data-purge=&quot;'+e.id+'&quot;>Delete</button></td></tr>';
+  });
+  wrap.innerHTML=h+'</tbody></table>';
+  wrap.querySelectorAll(&quot;[data-rst]&quot;).forEach(function(b){ b.onclick=async function(){
+    var id=b.getAttribute(&quot;data-rst&quot;); var e=null; deletedD=deletedD.filter(function(v){ if(String(v.id)===String(id)){ e=v; return false; } return true; });
+    if(e){ delete e.deletedAt; entries.push(e); }
+    await save(ENTRY_KEY,entries); await save(DEL_KEY,deletedD); refreshHead(); drawBook(); drawTrashD(); toast(&quot;Entry restored.&quot;);
+  }; });
+  wrap.querySelectorAll(&quot;[data-purge]&quot;).forEach(function(b){ b.onclick=async function(){
+    var id=b.getAttribute(&quot;data-purge&quot;); if(!confirm(&quot;Delete this entry permanently? This cannot be undone.&quot;)) return;
+    var e=null; deletedD=deletedD.filter(function(v){ if(String(v.id)===String(id)){ e=v; return false; } return true; });
+    if(e){ var keys=allPhotoKeys(e); for(var i=0;i<keys.length;i++){ try{ if(has()&amp;&amp;window.storage.delete) await window.storage.delete(keys[i]); }catch(x){} } }
+    await save(DEL_KEY,deletedD); drawTrashD(); toast(&quot;Entry permanently deleted.&quot;);
+  }; });
+}
+function nowLocalFromTs(ts){ var d=new Date(ts); function p(n){ return (n<10?&quot;0&quot;:&quot;&quot;)+n; } return d.getFullYear()+&quot;-&quot;+p(d.getMonth()+1)+&quot;-&quot;+p(d.getDate())+&quot;T&quot;+p(d.getHours())+&quot;:&quot;+p(d.getMinutes()); }
+$(&quot;dTrashToggle&quot;).addEventListener(&quot;click&quot;,function(){ var w=$(&quot;dTrashWrap&quot;); w.hidden=!w.hidden; if(!w.hidden) drawTrashD(); });
+$(&quot;dTrashEmpty&quot;).addEventListener(&quot;click&quot;,async function(){
+  if(!deletedD.length){ toast(&quot;History already empty.&quot;); return; }
+  if(!adminOK()) return;
+  for(var j=0;j<deletedD.length;j++){ var keys=allPhotoKeys(deletedD[j]); for(var i=0;i<keys.length;i++){ try{ if(has()&amp;&amp;window.storage.delete) await window.storage.delete(keys[i]); }catch(x){} } }
+  deletedD=[]; await save(DEL_KEY,deletedD); drawTrashD(); toast(&quot;Deleted history emptied.&quot;);
+});
 
 /* ---- Now buttons ---- */
 [&quot;rNow:rWhen&quot;,&quot;uNow:uWhen&quot;,&quot;xNow:xWhen&quot;].forEach(function(pair){ var a=pair.split(&quot;:&quot;); $(a[0]).addEventListener(&quot;click&quot;,function(){ $(a[1]).value=nowLocalDT(); }); });
@@ -4638,18 +4709,22 @@ $(&quot;rSave&quot;).addEventListener(&quot;click&quot;,async function(){
   for(var ri=0;ri<reqShots.length;ri++){ if(!(rp[reqShots[ri][0]]||[]).length){ toast(&quot;Add the &quot;+reqShots[ri][1]+&quot; photo.&quot;); return; } }
   var when=$(&quot;rWhen&quot;).value||nowLocalDT();
   var received=recalcRecv();
-  var id=Date.now();
+  var editing = editingId!=null &amp;&amp; byId(editingId) &amp;&amp; byId(editingId).kind===&quot;receive&quot;;
+  var id = editing ? editingId : Date.now();
   var photos=await savePhotos(id,RECV_PH.data());
-  entries.push({ id:id, ts:Date.parse(when)||Date.now(), kind:&quot;receive&quot;, date:when,
+  var rec={ id:id, ts:Date.parse(when)||Date.now(), kind:&quot;receive&quot;, date:when,
     driver:$(&quot;rDriver&quot;).value.trim(), truck:$(&quot;rTruck&quot;).value.trim(), supplier:$(&quot;rSupplier&quot;).value.trim(),
     doNo:$(&quot;rDO&quot;).value.trim(), tank:$(&quot;rTankSel&quot;).value, tankLevel:$(&quot;rTank&quot;).value.trim(),
     meterBefore:num($(&quot;rBefore&quot;).value), meterAfter:num($(&quot;rAfter&quot;).value), received:received,
-    note:$(&quot;rNote&quot;).value.trim(), photos:photos, deviceId:DEVICE_ID });
+    note:$(&quot;rNote&quot;).value.trim(), photos:photos, deviceId:(editing?(byId(id).deviceId||DEVICE_ID):DEVICE_ID) };
+  if(editing){ var ix=entries.findIndex(function(v){ return String(v.id)===String(id); }); if(ix>=0) entries[ix]=rec; else entries.push(rec); }
+  else entries.push(rec);
   await save(ENTRY_KEY,entries); refreshHead();
   $(&quot;rNoteMsg&quot;).textContent=&quot;Received &quot;+litres(received)+&quot; L logged.&quot;;
   RECV_PH.clear(); [&quot;rDriver&quot;,&quot;rTruck&quot;,&quot;rSupplier&quot;,&quot;rDO&quot;,&quot;rTank&quot;,&quot;rBefore&quot;,&quot;rAfter&quot;,&quot;rNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;rTankSel&quot;).value=&quot;&quot;; recalcRecv();
-  toast(&quot;Receiving submitted.&quot;);
-  showSuccess(&quot;Receiving &quot;+litres(received)+&quot; L saved to database.&quot;);
+  resetEditState();
+  toast(editing?&quot;Receiving updated.&quot;:&quot;Receiving submitted.&quot;);
+  showSuccess(editing?&quot;Receiving updated in database.&quot;:&quot;Receiving &quot;+litres(received)+&quot; L saved to database.&quot;);
 });
 $(&quot;rReset&quot;).addEventListener(&quot;click&quot;,function(){ RECV_PH.clear(); [&quot;rDriver&quot;,&quot;rTruck&quot;,&quot;rSupplier&quot;,&quot;rDO&quot;,&quot;rTank&quot;,&quot;rBefore&quot;,&quot;rAfter&quot;,&quot;rNote&quot;,&quot;rWhen&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;rTankSel&quot;).value=&quot;&quot;; recalcRecv(); toast(&quot;Form reset.&quot;); });
 
@@ -4664,15 +4739,20 @@ $(&quot;uSave&quot;).addEventListener(&quot;click&quot;,async function(){
   var uReq=[[&quot;before&quot;,&quot;flow meter before&quot;],[&quot;after&quot;,&quot;flow meter after&quot;],[&quot;tank&quot;,&quot;tank level&quot;],[&quot;do&quot;,&quot;delivery order receipt&quot;]];
   for(var uxi=0;uxi<uReq.length;uxi++){ if(!(up[uReq[uxi][0]]||[]).length){ toast(&quot;Add the &quot;+uReq[uxi][1]+&quot; photo.&quot;); return; } }
   var when=$(&quot;uWhen&quot;).value||nowLocalDT();
-  var id=Date.now(); var photos=await savePhotos(id,USE_PH.data());
-  entries.push({ id:id, ts:Date.parse(when)||Date.now(), kind:&quot;usage&quot;, date:when,
+  var editing = editingId!=null &amp;&amp; byId(editingId) &amp;&amp; byId(editingId).kind===&quot;usage&quot;;
+  var id = editing ? editingId : Date.now();
+  var photos=await savePhotos(id,USE_PH.data());
+  var rec={ id:id, ts:Date.parse(when)||Date.now(), kind:&quot;usage&quot;, date:when,
     usageType:type, usageOther:$(&quot;uOther&quot;).value.trim(), dept:$(&quot;uDept&quot;).value, from:$(&quot;uFrom&quot;).value, litres:num($(&quot;uLitres&quot;).value), by:$(&quot;uBy&quot;).value.trim(),
-    note:$(&quot;uNote&quot;).value.trim(), photos:photos, deviceId:DEVICE_ID });
+    note:$(&quot;uNote&quot;).value.trim(), photos:photos, deviceId:(editing?(byId(id).deviceId||DEVICE_ID):DEVICE_ID) };
+  if(editing){ var ix=entries.findIndex(function(v){ return String(v.id)===String(id); }); if(ix>=0) entries[ix]=rec; else entries.push(rec); }
+  else entries.push(rec);
   await save(ENTRY_KEY,entries); refreshHead();
   $(&quot;uNoteMsg&quot;).textContent=&quot;Usage &quot;+litres(num($(&quot;uLitres&quot;).value))+&quot; L logged.&quot;;
   USE_PH.clear(); [&quot;uLitres&quot;,&quot;uOther&quot;,&quot;uBy&quot;,&quot;uNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;uDept&quot;).value=&quot;&quot;; $(&quot;uFrom&quot;).value=&quot;&quot;; $(&quot;uOtherWrap&quot;).hidden=true; $(&quot;uType&quot;).value=&quot;Boiler Primary Production (PMD)&quot;;
-  toast(&quot;Usage submitted.&quot;);
-  showSuccess(&quot;Usage entry saved to database.&quot;);
+  resetEditState();
+  toast(editing?&quot;Usage updated.&quot;:&quot;Usage submitted.&quot;);
+  showSuccess(editing?&quot;Usage updated in database.&quot;:&quot;Usage entry saved to database.&quot;);
 });
 $(&quot;uReset&quot;).addEventListener(&quot;click&quot;,function(){ USE_PH.clear(); [&quot;uLitres&quot;,&quot;uOther&quot;,&quot;uBy&quot;,&quot;uNote&quot;,&quot;uWhen&quot;,&quot;uDept&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;uFrom&quot;).value=&quot;&quot;; $(&quot;uOtherWrap&quot;).hidden=true; toast(&quot;Form reset.&quot;); });
 
@@ -4686,15 +4766,20 @@ $(&quot;xSave&quot;).addEventListener(&quot;click&quot;,async function(){
   var xReq=[[&quot;truck&quot;,&quot;truck number&quot;],[&quot;before&quot;,&quot;flow meter before&quot;],[&quot;after&quot;,&quot;flow meter after&quot;],[&quot;source&quot;,&quot;source tank level&quot;],[&quot;dest&quot;,&quot;destination tank level&quot;],[&quot;bol&quot;,&quot;BOL / transfer document&quot;]];
   for(var xi=0;xi<xReq.length;xi++){ if(!(xp[xReq[xi][0]]||[]).length){ toast(&quot;Add the &quot;+xReq[xi][1]+&quot; photo.&quot;); return; } }
   var when=$(&quot;xWhen&quot;).value||nowLocalDT();
-  var id=Date.now(); var photos=await savePhotos(id,XFER_PH.data());
-  entries.push({ id:id, ts:Date.parse(when)||Date.now(), kind:&quot;transfer&quot;, date:when,
+  var editing = editingId!=null &amp;&amp; byId(editingId) &amp;&amp; byId(editingId).kind===&quot;transfer&quot;;
+  var id = editing ? editingId : Date.now();
+  var photos=await savePhotos(id,XFER_PH.data());
+  var rec={ id:id, ts:Date.parse(when)||Date.now(), kind:&quot;transfer&quot;, date:when,
     from:$(&quot;xFrom&quot;).value, dest:$(&quot;xDest&quot;).value, litres:num($(&quot;xLitres&quot;).value), by:$(&quot;xBy&quot;).value.trim(),
-    note:$(&quot;xNote&quot;).value.trim(), photos:photos, deviceId:DEVICE_ID });
+    note:$(&quot;xNote&quot;).value.trim(), photos:photos, deviceId:(editing?(byId(id).deviceId||DEVICE_ID):DEVICE_ID) };
+  if(editing){ var ix=entries.findIndex(function(v){ return String(v.id)===String(id); }); if(ix>=0) entries[ix]=rec; else entries.push(rec); }
+  else entries.push(rec);
   await save(ENTRY_KEY,entries); refreshHead();
   $(&quot;xNoteMsg&quot;).textContent=&quot;Transfer &quot;+litres(num($(&quot;xLitres&quot;).value))+&quot; L to &quot;+$(&quot;xDest&quot;).value+&quot; logged.&quot;;
   XFER_PH.clear(); [&quot;xLitres&quot;,&quot;xBy&quot;,&quot;xNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;xFrom&quot;).value=&quot;&quot;;
-  toast(&quot;Transfer submitted.&quot;);
-  showSuccess(&quot;Transfer entry saved to database.&quot;);
+  resetEditState();
+  toast(editing?&quot;Transfer updated.&quot;:&quot;Transfer submitted.&quot;);
+  showSuccess(editing?&quot;Transfer updated in database.&quot;:&quot;Transfer entry saved to database.&quot;);
 });
 $(&quot;xReset&quot;).addEventListener(&quot;click&quot;,function(){ XFER_PH.clear(); [&quot;xLitres&quot;,&quot;xBy&quot;,&quot;xNote&quot;,&quot;xWhen&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;xFrom&quot;).value=&quot;&quot;; toast(&quot;Form reset.&quot;); });
 
@@ -4725,15 +4810,16 @@ function drawBook(){
       '<td class=&quot;num&quot;>'+(inL?litres(inL):&quot;—&quot;)+'</td><td class=&quot;num&quot;>'+(outL?litres(outL):&quot;—&quot;)+'</td>'+
       '<td>'+esc(e.driver||e.by||&quot;—&quot;)+'</td>'+
       '<td>'+(nPh?'<button class=&quot;tiny&quot; data-ph=&quot;'+e.id+'&quot;>View '+nPh+'</button>':&quot;—&quot;)+'</td>'+
-      '<td style=&quot;white-space:nowrap&quot;><button class=&quot;tiny warn&quot; data-del=&quot;'+e.id+'&quot;>Delete</button></td></tr>';
+      '<td style=&quot;white-space:nowrap&quot;>'+(e.kind!==&quot;opname&quot;?'<button class=&quot;tiny&quot; data-edit=&quot;'+e.id+'&quot;>Edit</button> ':'')+'<button class=&quot;tiny warn&quot; data-del=&quot;'+e.id+'&quot;>Delete</button></td></tr>';
   });
   $(&quot;book&quot;).innerHTML=h+'</tbody></table>';
   $(&quot;book&quot;).querySelectorAll(&quot;[data-ph]&quot;).forEach(function(b){ b.onclick=function(){ var e=byId(b.getAttribute(&quot;data-ph&quot;)); if(e) openPhotos(e); }; });
+  $(&quot;book&quot;).querySelectorAll(&quot;[data-edit]&quot;).forEach(function(b){ b.onclick=function(){ var e=byId(b.getAttribute(&quot;data-edit&quot;)); if(e) editEntry(e); }; });
   $(&quot;book&quot;).querySelectorAll(&quot;[data-del]&quot;).forEach(function(b){ b.onclick=async function(){
     var e=byId(b.getAttribute(&quot;data-del&quot;)); if(!canDelete(e)) return;
-    var keys=allPhotoKeys(e); for(var i=0;i<keys.length;i++){ try{ if(has()&amp;&amp;window.storage.delete) await window.storage.delete(keys[i]); }catch(x){} }
     entries=entries.filter(function(v){ return String(v.id)!==String(e.id); });
-    await save(ENTRY_KEY,entries); refreshHead(); drawBook(); toast(&quot;Entry deleted.&quot;);
+    e.deletedAt=Date.now(); deletedD.unshift(e);
+    await save(ENTRY_KEY,entries); await save(DEL_KEY,deletedD); refreshHead(); drawBook(); drawTrashD(); toast(&quot;Entry moved to deleted history.&quot;);
   }; });
 }
 function byId(id){ var f=null; entries.forEach(function(e){ if(String(e.id)===String(id)) f=e; }); return f; }
@@ -4853,6 +4939,7 @@ $(&quot;opSave&quot;).addEventListener(&quot;click&quot;,async function(){
 /* ---- boot ---- */
 (async function(){
   entries=await load(ENTRY_KEY,[]); if(!Array.isArray(entries)) entries=[];
+  deletedD=await load(DEL_KEY,[]); if(!Array.isArray(deletedD)) deletedD=[];
   fillTankSelect(&quot;rTankSel&quot;, true); fillTankSelect(&quot;uFrom&quot;, true); fillTankSelect(&quot;xFrom&quot;, true); fillTankSelect(&quot;xDest&quot;, true);
   $(&quot;rWhen&quot;).value=nowLocalDT(); $(&quot;uWhen&quot;).value=nowLocalDT(); $(&quot;xWhen&quot;).value=nowLocalDT();
   recalcRecv(); refreshHead(); drawStock();
@@ -4971,7 +5058,7 @@ function nav(page){
 }
 
 /* ---------- Diesel weekly (Mon–Sun) bar chart, per tank ---------- */
-const DIESEL_TANKS=["Container - ALCO 1000L","Tank 01A - ALCO 10K","Tank 01A - ALCO 20K","Tank 01B - ALCO 6.5K","Tank 01C - ALCO 1.5K","Tank 02 - BOL","Tank 03 - BOL","Tank 04 - Sarana"];
+const DIESEL_TANKS=["Container - ALCO 1000L","Tank 01A - ALCO 10K","Tank 01B - ALCO 6.5K","Tank 01C - ALCO 1.5K","Tank 02 - BOL","Tank 03 - BOL","Tank 04 - Sarana"];
 const DWK_META = {
   stock:    { label:'Diesel Stock',     unit:'litres in tank (end of day)', color:'var(--good)',  mode:'stock' },
   receive:  { label:'Diesel Receiving', unit:'litres received',             color:'var(--brand)', mode:'sum', kind:'receive',  field:'received' },
