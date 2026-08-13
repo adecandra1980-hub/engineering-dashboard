@@ -4847,19 +4847,24 @@ $(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
 /* per-tank running balance: latest stock opname per tank is the baseline,
    then receipts / transfers-in add and usage / transfers-out subtract after it. */
 function tankStock(){
-  var base={}, baseTs={}, bal={};
-  TANKS.forEach(function(t){ base[t]=0; baseTs[t]=-Infinity; });
-  var ops=entries.filter(function(e){ return e.kind===&quot;opname&quot;; }).sort(function(a,b){ return (a.ts||a.id)-(b.ts||b.id); });
-  ops.forEach(function(o){ (o.tanks||[]).forEach(function(rec){ var nm=rec.name; if(base.hasOwnProperty(nm)){ base[nm]=num(rec.litres); baseTs[nm]=(o.ts||o.id); } }); });
+  /* Baseline = each tank's latest stock opname; then apply every movement LOGGED
+     after that opname. The cutoff uses the record's creation order (id), not the
+     user-entered event time — so a receiving logged after a count still adds to
+     the tank even if its delivery datetime is earlier than the count time. */
+  var base={}, baseSeq={}, bal={};
+  TANKS.forEach(function(t){ base[t]=0; baseSeq[t]=-Infinity; });
+  var seqOf=function(e){ return e.id||e.ts||0; };
+  var ops=entries.filter(function(e){ return e.kind===&quot;opname&quot;; }).sort(function(a,b){ return seqOf(a)-seqOf(b); });
+  ops.forEach(function(o){ (o.tanks||[]).forEach(function(rec){ var nm=rec.name; if(base.hasOwnProperty(nm)){ base[nm]=num(rec.litres); baseSeq[nm]=seqOf(o); } }); });
   TANKS.forEach(function(t){ bal[t]=base[t]; });
   function canon(name){ return (name &amp;&amp; bal.hasOwnProperty(name)) ? name : TANKS[0]; }
   entries.forEach(function(e){
-    var ts=e.ts||e.id;
-    if(e.kind===&quot;receive&quot;){ var t=canon(e.tank); if(ts>baseTs[t]) bal[t]+=num(e.received); }
-    else if(e.kind===&quot;usage&quot;){ var u=canon(e.from); if(ts>baseTs[u]) bal[u]-=num(e.litres); }
+    var sq=seqOf(e);
+    if(e.kind===&quot;receive&quot;){ var t=canon(e.tank); if(sq>baseSeq[t]) bal[t]+=num(e.received); }
+    else if(e.kind===&quot;usage&quot;){ var u=canon(e.from); if(sq>baseSeq[u]) bal[u]-=num(e.litres); }
     else if(e.kind===&quot;transfer&quot;){ var s=canon(e.from), d=canon(e.dest);
-      if(ts>baseTs[s]) bal[s]-=num(e.litres);
-      if(ts>baseTs[d]) bal[d]+=num(e.litres); }
+      if(sq>baseSeq[s]) bal[s]-=num(e.litres);
+      if(sq>baseSeq[d]) bal[d]+=num(e.litres); }
   });
   return bal;
 }
