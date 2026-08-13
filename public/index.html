@@ -4510,6 +4510,17 @@ function canDelete(rec){ if(!adminOK()) return false; return confirm(&quot;Are y
 
 /* ---- canonical tank list (single source of truth) ---- */
 var TANKS=[&quot;Container - ALCO 1000L&quot;,&quot;Tank 01A - ALCO 10K&quot;,&quot;Tank 01B - ALCO 6.5K&quot;,&quot;Tank 01C - ALCO 1.5K&quot;,&quot;Tank 02 - BOL&quot;,&quot;Tank 03 - BOL&quot;,&quot;Tank 04 - Sarana&quot;];
+/* older tank names used before renames — mapped onto the current tanks so earlier entries still count */
+var TANK_ALIAS={
+  &quot;Tank 01 - ALCO&quot;:&quot;Container - ALCO 1000L&quot;,
+  &quot;ALCO Tank&quot;:&quot;Container - ALCO 1000L&quot;,
+  &quot;Main Tank (Plant)&quot;:&quot;Container - ALCO 1000L&quot;,
+  &quot;Tank 01A - ALCO 20K&quot;:&quot;Tank 01A - ALCO 10K&quot;,
+  &quot;BOL — Tank 1&quot;:&quot;Tank 02 - BOL&quot;,
+  &quot;BOL — Tank 2&quot;:&quot;Tank 03 - BOL&quot;,
+  &quot;Sarana 12 — Tank 3&quot;:&quot;Tank 04 - Sarana&quot;
+};
+function canonTank(name){ if(!name) return TANKS[0]; return TANK_ALIAS[name]||name; }
 function fillTankSelect(id, placeholder){
   var s=$(id); if(!s) return;
   var html = placeholder ? '<option value=&quot;&quot;>Select tank…</option>' : &quot;&quot;;
@@ -4852,17 +4863,17 @@ function tankStock(){
      user-entered event time — so a receiving logged after a count still adds to
      the tank even if its delivery datetime is earlier than the count time. */
   var base={}, baseSeq={}, bal={};
-  TANKS.forEach(function(t){ base[t]=0; baseSeq[t]=-Infinity; });
+  function ensure(t){ if(!(t in bal)){ base[t]=0; baseSeq[t]=-Infinity; bal[t]=0; } }
+  TANKS.forEach(ensure);
   var seqOf=function(e){ return e.id||e.ts||0; };
   var ops=entries.filter(function(e){ return e.kind===&quot;opname&quot;; }).sort(function(a,b){ return seqOf(a)-seqOf(b); });
-  ops.forEach(function(o){ (o.tanks||[]).forEach(function(rec){ var nm=rec.name; if(base.hasOwnProperty(nm)){ base[nm]=num(rec.litres); baseSeq[nm]=seqOf(o); } }); });
-  TANKS.forEach(function(t){ bal[t]=base[t]; });
-  function canon(name){ return (name &amp;&amp; bal.hasOwnProperty(name)) ? name : TANKS[0]; }
+  ops.forEach(function(o){ (o.tanks||[]).forEach(function(rec){ var nm=canonTank(rec.name); ensure(nm); base[nm]=num(rec.litres); baseSeq[nm]=seqOf(o); }); });
+  Object.keys(base).forEach(function(t){ bal[t]=base[t]; });
   entries.forEach(function(e){
     var sq=seqOf(e);
-    if(e.kind===&quot;receive&quot;){ var t=canon(e.tank); if(sq>baseSeq[t]) bal[t]+=num(e.received); }
-    else if(e.kind===&quot;usage&quot;){ var u=canon(e.from); if(sq>baseSeq[u]) bal[u]-=num(e.litres); }
-    else if(e.kind===&quot;transfer&quot;){ var s=canon(e.from), d=canon(e.dest);
+    if(e.kind===&quot;receive&quot;){ var t=canonTank(e.tank); ensure(t); if(sq>baseSeq[t]) bal[t]+=num(e.received); }
+    else if(e.kind===&quot;usage&quot;){ var u=canonTank(e.from); ensure(u); if(sq>baseSeq[u]) bal[u]-=num(e.litres); }
+    else if(e.kind===&quot;transfer&quot;){ var s=canonTank(e.from), d=canonTank(e.dest); ensure(s); ensure(d);
       if(sq>baseSeq[s]) bal[s]-=num(e.litres);
       if(sq>baseSeq[d]) bal[d]+=num(e.litres); }
   });
@@ -4885,17 +4896,20 @@ function drawStock(){
       '<div class=&quot;tt-val&quot;>'+litres(val)+' <small>L</small></div>'+(sub?'<div class=&quot;tt-sub&quot;>'+esc(sub)+'</div>':'')+'</div>';
   }
   var bal=tankStock();
-  var opnameTotal=TANKS.reduce(function(s,tk){ return s+num(bal[tk]); },0);
+  var allTankNames=TANKS.slice();
+  Object.keys(bal).forEach(function(t){ if(allTankNames.indexOf(t)<0) allTankNames.push(t); });
+  var opnameTotal=allTankNames.reduce(function(s,tk){ return s+num(bal[tk]); },0);
   if($(&quot;totalTiles&quot;)) $(&quot;totalTiles&quot;).innerHTML=
     tile(&quot;Received&quot;, t.recv, &quot;t-good&quot;) + tile(&quot;Used&quot;, t.use, &quot;t-warn&quot;) +
     tile(&quot;Transferred&quot;, t.xfer, &quot;&quot;) + tile(&quot;Current stock&quot;, t.stock, t.stock>0?&quot;t-good&quot;:&quot;t-bad&quot;) +
     tile(&quot;Stock (opname-based)&quot;, opnameTotal, opnameTotal>0?&quot;t-good&quot;:&quot;t-bad&quot;, &quot;sum of all tanks · opname anchored&quot;);
-  // per-tank tiles
-  if($(&quot;tankTiles&quot;)) $(&quot;tankTiles&quot;).innerHTML=TANKS.map(function(tk){
-    var v=bal[tk]; var cls=v<0?&quot;t-bad&quot;:(v<=0?&quot;t-warn&quot;:&quot;t-good&quot;);
+  // per-tank tiles (canonical tanks + any legacy names found in the data)
+  if($(&quot;tankTiles&quot;)) $(&quot;tankTiles&quot;).innerHTML=allTankNames.map(function(tk){
+    var v=num(bal[tk]); var cls=v<0?&quot;t-bad&quot;:(v<=0?&quot;t-warn&quot;:&quot;t-good&quot;);
+    var legacy = TANKS.indexOf(tk)<0;
     return '<div class=&quot;tank-tile '+cls+'&quot;><div class=&quot;tt-name&quot;>'+esc(tk)+'</div>'+
       '<div class=&quot;tt-val&quot;'+(v<0?' style=&quot;color:var(--bad)&quot;':'')+'>'+litres(v)+' <small>L</small></div>'+
-      '<div class=&quot;tt-sub&quot;>current stock</div></div>';
+      '<div class=&quot;tt-sub&quot;>'+(legacy?&quot;legacy tank name&quot;:&quot;current stock&quot;)+'</div></div>';
   }).join(&quot;&quot;);
   if($(&quot;stockNote&quot;)) $(&quot;stockNote&quot;).textContent=&quot;Per-tank stock counts each receipt into its tank, adds transfers in, and subtracts usage and transfers out (stock opname resets the baseline).&quot;;
   // last stock opname
@@ -5064,6 +5078,8 @@ function nav(page){
 
 /* ---------- Diesel weekly (Mon–Sun) bar chart, per tank ---------- */
 const DIESEL_TANKS=["Container - ALCO 1000L","Tank 01A - ALCO 10K","Tank 01B - ALCO 6.5K","Tank 01C - ALCO 1.5K","Tank 02 - BOL","Tank 03 - BOL","Tank 04 - Sarana"];
+const DIESEL_TANK_ALIAS={"Tank 01 - ALCO":"Container - ALCO 1000L","ALCO Tank":"Container - ALCO 1000L","Main Tank (Plant)":"Container - ALCO 1000L","Tank 01A - ALCO 20K":"Tank 01A - ALCO 10K","BOL — Tank 1":"Tank 02 - BOL","BOL — Tank 2":"Tank 03 - BOL","Sarana 12 — Tank 3":"Tank 04 - Sarana"};
+function canonT(name){ if(!name) return DIESEL_TANKS[0]; return DIESEL_TANK_ALIAS[name]||name; }
 const DWK_META = {
   stock:    { label:'Diesel Stock',     unit:'litres in tank (end of day)', color:'var(--good)',  mode:'stock' },
   receive:  { label:'Diesel Receiving', unit:'litres received',             color:'var(--brand)', mode:'sum', kind:'receive',  field:'received' },
@@ -5097,9 +5113,9 @@ function renderDieselChart(){
   const ytdStart=new Date(now.getFullYear(),0,1).getTime();
   const endToday=(function(){ const e=new Date(now); e.setHours(23,59,59,999); return e.getTime(); })();
   // tank filter: receiving keys on the receiving tank; usage & transfer on the source tank
-  const sumIn=(a,b,tank)=>{ let s=0; entries.forEach(x=>{ if(x.kind!==m.kind) return; if(tank){ const tk=(m.kind==='receive')?x.tank:x.from; if(tk!==tank) return; } const t=tsOf(x); if(t>=a&&t<=b) s+=(+x[m.field]||0); }); return s; };
+  const sumIn=(a,b,tank)=>{ let s=0; entries.forEach(x=>{ if(x.kind!==m.kind) return; if(tank){ const tk=(m.kind==='receive')?canonT(x.tank):canonT(x.from); if(tk!==tank) return; } const t=tsOf(x); if(t>=a&&t<=b) s+=(+x[m.field]||0); }); return s; };
   const stockAll=t1=>{ let r=0,u=0,x2=0; entries.forEach(x=>{ const t=tsOf(x); if(t<=t1){ if(x.kind==='receive')r+=(+x.received||0); else if(x.kind==='usage')u+=(+x.litres||0); else if(x.kind==='transfer')x2+=(+x.litres||0);} }); return r-u-x2; };
-  const stockTank=(t1,tank)=>{ let baseVal=0,baseTs=-Infinity; entries.forEach(x=>{ if(x.kind!=='opname')return; const t=tsOf(x); if(t>t1)return; const rec=(x.tanks||[]).find(rr=>rr.name===tank); if(rec&&t>=baseTs){baseTs=t;baseVal=+rec.litres||0;} }); let bal=baseVal; entries.forEach(x=>{ const t=tsOf(x); if(t>baseTs&&t<=t1){ if(x.kind==='receive'&&x.tank===tank)bal+=(+x.received||0); else if(x.kind==='usage'&&x.from===tank)bal-=(+x.litres||0); else if(x.kind==='transfer'){ if(x.dest===tank)bal+=(+x.litres||0); if(x.from===tank)bal-=(+x.litres||0);} } }); return bal; };
+  const stockTank=(t1,tank)=>{ let baseVal=0,baseTs=-Infinity; entries.forEach(x=>{ if(x.kind!=='opname')return; const t=tsOf(x); if(t>t1)return; const rec=(x.tanks||[]).find(rr=>canonT(rr.name)===tank); if(rec&&t>=baseTs){baseTs=t;baseVal=+rec.litres||0;} }); let bal=baseVal; entries.forEach(x=>{ const t=tsOf(x); if(t>baseTs&&t<=t1){ if(x.kind==='receive'&&canonT(x.tank)===tank)bal+=(+x.received||0); else if(x.kind==='usage'&&canonT(x.from)===tank)bal-=(+x.litres||0); else if(x.kind==='transfer'){ if(canonT(x.dest)===tank)bal+=(+x.litres||0); if(canonT(x.from)===tank)bal-=(+x.litres||0);} } }); return bal; };
   function seriesFor(tank){
     let daily,lastVal,ytdVal;
     if(m.mode==='sum'){
@@ -5129,7 +5145,7 @@ function renderDieselChart(){
     {key:'Forklift usage from Warehouse',   label:'Forklift Warehouse',color:'#1F5673'},
     {key:'Others',                          label:'Others',            color:'#8A8478'}
   ];
-  const usageBreak=(a,b,tank)=>{ const o=[0,0,0]; entries.forEach(x=>{ if(x.kind!=='usage')return; if(tank && x.from!==tank) return; const t=tsOf(x); if(t<a||t>b) return; let k=USAGE_TYPES.findIndex(u=>u.key===x.usageType); if(k<0) k=2; o[k]+=(+x.litres||0); }); return o; };
+  const usageBreak=(a,b,tank)=>{ const o=[0,0,0]; entries.forEach(x=>{ if(x.kind!=='usage')return; if(tank && canonT(x.from)!==tank) return; const t=tsOf(x); if(t<a||t>b) return; let k=USAGE_TYPES.findIndex(u=>u.key===x.usageType); if(k<0) k=2; o[k]+=(+x.litres||0); }); return o; };
   const sumArr=o=>o.reduce((a,b)=>a+b,0);
   const stacked=dwkMetric==='usage';
   function box(label, tank){
@@ -5169,7 +5185,9 @@ function renderDieselChart(){
   }
   const legend = stacked ? '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-family:var(--mono);font-size:11px;color:var(--ink)">'+USAGE_TYPES.map(u=>'<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:13px;height:13px;border-radius:2px;display:inline-block;background:'+u.color+'"></i>'+esc(u.label)+'</span>').join('')+'</div>' : '';
   let html = legend + box('All tanks', null);
-  DIESEL_TANKS.forEach(t=>{ html += box(t, t); });
+  const chartTanks=DIESEL_TANKS.slice();
+  entries.forEach(x=>{ [canonT(x.tank),canonT(x.from),canonT(x.dest)].forEach(function(n){ if(n && chartTanks.indexOf(n)<0 && (x.tank||x.from||x.dest)) chartTanks.push(n); }); if(x.kind==='opname'){ (x.tanks||[]).forEach(function(rr){ var n=canonT(rr.name); if(n && chartTanks.indexOf(n)<0) chartTanks.push(n); }); } });
+  chartTanks.forEach(t=>{ html += box(t, t); });
   $('#dwkChart').innerHTML = html;
 }
 /* tell the embedded downtime log which entity's machine list + log to show */
