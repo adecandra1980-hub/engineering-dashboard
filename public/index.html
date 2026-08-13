@@ -4595,6 +4595,7 @@ function resetEditState(){ editingId=null;
   if($(&quot;rSave&quot;)) $(&quot;rSave&quot;).textContent=&quot;Submit receiving&quot;;
   if($(&quot;uSave&quot;)) $(&quot;uSave&quot;).textContent=&quot;Submit usage&quot;;
   if($(&quot;xSave&quot;)) $(&quot;xSave&quot;).textContent=&quot;Submit transfer&quot;;
+  if($(&quot;opSave&quot;)) $(&quot;opSave&quot;).textContent=&quot;Save stock opname&quot;;
 }
 function canEditRec(rec){ var owner=!rec||!rec.deviceId||rec.deviceId===DEVICE_ID; if(!owner&amp;&amp;!adminOK()) return false; return true; }
 async function loadPhotoData(e){ var out={}, p=e.photos||{}; for(var slot in p){ var arr=[]; for(var i=0;i<(p[slot]||[]).length;i++){ var d=await load(p[slot][i],null); if(d) arr.push(d); } out[slot]=arr; } return out; }
@@ -4618,7 +4619,13 @@ async function editEntry(e){
     $(&quot;xWhen&quot;).value=e.date||nowLocalDT(); $(&quot;xFrom&quot;).value=e.from||&quot;&quot;; $(&quot;xDest&quot;).value=e.dest||&quot;&quot;;
     $(&quot;xLitres&quot;).value=e.litres||&quot;&quot;; $(&quot;xBy&quot;).value=e.by||&quot;&quot;; $(&quot;xNote&quot;).value=e.note||&quot;&quot;;
     XFER_PH.load(ph); $(&quot;xSave&quot;).textContent=&quot;Update transfer&quot;;
-  } else { toast(&quot;Stock opname entries can't be edited — delete and re-enter.&quot;); return; }
+  } else if(e.kind===&quot;opname&quot;){
+    var vals={}; (e.tanks||[]).forEach(function(rec){ vals[canonTank(rec.name)]=num(rec.litres); });
+    buildOpnameFields(vals);
+    $(&quot;opWhen&quot;).value=e.date||nowLocalDT(); $(&quot;opBy&quot;).value=e.by||&quot;&quot;; $(&quot;opNote&quot;).value=e.note||&quot;&quot;;
+    OP_PH.load(ph); opRecalc(); editingId=e.id; $(&quot;opSave&quot;).textContent=&quot;Update stock opname&quot;; $(&quot;opModal&quot;).hidden=false;
+    return;
+  }
   toast(&quot;Editing entry — change the fields and press Update.&quot;);
 }
 /* ---- deleted history ---- */
@@ -4819,7 +4826,7 @@ function drawBook(){
       '<td class=&quot;num&quot;>'+(inL?litres(inL):&quot;—&quot;)+'</td><td class=&quot;num&quot;>'+(outL?litres(outL):&quot;—&quot;)+'</td>'+
       '<td>'+esc(e.driver||e.by||&quot;—&quot;)+'</td>'+
       '<td>'+(nPh?'<button class=&quot;tiny&quot; data-ph=&quot;'+e.id+'&quot;>View '+nPh+'</button>':&quot;—&quot;)+'</td>'+
-      '<td style=&quot;white-space:nowrap&quot;>'+(e.kind!==&quot;opname&quot;?'<button class=&quot;tiny&quot; data-edit=&quot;'+e.id+'&quot;>Edit</button> ':'')+'<button class=&quot;tiny warn&quot; data-del=&quot;'+e.id+'&quot;>Delete</button></td></tr>';
+      '<td style=&quot;white-space:nowrap&quot;><button class=&quot;tiny&quot; data-edit=&quot;'+e.id+'&quot;>Edit</button> <button class=&quot;tiny warn&quot; data-del=&quot;'+e.id+'&quot;>Delete</button></td></tr>';
   });
   $(&quot;book&quot;).innerHTML=h+'</tbody></table>';
   $(&quot;book&quot;).querySelectorAll(&quot;[data-ph]&quot;).forEach(function(b){ b.onclick=function(){ var e=byId(b.getAttribute(&quot;data-ph&quot;)); if(e) openPhotos(e); }; });
@@ -4926,18 +4933,23 @@ var OP_PH=photoField($(&quot;opPhotos&quot;),[
   {key:&quot;do&quot;,label:&quot;Delivery order receipt&quot;}
 ]);
 function opRecalc(){ var tot=0; OPNAME_TANKS.forEach(function(_,i){ tot+=num(($(&quot;opT&quot;+i)||{}).value); }); $(&quot;opTotal&quot;).textContent=litres(tot); return tot; }
-function openOpname(){
-  if(!adminOK()) return;
+function buildOpnameFields(valuesByTank){
   $(&quot;opTanks&quot;).innerHTML='<div class=&quot;grid g2&quot;>'+OPNAME_TANKS.map(function(t,i){
-    return '<div><label class=&quot;f&quot; for=&quot;opT'+i+'&quot;>'+esc(t)+' (L) <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;opT'+i+'&quot; type=&quot;number&quot; inputmode=&quot;decimal&quot; min=&quot;0&quot; placeholder=&quot;measured litres&quot;></div>';
+    var v = (valuesByTank &amp;&amp; (t in valuesByTank)) ? valuesByTank[t] : &quot;&quot;;
+    return '<div><label class=&quot;f&quot; for=&quot;opT'+i+'&quot;>'+esc(t)+' (L) <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;opT'+i+'&quot; type=&quot;number&quot; inputmode=&quot;decimal&quot; min=&quot;0&quot; placeholder=&quot;measured litres&quot; value=&quot;'+esc(String(v))+'&quot;></div>';
   }).join(&quot;&quot;)+'</div>';
   OPNAME_TANKS.forEach(function(_,i){ $(&quot;opT&quot;+i).addEventListener(&quot;input&quot;,opRecalc); });
+}
+function openOpname(){
+  if(!adminOK()) return;
+  resetEditState();
+  buildOpnameFields(null);
   $(&quot;opWhen&quot;).value=nowLocalDT(); $(&quot;opBy&quot;).value=&quot;&quot;; $(&quot;opNote&quot;).value=&quot;&quot;; OP_PH.clear(); opRecalc();
   $(&quot;opModal&quot;).hidden=false;
 }
 $(&quot;opnameTile&quot;).addEventListener(&quot;click&quot;,openOpname);
-$(&quot;opCancel&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;opModal&quot;).hidden=true; });
-$(&quot;opModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.target===$(&quot;opModal&quot;)) $(&quot;opModal&quot;).hidden=true; });
+$(&quot;opCancel&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;opModal&quot;).hidden=true; resetEditState(); });
+$(&quot;opModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.target===$(&quot;opModal&quot;)){ $(&quot;opModal&quot;).hidden=true; resetEditState(); } });
 $(&quot;opSave&quot;).addEventListener(&quot;click&quot;,async function(){
   if(!$(&quot;opWhen&quot;).value){ toast(&quot;Enter date &amp; time.&quot;); return; }
   if(!$(&quot;opBy&quot;).value.trim()){ toast(&quot;Enter who counted.&quot;); return; }
@@ -4947,12 +4959,17 @@ $(&quot;opSave&quot;).addEventListener(&quot;click&quot;,async function(){
   var opp=OP_PH.data();
   var opReq=[[&quot;before&quot;,&quot;flow meter before&quot;],[&quot;after&quot;,&quot;flow meter after&quot;],[&quot;tank&quot;,&quot;tank level&quot;],[&quot;do&quot;,&quot;delivery order receipt&quot;]];
   for(var opi=0;opi<opReq.length;opi++){ if(!(opp[opReq[opi][0]]||[]).length){ toast(&quot;Add the &quot;+opReq[opi][1]+&quot; photo.&quot;); return; } }
-  var id=Date.now(); var photos=await savePhotos(id,OP_PH.data());
-  entries.push({ id:id, ts:Date.parse($(&quot;opWhen&quot;).value)||Date.now(), kind:&quot;opname&quot;, date:$(&quot;opWhen&quot;).value,
-    tanks:tanks, total:total, by:$(&quot;opBy&quot;).value.trim(), note:$(&quot;opNote&quot;).value.trim(), photos:photos, deviceId:DEVICE_ID });
-  await save(ENTRY_KEY,entries); refreshHead(); drawStock();
-  $(&quot;opModal&quot;).hidden=true; toast(&quot;Stock opname saved (&quot;+litres(total)+&quot; L).&quot;);
-  showSuccess(&quot;Stock opname saved to database (&quot;+litres(total)+&quot; L).&quot;);
+  var editing = editingId!=null &amp;&amp; byId(editingId) &amp;&amp; byId(editingId).kind===&quot;opname&quot;;
+  var id = editing ? editingId : Date.now();
+  var photos=await savePhotos(id,OP_PH.data());
+  var rec={ id:id, ts:Date.parse($(&quot;opWhen&quot;).value)||Date.now(), kind:&quot;opname&quot;, date:$(&quot;opWhen&quot;).value,
+    tanks:tanks, total:total, by:$(&quot;opBy&quot;).value.trim(), note:$(&quot;opNote&quot;).value.trim(), photos:photos, deviceId:(editing?(byId(id).deviceId||DEVICE_ID):DEVICE_ID) };
+  if(editing){ var ix=entries.findIndex(function(v){ return String(v.id)===String(id); }); if(ix>=0) entries[ix]=rec; else entries.push(rec); }
+  else entries.push(rec);
+  await save(ENTRY_KEY,entries); refreshHead(); drawStock(); if(!$(&quot;v-book&quot;).hidden) drawBook();
+  $(&quot;opModal&quot;).hidden=true; resetEditState();
+  toast(editing?&quot;Stock opname updated.&quot;:&quot;Stock opname saved (&quot;+litres(total)+&quot; L).&quot;);
+  showSuccess(editing?&quot;Stock opname updated in database.&quot;:&quot;Stock opname saved to database (&quot;+litres(total)+&quot; L).&quot;);
 });
 
 /* ---- boot ---- */
