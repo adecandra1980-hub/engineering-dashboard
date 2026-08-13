@@ -4112,6 +4112,17 @@ window.setEntity = setEntity;
   document.addEventListener(&quot;keydown&quot;, function(e){ if(e.key===&quot;Escape&quot; &amp;&amp; !$(&quot;lb&quot;).hidden) closeLb(); });
   $(&quot;okClose&quot;).addEventListener(&quot;click&quot;, hideSuccess);
   $(&quot;okModal&quot;).addEventListener(&quot;click&quot;, function(e){ if(e.target===$(&quot;okModal&quot;)) hideSuccess(); });
+  var WO_ENT=&quot;ALCO&quot;;
+  window.setEntity=async function(ent){
+    ent = ent || &quot;ALCO&quot;;
+    if(ent===WO_ENT) return;
+    WO_ENT=ent;
+    WO_KEY     = ent===&quot;ALCO&quot; ? &quot;alco:workorders&quot;         : &quot;alco:workorders:&quot;+ent;
+    WO_DEL_KEY = ent===&quot;ALCO&quot; ? &quot;alco:workorders:deleted&quot; : &quot;alco:workorders:deleted:&quot;+ent;
+    recs = await load(WO_KEY, []); if(!Array.isArray(recs)) recs=[];
+    delRecs = await load(WO_DEL_KEY, []); if(!Array.isArray(delRecs)) delRecs=[];
+    setWoNumber(); refreshHead(); drawBook(); if(woShowTrash) drawTrashWO();
+  };
   (async function(){
     recs = await load(WO_KEY, []);
     if(!Array.isArray(recs)) recs=[];
@@ -4972,6 +4983,21 @@ $(&quot;opSave&quot;).addEventListener(&quot;click&quot;,async function(){
   showSuccess(editing?&quot;Stock opname updated in database.&quot;:&quot;Stock opname saved to database (&quot;+litres(total)+&quot; L).&quot;);
 });
 
+/* ---- entity-scoped storage: each entity keeps its own diesel log ---- */
+var DIESEL_ENT=&quot;ALCO&quot;;
+async function setEntity(ent){
+  ent = ent || &quot;ALCO&quot;;
+  if(ent===DIESEL_ENT) return;
+  DIESEL_ENT=ent;
+  ENTRY_KEY = ent===&quot;ALCO&quot; ? &quot;diesel:entries&quot; : &quot;diesel:entries:&quot;+ent;
+  DEL_KEY   = ent===&quot;ALCO&quot; ? &quot;diesel:entries:deleted&quot; : &quot;diesel:entries:deleted:&quot;+ent;
+  entries=await load(ENTRY_KEY,[]); if(!Array.isArray(entries)) entries=[];
+  deletedD=await load(DEL_KEY,[]); if(!Array.isArray(deletedD)) deletedD=[];
+  if(typeof resetEditState===&quot;function&quot;) resetEditState();
+  refreshHead(); drawStock();
+  if($(&quot;v-book&quot;) &amp;&amp; !$(&quot;v-book&quot;).hidden){ drawBook(); drawTrashD(); }
+}
+window.setEntity=setEntity;
 /* ---- boot ---- */
 (async function(){
   entries=await load(ENTRY_KEY,[]); if(!Array.isArray(entries)) entries=[];
@@ -5091,6 +5117,8 @@ function nav(page){
   if(page==='linedt') renderLineDowntime();
   if(page==='dieselwk') renderDieselChart();
   if(page==='downtime2') syncDTEntity();
+  if(page==='workorder2') syncFrameEntity('workorderFrame');
+  if(page==='diesel') syncFrameEntity('dieselFrame');
 }
 
 /* ---------- Diesel weekly (Mon–Sun) bar chart, per tank ---------- */
@@ -5218,6 +5246,15 @@ function syncDTEntity(tries){
   }catch(e){}
   if(tries<60) setTimeout(function(){ syncDTEntity(tries+1); }, 100);
 }
+function syncFrameEntity(frameId, tries){
+  tries = tries||0;
+  try{
+    var f=document.getElementById(frameId); var w=f&&f.contentWindow;
+    if(w && typeof w.setEntity==='function'){ w.setEntity(state.entity); return; }
+  }catch(e){}
+  if(tries<60) setTimeout(function(){ syncFrameEntity(frameId, tries+1); }, 100);
+}
+function syncAllEntities(){ syncDTEntity(); syncFrameEntity('workorderFrame'); syncFrameEntity('dieselFrame'); }
 
 /* open the Work Order Log Book pre-filtered ({status} or {pri}) */
 function openWOLog(opts){
@@ -5321,17 +5358,18 @@ function initEntities(){
   sel.innerHTML=ENTITIES.map(e=>`<option>${esc(e)}</option>`).join('');
   if(!ENTITIES.includes(state.entity)) state.entity=ENTITIES[0];
   sel.value=state.entity;
-  sel.onchange=()=>{ state.entity=sel.value; renderAll(); syncDTEntity(); };
+  sel.onchange=()=>{ state.entity=sel.value; refreshShared(); renderAll(); syncAllEntities(); };
 }
 
 /* ---------- dashboard ---------- */
 /* Read the embedded Technician Downtime Log Book's live data (same-origin srcdoc iframe).
    Each event: status ("Closed" = resolved), total = downtime in MINUTES, category = machine group. */
 let SHARED = { evts:null, wo:null, diesel:null };
+function scopedKey(base){ return (state.entity && state.entity!=="ALCO") ? base+":"+state.entity : base; }
 async function refreshShared(){
-  try { const r=await fetch('/api/kv?key=tdl:events',{cache:'no-store'}); const j=await r.json(); SHARED.evts = (j&&j.value)? JSON.parse(j.value): []; } catch(e){}
-  try { const r=await fetch('/api/kv?key=alco:workorders',{cache:'no-store'}); const j=await r.json(); SHARED.wo = (j&&j.value)? JSON.parse(j.value): []; } catch(e){}
-  try { const r=await fetch('/api/kv?key=diesel:entries',{cache:'no-store'}); const j=await r.json(); SHARED.diesel = (j&&j.value)? JSON.parse(j.value): []; } catch(e){}
+  try { const r=await fetch('/api/kv?key='+encodeURIComponent(scopedKey('tdl:events')),{cache:'no-store'}); const j=await r.json(); SHARED.evts = (j&&j.value)? JSON.parse(j.value): []; } catch(e){}
+  try { const r=await fetch('/api/kv?key='+encodeURIComponent(scopedKey('alco:workorders')),{cache:'no-store'}); const j=await r.json(); SHARED.wo = (j&&j.value)? JSON.parse(j.value): []; } catch(e){}
+  try { const r=await fetch('/api/kv?key='+encodeURIComponent(scopedKey('diesel:entries')),{cache:'no-store'}); const j=await r.json(); SHARED.diesel = (j&&j.value)? JSON.parse(j.value): []; } catch(e){}
   renderDashboard();
 }
 function dieselEntries(){ return Array.isArray(SHARED.diesel)? SHARED.diesel : null; }
@@ -5362,7 +5400,9 @@ const WO_FORM_STATUS=["Open","In progress","Pending parts","Completed"];
 /* The embedded Log Books (downtime + work orders) belong to this entity.
    Other group entities have no linked apps yet, so their Overview reads empty. */
 const LOGBOOK_ENTITY="ALCO";
-function logbookInScope(){ return state.entity===LOGBOOK_ENTITY; }
+/* each entity now has its own separate log stores (loaded per-entity in refreshShared),
+   so the overview always reflects whatever entity is selected. */
+function logbookInScope(){ return true; }
 function lbStatusBadge(orig){
   const s=String(orig||"Open"), l=s.toLowerCase();
   let cls="b-open";
@@ -5466,12 +5506,12 @@ function renderDashboard(){
         : e.kind==='usage' ? ((e.usageType==='Others'?('Others: '+(e.usageOther||'')):(e.usageType||'Usage')) + (e.dept?(' — '+e.dept):''))
         : (e.dest||'Transfer');
       return { kind:e.kind, detail:detail, litres:(e.kind==='receive'?(+e.received||0):(+e.litres||0)),
-        entity:LOGBOOK_ENTITY, t:(+e.ts)||(e.date?Date.parse(e.date):0)||0, date:e.date||'' };
+        entity:(state.entity||LOGBOOK_ENTITY), t:(+e.ts)||(e.date?Date.parse(e.date):0)||0, date:e.date||'' };
     }).sort((a,b)=>b.t-a.t).slice(0,8);
     dRecent=evtsR.map(e=>({
       ref: e.line || e.category || "Stop",
       sum: e.problem || e.type || e.category || "Downtime stop",
-      entity: LOGBOOK_ENTITY,
+      entity:(state.entity||LOGBOOK_ENTITY),
       t: (+e.ts) || (e.date? Date.parse(e.date):0) || 0,
       date: e.ts || e.date || "",
       status: e.status || "Open"
@@ -5479,7 +5519,7 @@ function renderDashboard(){
     wRecent=woR.map(r=>({
       ref: r.wo || "WO",
       sum: r.desc || (r.types && r.types.join(", ")) || "Work order request",
-      entity: LOGBOOK_ENTITY,
+      entity:(state.entity||LOGBOOK_ENTITY),
       t: r.date? Date.parse(r.date):0,
       date: r.date || "",
       status: r.status || "Open"
