@@ -1061,14 +1061,13 @@ var DEVICE_ID = (function(){ try{ var k=&quot;tdl:deviceId&quot;; var v=localSto
 var editingId = null;
 /* delete permissions: submitter's device, else administrator (admin / Engineering) */
 function adminOK(){
-  var u = prompt(&quot;Not the submitter's device.\nAdministrator username:&quot;); if(u === null) return false;
+  var u = prompt(&quot;Administrator username:&quot;); if(u === null) return false;
   var p = prompt(&quot;Administrator password:&quot;); if(p === null) return false;
   if(u.trim().toLowerCase() === &quot;admin&quot; &amp;&amp; p === &quot;Engineering&quot;) return true;
   toast(&quot;Wrong administrator credentials.&quot;); return false;
 }
 function canDelete(rec){
-  var owner = !rec || !rec.deviceId || rec.deviceId === DEVICE_ID;
-  if(!owner &amp;&amp; !adminOK()) return false;
+  if(!adminOK()) return false;
   return confirm(&quot;Are you sure to delete this report?&quot;);
 }
 function mkLines(prefix, n){
@@ -3637,14 +3636,13 @@ window.setEntity = setEntity;
     if(!v){ v=&quot;dev-&quot;+Date.now().toString(36)+&quot;-&quot;+Math.random().toString(36).slice(2,8); localStorage.setItem(k,v); }
     return v; }catch(e){ return &quot;dev-local&quot;; } })();
   function adminOK(){
-    var u=prompt(&quot;Not the submitter's device.\nAdministrator username:&quot;); if(u===null) return false;
+    var u=prompt(&quot;Administrator username:&quot;); if(u===null) return false;
     var p=prompt(&quot;Administrator password:&quot;); if(p===null) return false;
     if(u.trim().toLowerCase()===&quot;admin&quot; &amp;&amp; p===&quot;Engineering&quot;) return true;
     toast(&quot;Wrong administrator credentials.&quot;); return false;
   }
   function canDeleteWO(rec){
-    var owner = !rec || !rec.deviceId || rec.deviceId===DEVICE_ID;
-    if(!owner &amp;&amp; !adminOK()) return false;
+    if(!adminOK()) return false;
     return confirm(&quot;Are you sure to delete this work order?&quot;);
   }
 
@@ -4507,8 +4505,8 @@ function litres(n){ return (Math.round(n*10)/10).toLocaleString(&quot;en-US&quot
 var ENTRY_KEY=&quot;diesel:entries&quot;, PH_KEY=&quot;diesel:photo:&quot;, DEL_KEY=&quot;diesel:entries:deleted&quot;;
 var entries=[], deletedD=[], editingId=null;
 var DEVICE_ID=(function(){ try{ var k=&quot;tdl:deviceId&quot;; var v=localStorage.getItem(k); if(!v){ v=&quot;dev-&quot;+Date.now().toString(36)+&quot;-&quot;+Math.random().toString(36).slice(2,8); localStorage.setItem(k,v);} return v; }catch(e){ return &quot;dev-local&quot;; } })();
-function adminOK(){ var u=prompt(&quot;Not the submitter's device.\nAdministrator username:&quot;); if(u===null) return false; var p=prompt(&quot;Administrator password:&quot;); if(p===null) return false; if(u.trim().toLowerCase()===&quot;admin&quot;&amp;&amp;p===&quot;Engineering&quot;) return true; toast(&quot;Wrong administrator credentials.&quot;); return false; }
-function canDelete(rec){ var owner=!rec||!rec.deviceId||rec.deviceId===DEVICE_ID; if(!owner&amp;&amp;!adminOK()) return false; return confirm(&quot;Are you sure to delete this entry?&quot;); }
+function adminOK(){ var u=prompt(&quot;Administrator username:&quot;); if(u===null) return false; var p=prompt(&quot;Administrator password:&quot;); if(p===null) return false; if(u.trim().toLowerCase()===&quot;admin&quot;&amp;&amp;p===&quot;Engineering&quot;) return true; toast(&quot;Wrong administrator credentials.&quot;); return false; }
+function canDelete(rec){ if(!adminOK()) return false; return confirm(&quot;Are you sure to delete this entry?&quot;); }
 
 /* ---- canonical tank list (single source of truth) ---- */
 var TANKS=[&quot;Container - ALCO 1000L&quot;,&quot;Tank 01A - ALCO 10K&quot;,&quot;Tank 01B - ALCO 6.5K&quot;,&quot;Tank 01C - ALCO 1.5K&quot;,&quot;Tank 02 - BOL&quot;,&quot;Tank 03 - BOL&quot;,&quot;Tank 04 - Sarana&quot;];
@@ -4630,7 +4628,7 @@ function drawTrashD(){
     await save(ENTRY_KEY,entries); await save(DEL_KEY,deletedD); refreshHead(); drawBook(); drawTrashD(); toast(&quot;Entry restored.&quot;);
   }; });
   wrap.querySelectorAll(&quot;[data-purge]&quot;).forEach(function(b){ b.onclick=async function(){
-    var id=b.getAttribute(&quot;data-purge&quot;); if(!confirm(&quot;Delete this entry permanently? This cannot be undone.&quot;)) return;
+    var id=b.getAttribute(&quot;data-purge&quot;); if(!adminOK()) return; if(!confirm(&quot;Delete this entry permanently? This cannot be undone.&quot;)) return;
     var e=null; deletedD=deletedD.filter(function(v){ if(String(v.id)===String(id)){ e=v; return false; } return true; });
     if(e){ var keys=allPhotoKeys(e); for(var i=0;i<keys.length;i++){ try{ if(has()&amp;&amp;window.storage.delete) await window.storage.delete(keys[i]); }catch(x){} } }
     await save(DEL_KEY,deletedD); drawTrashD(); toast(&quot;Entry permanently deleted.&quot;);
@@ -4881,11 +4879,13 @@ function drawStock(){
     return '<div class=&quot;tank-tile'+(cls?&quot; &quot;+cls:&quot;&quot;)+'&quot;><div class=&quot;tt-name&quot;>'+esc(name)+'</div>'+
       '<div class=&quot;tt-val&quot;>'+litres(val)+' <small>L</small></div>'+(sub?'<div class=&quot;tt-sub&quot;>'+esc(sub)+'</div>':'')+'</div>';
   }
+  var bal=tankStock();
+  var opnameTotal=TANKS.reduce(function(s,tk){ return s+num(bal[tk]); },0);
   if($(&quot;totalTiles&quot;)) $(&quot;totalTiles&quot;).innerHTML=
     tile(&quot;Received&quot;, t.recv, &quot;t-good&quot;) + tile(&quot;Used&quot;, t.use, &quot;t-warn&quot;) +
-    tile(&quot;Transferred&quot;, t.xfer, &quot;&quot;) + tile(&quot;Current stock&quot;, t.stock, t.stock>0?&quot;t-good&quot;:&quot;t-bad&quot;);
+    tile(&quot;Transferred&quot;, t.xfer, &quot;&quot;) + tile(&quot;Current stock&quot;, t.stock, t.stock>0?&quot;t-good&quot;:&quot;t-bad&quot;) +
+    tile(&quot;Stock (opname-based)&quot;, opnameTotal, opnameTotal>0?&quot;t-good&quot;:&quot;t-bad&quot;, &quot;sum of all tanks · opname anchored&quot;);
   // per-tank tiles
-  var bal=tankStock();
   if($(&quot;tankTiles&quot;)) $(&quot;tankTiles&quot;).innerHTML=TANKS.map(function(tk){
     var v=bal[tk]; var cls=v<0?&quot;t-bad&quot;:(v<=0?&quot;t-warn&quot;:&quot;t-good&quot;);
     return '<div class=&quot;tank-tile '+cls+'&quot;><div class=&quot;tt-name&quot;>'+esc(tk)+'</div>'+
