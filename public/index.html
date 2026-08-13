@@ -5378,6 +5378,21 @@ function dieselTotals(){
   e.forEach(function(x){ if(x.kind==='receive') recv+=(+x.received||0); else if(x.kind==='usage') use+=(+x.litres||0); else if(x.kind==='transfer') xfer+=(+x.litres||0); });
   return { recv:recv, use:use, xfer:xfer, stock:recv-use-xfer };
 }
+/* opname-anchored total stock, matching the Stock tab's "Total Stock" tile */
+function dieselTotalStock(){
+  const es=dieselEntries()||[]; const base={},baseSeq={},bal={};
+  function ensure(t){ if(!(t in bal)){ base[t]=0; baseSeq[t]=-Infinity; bal[t]=0; } }
+  DIESEL_TANKS.forEach(ensure);
+  const seqOf=x=>(+x.id)||(+x.ts)||0;
+  es.filter(x=>x.kind==='opname').sort((a,b)=>seqOf(a)-seqOf(b)).forEach(function(o){ (o.tanks||[]).forEach(function(rec){ var nm=canonT(rec.name); ensure(nm); base[nm]=(+rec.litres||0); baseSeq[nm]=seqOf(o); }); });
+  Object.keys(base).forEach(t=>bal[t]=base[t]);
+  es.forEach(function(x){ var sq=seqOf(x);
+    if(x.kind==='receive'){ var t=canonT(x.tank); ensure(t); if(sq>baseSeq[t]) bal[t]+=(+x.received||0); }
+    else if(x.kind==='usage'){ var u=canonT(x.from); ensure(u); if(sq>baseSeq[u]) bal[u]-=(+x.litres||0); }
+    else if(x.kind==='transfer'){ var s=canonT(x.from),d=canonT(x.dest); ensure(s); ensure(d); if(sq>baseSeq[s]) bal[s]-=(+x.litres||0); if(sq>baseSeq[d]) bal[d]+=(+x.litres||0); }
+  });
+  let tot=0; Object.keys(bal).forEach(t=>tot+=bal[t]); return tot;
+}
 function logbookEvents(){ return Array.isArray(SHARED.evts)? SHARED.evts : null; }
 
 /* Read the embedded Work Order Request form's live Log Book counts (same-origin srcdoc iframe).
@@ -5461,7 +5476,7 @@ function renderDashboard(){
   } else {
     const dt=dieselTotals();
     const fmtL=n=>Math.round(n).toLocaleString('en-US');
-    $('#kDieselStock').textContent = fmtL(dt.stock);
+    $('#kDieselStock').textContent = fmtL(dieselTotalStock());
     $('#kDieselRecv').textContent = fmtL(dt.recv);
     $('#kDieselUse').textContent = fmtL(dt.use);
     $('#kDieselXfer').textContent = fmtL(dt.xfer);
