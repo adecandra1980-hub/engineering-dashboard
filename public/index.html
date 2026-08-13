@@ -4908,8 +4908,8 @@ function drawStock(){
   var opnameTotal=allTankNames.reduce(function(s,tk){ return s+num(bal[tk]); },0);
   if($(&quot;totalTiles&quot;)) $(&quot;totalTiles&quot;).innerHTML=
     tile(&quot;Received&quot;, t.recv, &quot;t-good&quot;) + tile(&quot;Used&quot;, t.use, &quot;t-warn&quot;) +
-    tile(&quot;Transferred&quot;, t.xfer, &quot;&quot;) + tile(&quot;Current stock&quot;, t.stock, t.stock>0?&quot;t-good&quot;:&quot;t-bad&quot;) +
-    tile(&quot;Stock (opname-based)&quot;, opnameTotal, opnameTotal>0?&quot;t-good&quot;:&quot;t-bad&quot;, &quot;sum of all tanks · opname anchored&quot;);
+    tile(&quot;Transferred&quot;, t.xfer, &quot;&quot;) +
+    tile(&quot;Total Stock&quot;, opnameTotal, opnameTotal>0?&quot;t-good&quot;:&quot;t-bad&quot;, &quot;sum of all tanks · opname anchored&quot;);
   // per-tank tiles (canonical tanks + any legacy names found in the data)
   if($(&quot;tankTiles&quot;)) $(&quot;tankTiles&quot;).innerHTML=allTankNames.map(function(tk){
     var v=num(bal[tk]); var cls=v<0?&quot;t-bad&quot;:(v<=0?&quot;t-warn&quot;:&quot;t-good&quot;);
