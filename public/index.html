@@ -5423,12 +5423,13 @@ $(&quot;oFull&quot;).addEventListener(&quot;input&quot;,recalcOut); $(&quot;oEmp
 /* ---- photo fields ---- */
 var IN_PH=photoField($(&quot;iPhotos&quot;),[
   {key:&quot;truck&quot;,label:&quot;Truck number&quot;},
-  {key:&quot;empty&quot;,label:&quot;Empty truck on scale&quot;}
+  {key:&quot;empty&quot;,label:&quot;Empty truck on scale&quot;},
+  {key:&quot;scale&quot;,label:&quot;Weighing scale reading / receipt&quot;}
 ]);
 var OUT_PH=photoField($(&quot;oPhotos&quot;),[
   {key:&quot;truck&quot;,label:&quot;Truck number&quot;},
   {key:&quot;full&quot;,label:&quot;Full load on scale&quot;},
-  {key:&quot;empty&quot;,label:&quot;Empty truck on scale&quot;,opt:true}
+  {key:&quot;scale&quot;,label:&quot;Weighing scale reading / receipt&quot;}
 ]);
 
 /* ---- header ---- */
@@ -5450,7 +5451,7 @@ $(&quot;iSave&quot;).addEventListener(&quot;click&quot;,async function(){
   if(!$(&quot;iDriver&quot;).value.trim()){ toast(&quot;Enter driver name.&quot;); $(&quot;iDriver&quot;).focus(); return; }
   if(!$(&quot;iBy&quot;).value.trim()){ toast(&quot;Enter who reported.&quot;); $(&quot;iBy&quot;).focus(); return; }
   var ip=IN_PH.data();
-  var iReq=[[&quot;truck&quot;,&quot;truck number&quot;],[&quot;empty&quot;,&quot;empty truck on scale&quot;]];
+  var iReq=[[&quot;truck&quot;,&quot;truck number&quot;],[&quot;empty&quot;,&quot;empty truck on scale&quot;],[&quot;scale&quot;,&quot;weighing scale reading&quot;]];
   for(var ii=0;ii<iReq.length;ii++){ if(!(ip[iReq[ii][0]]||[]).length){ toast(&quot;Add the &quot;+iReq[ii][1]+&quot; photo.&quot;); return; } }
   var when=$(&quot;iWhen&quot;).value||nowLocalDT();
   var editing = editingId!=null &amp;&amp; byId(editingId) &amp;&amp; byId(editingId).kind===&quot;in&quot;;
@@ -5481,7 +5482,7 @@ $(&quot;oSave&quot;).addEventListener(&quot;click&quot;,async function(){
   if($(&quot;oFull&quot;).value===&quot;&quot;){ toast(&quot;Enter full load weight.&quot;); $(&quot;oFull&quot;).focus(); return; }
   if(num($(&quot;oFull&quot;).value)<=num($(&quot;oEmpty&quot;).value)){ toast(&quot;Full load must be greater than the empty (tare) weight.&quot;); $(&quot;oFull&quot;).focus(); return; }
   var op=OUT_PH.data();
-  var oReq=[[&quot;truck&quot;,&quot;truck number&quot;],[&quot;full&quot;,&quot;full load on scale&quot;]];
+  var oReq=[[&quot;truck&quot;,&quot;truck number&quot;],[&quot;full&quot;,&quot;full load on scale&quot;],[&quot;scale&quot;,&quot;weighing scale reading&quot;]];
   for(var oi=0;oi<oReq.length;oi++){ if(!(op[oReq[oi][0]]||[]).length){ toast(&quot;Add the &quot;+oReq[oi][1]+&quot; photo.&quot;); return; } }
   var when=$(&quot;oWhen&quot;).value||nowLocalDT();
   var editing = editingId!=null &amp;&amp; byId(editingId) &amp;&amp; byId(editingId).kind===&quot;out&quot;;
@@ -5540,11 +5541,13 @@ function drawBook(){
     return true;
   });
   if(!list.length){ $(&quot;book&quot;).innerHTML='<div class=&quot;empty&quot;><b>No entries</b>Incoming and outgoing records appear here.</div>'; return; }
-  var h='<table><thead><tr><th>Date &amp;amp; time</th><th>Flow</th><th>Detail</th><th class=&quot;num&quot;>Empty</th><th class=&quot;num&quot;>Loaded</th><th class=&quot;num&quot;>Net (kg)</th><th>Reported</th><th>Photos</th><th></th></tr></thead><tbody>';
+  var h='<table><thead><tr><th>Date &amp;amp; time</th><th>Flow</th><th>Truck no.</th><th>Driver</th><th>Material</th><th class=&quot;num&quot;>Empty</th><th class=&quot;num&quot;>Loaded</th><th class=&quot;num&quot;>Net (kg)</th><th>Reported</th><th>Photos</th><th></th></tr></thead><tbody>';
   list.forEach(function(e){
     var nPh=allPhotoKeys(e).length;
     h+='<tr><td style=&quot;white-space:nowrap&quot;>'+esc(fmtDT(e.date))+'</td><td>'+kindFlag(e.kind)+'</td>'+
-      '<td>'+esc(detailOf(e))+(e.note?'<div style=&quot;color:var(--ink-soft)&quot;>'+esc(e.note)+'</div>':&quot;&quot;)+'</td>'+
+      '<td>'+esc(e.truck||&quot;—&quot;)+(e.note?'<div style=&quot;color:var(--ink-soft)&quot;>'+esc(e.note)+'</div>':&quot;&quot;)+'</td>'+
+      '<td>'+esc(e.driver||&quot;—&quot;)+'</td>'+
+      '<td>'+esc(matLabel(e)||&quot;—&quot;)+'</td>'+
       '<td class=&quot;num&quot;>'+(e.empty!=null?kg(num(e.empty)):&quot;—&quot;)+'</td>'+
       '<td class=&quot;num&quot;>'+(e.full!=null?kg(num(e.full)):&quot;—&quot;)+'</td>'+
       '<td class=&quot;num&quot;>'+(netOf(e)?kg(netOf(e)):&quot;—&quot;)+'</td>'+
@@ -5579,10 +5582,11 @@ function drawTrash(){
   var wrap=$(&quot;mTrash&quot;); if(!wrap) return;
   $(&quot;mTrashCount&quot;).textContent = deletedM.length ? &quot;(&quot;+deletedM.length+&quot;)&quot; : &quot;&quot;;
   if(!deletedM.length){ wrap.innerHTML='<div class=&quot;empty&quot; style=&quot;padding:16px&quot;>Nothing deleted.</div>'; return; }
-  var h='<table><thead><tr><th>Date &amp;amp; time</th><th>Flow</th><th>Detail</th><th>Deleted</th><th></th></tr></thead><tbody>';
+  var h='<table><thead><tr><th>Date &amp;amp; time</th><th>Flow</th><th>Truck no.</th><th>Driver</th><th>Material</th><th>Deleted</th><th></th></tr></thead><tbody>';
   deletedM.forEach(function(e){
     h+='<tr><td style=&quot;white-space:nowrap&quot;>'+esc(fmtDT(e.date))+'</td><td>'+kindFlag(e.kind)+'</td>'+
-      '<td>'+esc(detailOf(e))+'</td><td style=&quot;white-space:nowrap;color:var(--ink-soft)&quot;>'+esc(e.deletedAt?fmtDT(nowLocalFromTs(e.deletedAt)):&quot;—&quot;)+'</td>'+
+      '<td>'+esc(e.truck||&quot;—&quot;)+'</td><td>'+esc(e.driver||&quot;—&quot;)+'</td><td>'+esc(matLabel(e)||&quot;—&quot;)+'</td>'+
+      '<td style=&quot;white-space:nowrap;color:var(--ink-soft)&quot;>'+esc(e.deletedAt?fmtDT(nowLocalFromTs(e.deletedAt)):&quot;—&quot;)+'</td>'+
       '<td style=&quot;white-space:nowrap&quot;><button class=&quot;tiny&quot; data-rst=&quot;'+e.id+'&quot;>Restore</button> <button class=&quot;tiny warn&quot; data-purge=&quot;'+e.id+'&quot;>Delete</button></td></tr>';
   });
   wrap.innerHTML=h+'</tbody></table>';
