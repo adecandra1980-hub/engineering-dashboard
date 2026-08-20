@@ -5388,15 +5388,21 @@ function usedInIds(){ var s={}; entries.forEach(function(e){ if(e.kind===&quot;o
 function fillPickSelect(){
   var sel=$(&quot;oPick&quot;); if(!sel) return;
   var keep=sel.value;
-  var ins=entries.filter(function(e){ return e.kind===&quot;in&quot;; }).sort(function(a,b){ return (b.ts||b.id)-(a.ts||a.id); });
   var used=usedInIds();
+  /* when editing an outgoing record, keep its own linked truck available */
+  var editingLink = null;
+  if(editingId!=null){ var ed=byId(editingId); if(ed &amp;&amp; ed.kind===&quot;out&quot; &amp;&amp; ed.linkId!=null) editingLink=String(ed.linkId); }
+  var ins=entries.filter(function(e){ return e.kind===&quot;in&quot;; })
+    .filter(function(e){ return !used[String(e.id)] || String(e.id)===editingLink; })
+    .sort(function(a,b){ return (b.ts||b.id)-(a.ts||a.id); });
   var html='<option value=&quot;&quot;>Select a weighed-in truck…</option>'+ins.map(function(e){
-    var tag = used[String(e.id)] ? &quot;  ✓ already out&quot; : &quot;&quot;;
-    return '<option value=&quot;'+esc(String(e.id))+'&quot;>'+esc(e.truck||&quot;—&quot;)+&quot; — &quot;+esc(fmtDT(e.date))+&quot; · tare &quot;+kg(num(e.empty))+&quot; kg&quot;+esc(tag)+'</option>';
+    return '<option value=&quot;'+esc(String(e.id))+'&quot;>'+esc(e.truck||&quot;—&quot;)+&quot; — &quot;+esc(fmtDT(e.date))+&quot; · tare &quot;+kg(num(e.empty))+&quot; kg&quot;+'</option>';
   }).join(&quot;&quot;);
   sel.innerHTML=html;
   if(keep) sel.value=keep;
-  if(!ins.length){ $(&quot;oPickHint&quot;).textContent=&quot;No incoming (weighed-in) trucks yet — add one on the Incoming tab first.&quot;; }
+  var anyIn = entries.some(function(e){ return e.kind===&quot;in&quot;; });
+  if(!anyIn){ $(&quot;oPickHint&quot;).textContent=&quot;No incoming (weighed-in) trucks yet — add one on the Incoming tab first.&quot;; }
+  else if(!ins.length){ $(&quot;oPickHint&quot;).textContent=&quot;All weighed-in trucks have already been weighed out — add a new one on the Incoming tab.&quot;; }
   else { $(&quot;oPickHint&quot;).textContent=&quot;Pick an incoming record — truck number, driver, reporter and empty (tare) weight fill in automatically.&quot;; }
 }
 function applyPick(id){
