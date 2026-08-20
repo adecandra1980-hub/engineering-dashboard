@@ -130,6 +130,7 @@
     padding: 11px 16px; cursor: pointer; text-align: left; transition: background .12s, border-color .12s; }
   .qn-btn svg { width: 17px; height: 17px; color: var(--starch); flex: none; }
   .qn-btn:hover { background: var(--brand-soft); border-color: var(--starch); }
+  .qn-btn[hidden] { display: none !important; }
   @media (max-width: 620px){ .qn-btns { flex-direction: column; } .qn-btn { width: 100%; } }
 
   .page-head { margin-bottom: 20px; }
@@ -331,6 +332,10 @@
             <button class="qn-btn" onclick="nav('diesel')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 22V8l7-4v18"/><path d="M10 10h6a2 2 0 0 1 2 2v10"/><path d="M14 22V4l4 2"/><path d="M3 22h18"/></svg>
               Diesel Inventory Management
+            </button>
+            <button class="qn-btn" id="qnMaterial" onclick="openMaterial()" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              Waste Material In / Out
             </button>
           </div>
         </div>
@@ -4876,24 +4881,20 @@ $(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
 /* per-tank running balance: latest stock opname per tank is the baseline,
    then receipts / transfers-in add and usage / transfers-out subtract after it. */
 function tankStock(){
-  /* Baseline = each tank's latest stock opname; then apply every movement LOGGED
-     after that opname. The cutoff uses the record's creation order (id), not the
-     user-entered event time — so a receiving logged after a count still adds to
-     the tank even if its delivery datetime is earlier than the count time. */
-  var base={}, baseSeq={}, bal={};
-  function ensure(t){ if(!(t in bal)){ base[t]=0; baseSeq[t]=-Infinity; bal[t]=0; } }
+  /* Per-tank stock = latest stock opname value (opening balance) + EVERY movement for
+     that tank (receipts add, usage &amp; transfers-out subtract, transfers-in add). Movements
+     always count — a receiving is never ignored, even if dated before a stock count. */
+  var base={}, bal={};
+  function ensure(t){ if(!(t in bal)){ base[t]=0; bal[t]=0; } }
   TANKS.forEach(ensure);
   var seqOf=function(e){ return e.id||e.ts||0; };
   var ops=entries.filter(function(e){ return e.kind===&quot;opname&quot;; }).sort(function(a,b){ return seqOf(a)-seqOf(b); });
-  ops.forEach(function(o){ (o.tanks||[]).forEach(function(rec){ var nm=canonTank(rec.name); ensure(nm); base[nm]=num(rec.litres); baseSeq[nm]=seqOf(o); }); });
+  ops.forEach(function(o){ (o.tanks||[]).forEach(function(rec){ var nm=canonTank(rec.name); ensure(nm); base[nm]=num(rec.litres); }); });
   Object.keys(base).forEach(function(t){ bal[t]=base[t]; });
   entries.forEach(function(e){
-    var sq=seqOf(e);
-    if(e.kind===&quot;receive&quot;){ var t=canonTank(e.tank); ensure(t); if(sq>baseSeq[t]) bal[t]+=num(e.received); }
-    else if(e.kind===&quot;usage&quot;){ var u=canonTank(e.from); ensure(u); if(sq>baseSeq[u]) bal[u]-=num(e.litres); }
-    else if(e.kind===&quot;transfer&quot;){ var s=canonTank(e.from), d=canonTank(e.dest); ensure(s); ensure(d);
-      if(sq>baseSeq[s]) bal[s]-=num(e.litres);
-      if(sq>baseSeq[d]) bal[d]+=num(e.litres); }
+    if(e.kind===&quot;receive&quot;){ var t=canonTank(e.tank); ensure(t); bal[t]+=num(e.received); }
+    else if(e.kind===&quot;usage&quot;){ var u=canonTank(e.from); ensure(u); bal[u]-=num(e.litres); }
+    else if(e.kind===&quot;transfer&quot;){ var s=canonTank(e.from), d=canonTank(e.dest); ensure(s); ensure(d); bal[s]-=num(e.litres); bal[d]+=num(e.litres); }
   });
   return bal;
 }
@@ -4920,7 +4921,7 @@ function drawStock(){
   if($(&quot;totalTiles&quot;)) $(&quot;totalTiles&quot;).innerHTML=
     tile(&quot;Received&quot;, t.recv, &quot;t-good&quot;) + tile(&quot;Used&quot;, t.use, &quot;t-warn&quot;) +
     tile(&quot;Transferred&quot;, t.xfer, &quot;&quot;) +
-    tile(&quot;Total Stock&quot;, opnameTotal, opnameTotal>0?&quot;t-good&quot;:&quot;t-bad&quot;, &quot;sum of all tanks · opname anchored&quot;);
+    tile(&quot;Total Stock&quot;, opnameTotal, opnameTotal>0?&quot;t-good&quot;:&quot;t-bad&quot;, &quot;sum of all tanks · opening balance + movements&quot;);
   // per-tank tiles (canonical tanks + any legacy names found in the data)
   if($(&quot;tankTiles&quot;)) $(&quot;tankTiles&quot;).innerHTML=allTankNames.map(function(tk){
     var v=num(bal[tk]); var cls=v<0?&quot;t-bad&quot;:(v<=0?&quot;t-warn&quot;:&quot;t-good&quot;);
@@ -5005,6 +5006,639 @@ window.setEntity=setEntity;
   fillTankSelect(&quot;rTankSel&quot;, true); fillTankSelect(&quot;uFrom&quot;, true); fillTankSelect(&quot;xFrom&quot;, true); fillTankSelect(&quot;xDest&quot;, true);
   $(&quot;rWhen&quot;).value=nowLocalDT(); $(&quot;uWhen&quot;).value=nowLocalDT(); $(&quot;xWhen&quot;).value=nowLocalDT();
   recalcRecv(); refreshHead(); drawStock();
+})();
+</script>
+</body></html>
+"></iframe>
+      </section>
+
+      <section class="page" id="page-material">
+        <iframe class="embed-frame" id="materialFrame" title="Waste Material In / Out" srcdoc="<!DOCTYPE html>
+<html lang=&quot;en&quot;><head>
+<meta charset=&quot;utf-8&quot;>
+<meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1, viewport-fit=cover&quot;>
+<title>Waste Material In / Out</title>
+<script>/* shared-storage bridge -> Cloudflare D1 via /api/kv */
+(function(){
+  var API=&quot;/api/kv&quot;;
+  window.storage={
+    get:function(key){ return fetch(API+&quot;?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;})
+      .then(function(r){ return r.ok? r.json(): null; })
+      .then(function(j){ return (j&amp;&amp;j.value!=null)?{value:j.value}:null; })
+      .catch(function(){ return null; }); },
+    set:function(key,value){ return fetch(API,{method:&quot;POST&quot;,headers:{&quot;Content-Type&quot;:&quot;application/json&quot;},
+      body:JSON.stringify({key:key,value:String(value)})})
+      .then(function(r){ return r.ok; }).catch(function(){ return false; }); }
+  };
+})();</script>
+<style>
+  :root{
+    --concrete:#EDE9E2; --panel:#FFFFFF; --panel-2:#FBFAF7; --wash:#F4F1EA;
+    --ink:#1B1F23; --ink-soft:#5C666E; --muted:#8A8478; --rule:#D5CFC5;
+    --starch:#1F5673; --kraft:#B07845; --amber:#D98A0B; --good:#2E7D4F; --bad:#B3402F;
+    --disp:&quot;Barlow Condensed&quot;,&quot;Oswald&quot;,&quot;Arial Narrow&quot;,sans-serif;
+    --body:&quot;IBM Plex Sans&quot;,&quot;Segoe UI&quot;,system-ui,sans-serif;
+    --mono:&quot;IBM Plex Mono&quot;,ui-monospace,&quot;Courier New&quot;,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{font-family:var(--body);background:var(--concrete);color:var(--ink);font-size:14px;line-height:1.5}
+  .wrap{max-width:1080px;margin:0 auto;padding:20px 16px 64px}
+  a{color:var(--starch)}
+  h2.sec{font-family:var(--disp);font-size:22px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);position:relative}
+  .eyebrow[data-n]::before{content:attr(data-n);color:var(--amber);margin-right:6px;font-weight:600}
+
+  /* header */
+  .head{background:var(--ink);color:#F2EFE9;border-radius:3px;overflow:hidden;border-bottom:5px solid var(--amber)}
+  .head-in{padding:22px 22px 18px;display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between}
+  .head h1{font-family:var(--disp);font-weight:700;font-size:34px;letter-spacing:.03em;text-transform:uppercase;line-height:.96}
+  .head p{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#9AA6AE;margin-top:6px}
+  .stats{display:flex;gap:22px;flex-wrap:wrap}
+  .stat .k{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9AA6AE}
+  .stat .v{font-family:var(--disp);font-weight:700;font-size:26px;line-height:1;margin-top:3px}
+  .stat .v small{font-family:var(--mono);font-size:11px;color:#9AA6AE;font-weight:400;letter-spacing:.05em;margin-left:3px}
+  .v.good{color:#7FD1A2} .v.warn{color:#F0B45F}
+
+  /* tabs */
+  nav.tabs{display:flex;flex-wrap:wrap;gap:2px;margin:14px 0 0}
+  nav.tabs button{flex:0 1 auto;background:var(--wash);border:1px solid var(--rule);border-bottom:none;
+    font-family:var(--disp);font-size:16px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);
+    padding:11px 18px;cursor:pointer;border-radius:3px 3px 0 0}
+  nav.tabs button[aria-selected=&quot;true&quot;]{background:var(--panel);color:var(--ink);border-bottom:2px solid var(--amber);font-weight:600}
+
+  .panel{background:var(--panel);border:1px solid var(--rule);border-radius:2px;padding:18px;margin-top:14px}
+  label.f{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px}
+  input,select,textarea{width:100%;font-family:var(--mono);font-size:14px;color:var(--ink);background:var(--panel-2);
+    border:1px solid var(--rule);border-radius:2px;padding:9px 10px}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--starch);outline-offset:-1px;background:#fff}
+  textarea{font-family:var(--body);min-height:60px;resize:vertical}
+  .grid{display:grid;gap:12px}
+  .grid>*{min-width:0}
+  .g2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  @media(max-width:680px){ .g3{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} }
+  @media(max-width:460px){ .g2,.g3{grid-template-columns:1fr} }
+  .hint{font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-top:6px}
+  .ro{background:var(--wash);border:1px dashed var(--rule);border-radius:2px;padding:9px 10px;font-family:var(--mono);font-weight:600}
+
+  button.act{background:var(--starch);color:#fff;border:1px solid var(--starch);font-family:var(--disp);font-size:17px;
+    letter-spacing:.06em;text-transform:uppercase;font-weight:600;padding:11px 22px;border-radius:2px;cursor:pointer}
+  button.act:hover{background:#17455C}
+  button.ghost{background:var(--panel);color:var(--starch);border:1px solid var(--rule);font-family:var(--disp);font-size:15px;
+    letter-spacing:.05em;text-transform:uppercase;padding:10px 16px;border-radius:2px;cursor:pointer}
+  button.ghost:hover{border-color:var(--starch)}
+  button.tiny{font-family:var(--mono);font-size:11px;letter-spacing:.04em;padding:4px 9px;border:1px solid var(--rule);
+    background:var(--panel);color:var(--starch);border-radius:2px;cursor:pointer}
+  button.tiny.warn{color:var(--bad)} button.tiny.warn:hover{border-color:var(--bad)}
+
+  /* photo evidence */
+  .photo-slot{border:1px solid var(--rule);border-radius:2px;padding:10px;background:var(--panel-2)}
+  .photo-slot .pl{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px}
+  .photo-btns{display:flex;gap:6px;flex-wrap:wrap}
+  .photo-btns button{color:var(--good);border-color:var(--good)}
+  .strip{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .thumb{position:relative;width:70px;height:70px;border:1px solid var(--rule);border-radius:2px;background-size:cover;background-position:center}
+  .thumb button{position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;border:none;background:var(--ink);color:#fff;font-size:11px;cursor:pointer}
+
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px}
+  th{text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);
+    border-bottom:1px solid var(--ink);padding:6px 8px;font-weight:500;white-space:nowrap}
+  td{border-bottom:1px solid var(--rule);padding:7px 8px;vertical-align:top}
+  td.num{text-align:right}
+  .scroll{overflow-x:auto}
+  .flag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;border-radius:2px;border:1px solid currentColor}
+  .k-receive{color:#fff;background:var(--good);border-color:var(--good)}
+  .k-usage{color:#fff;background:var(--kraft);border-color:var(--kraft)}
+  .k-transfer{color:#3A2C00;background:var(--amber);border-color:var(--amber)}
+  .k-opname{color:#fff;background:var(--starch);border-color:var(--starch)}
+  .empty{border:1px dashed var(--rule);border-radius:2px;padding:26px;text-align:center;color:var(--ink-soft)}
+  .empty b{display:block;font-family:var(--disp);font-size:20px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);margin-bottom:4px}
+  .filters{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+  .filters>div{min-width:140px}
+
+  /* stock tiles */
+  .tank-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:10px}
+  @media(max-width:680px){ .tank-tiles{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media(max-width:420px){ .tank-tiles{grid-template-columns:1fr} }
+  .tank-tile{border:1px solid var(--rule);border-radius:3px;padding:12px 14px;background:var(--panel-2);border-top:3px solid var(--starch)}
+  .tank-tile.t-good{border-top-color:var(--good)} .tank-tile.t-warn{border-top-color:var(--amber)} .tank-tile.t-bad{border-top-color:var(--bad)}
+  .tank-tile .tt-name{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+  .tank-tile .tt-val{font-family:var(--disp);font-weight:700;font-size:28px;line-height:1;margin-top:6px;color:var(--ink)}
+  .tank-tile .tt-val small{font-family:var(--mono);font-size:12px;font-weight:400;color:var(--ink-soft);margin-left:3px}
+  .tank-tile .tt-sub{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:6px;letter-spacing:.04em}
+
+  /* stock bars */
+  .sbar{display:flex;align-items:center;gap:10px;margin:8px 0}
+  .sbar .lbl{font-family:var(--mono);font-size:11px;min-width:150px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em}
+  .sbar .track{flex:1;height:16px;background:var(--wash);border-radius:3px;overflow:hidden}
+  .sbar .track>i{display:block;height:100%}
+  .sbar .val{font-family:var(--disp);font-weight:700;min-width:70px;text-align:right}
+
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:var(--ink);color:#F2EFE9;
+    font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;padding:10px 18px;border-radius:2px;opacity:0;pointer-events:none;transition:opacity .18s;z-index:60}
+  .toast.on{opacity:1}
+  .lb{position:fixed;inset:0;background:rgba(20,23,26,.86);display:flex;align-items:center;justify-content:center;padding:24px;z-index:50}
+  .lb[hidden]{display:none}
+  .lb-in{max-width:920px;width:100%;max-height:100%;overflow:auto;text-align:center}
+  .lb-in img{max-width:100%;border:1px solid #333;border-radius:2px;margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class=&quot;wrap&quot;>
+  <div class=&quot;head&quot;><div class=&quot;head-in&quot;>
+    <div><h1>Waste Material In / Out</h1><p>Second-hand steel &amp;amp; wood — truck weighing in &amp;amp; out</p></div>
+    <div class=&quot;stats&quot;>
+      <div class=&quot;stat&quot;><div class=&quot;k&quot;>In records</div><div class=&quot;v&quot; id=&quot;hIn&quot;>0</div></div>
+      <div class=&quot;stat&quot;><div class=&quot;k&quot;>Out records</div><div class=&quot;v&quot; id=&quot;hOut&quot;>0</div></div>
+      <div class=&quot;stat&quot;><div class=&quot;k&quot;>Material out</div><div class=&quot;v good&quot; id=&quot;hOutKg&quot;>0<small>kg</small></div></div>
+    </div>
+  </div></div>
+
+  <nav class=&quot;tabs&quot; role=&quot;tablist&quot;>
+    <button role=&quot;tab&quot; id=&quot;t-in&quot; aria-selected=&quot;true&quot;>Incoming</button>
+    <button role=&quot;tab&quot; id=&quot;t-out&quot; aria-selected=&quot;false&quot;>Outgoing</button>
+    <button role=&quot;tab&quot; id=&quot;t-book&quot; aria-selected=&quot;false&quot;>Log book</button>
+    <button role=&quot;tab&quot; id=&quot;t-an&quot; aria-selected=&quot;false&quot;>Analysis</button>
+  </nav>
+
+  <!-- ============ INCOMING ============ -->
+  <section id=&quot;v-in&quot;>
+    <div class=&quot;panel&quot;>
+      <p class=&quot;eyebrow&quot; data-n=&quot;01 /&quot;>Incoming material — truck weigh in</p>
+      <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;iWhen&quot;>Date &amp;amp; time (weighing) <span style=&quot;color:var(--bad)&quot;>*</span></label>
+          <div style=&quot;display:flex;gap:6px&quot;><input id=&quot;iWhen&quot; type=&quot;datetime-local&quot; style=&quot;flex:1;min-width:0&quot;>
+          <button class=&quot;ghost&quot; type=&quot;button&quot; id=&quot;iNow&quot; style=&quot;padding:8px 10px;white-space:nowrap&quot;>Now</button></div></div>
+        <div><label class=&quot;f&quot; for=&quot;iTruck&quot;>Truck number <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;iTruck&quot; type=&quot;text&quot; placeholder=&quot;e.g. BP 1234 XX&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;iEmpty&quot;>Empty truck weight (kg) <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;iEmpty&quot; type=&quot;number&quot; inputmode=&quot;decimal&quot; min=&quot;0&quot; placeholder=&quot;tare&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;iDriver&quot;>Driver name <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;iDriver&quot; type=&quot;text&quot; placeholder=&quot;Driver&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;iBy&quot;>Reported by <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;iBy&quot; type=&quot;text&quot; placeholder=&quot;name&quot;></div>
+      </div>
+      <p class=&quot;eyebrow&quot; style=&quot;margin-top:18px&quot;>Photo evidence</p>
+      <div class=&quot;grid g3&quot; id=&quot;iPhotos&quot; style=&quot;margin-top:10px&quot;></div>
+      <div style=&quot;margin-top:14px&quot;><label class=&quot;f&quot; for=&quot;iNote&quot;>Notes</label><textarea id=&quot;iNote&quot; placeholder=&quot;optional&quot;></textarea></div>
+      <div style=&quot;margin-top:14px;display:flex;gap:10px;flex-wrap:wrap&quot;>
+        <button class=&quot;ghost&quot; id=&quot;iReset&quot;>Reset</button>
+        <button class=&quot;act&quot; id=&quot;iSave&quot;>Submit incoming</button>
+      </div>
+      <div class=&quot;hint&quot; id=&quot;iNoteMsg&quot;></div>
+    </div>
+  </section>
+
+  <!-- ============ OUTGOING ============ -->
+  <section id=&quot;v-out&quot; hidden>
+    <div class=&quot;panel&quot;>
+      <p class=&quot;eyebrow&quot; data-n=&quot;02 /&quot;>Outgoing material — truck weigh out</p>
+      <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;oWhen&quot;>Date &amp;amp; time (weighing) <span style=&quot;color:var(--bad)&quot;>*</span></label>
+          <div style=&quot;display:flex;gap:6px&quot;><input id=&quot;oWhen&quot; type=&quot;datetime-local&quot; style=&quot;flex:1;min-width:0&quot;>
+          <button class=&quot;ghost&quot; type=&quot;button&quot; id=&quot;oNow&quot; style=&quot;padding:8px 10px;white-space:nowrap&quot;>Now</button></div></div>
+        <div><label class=&quot;f&quot; for=&quot;oTruck&quot;>Truck number <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;oTruck&quot; type=&quot;text&quot; placeholder=&quot;e.g. BP 1234 XX&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;oMat&quot;>Material <span style=&quot;color:var(--bad)&quot;>*</span></label>
+          <select id=&quot;oMat&quot;><option value=&quot;&quot;>Select…</option><option>Steel</option><option>Wood</option><option>Other</option></select></div>
+        <div><label class=&quot;f&quot; for=&quot;oDriver&quot;>Driver name <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;oDriver&quot; type=&quot;text&quot; placeholder=&quot;Driver&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;oBy&quot;>Reported by <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;oBy&quot; type=&quot;text&quot; placeholder=&quot;name&quot;></div>
+        <div id=&quot;oMatOtherWrap&quot; hidden><label class=&quot;f&quot; for=&quot;oMatOther&quot;>Specify material <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;oMatOther&quot; type=&quot;text&quot; placeholder=&quot;describe&quot;></div>
+      </div>
+      <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;oFull&quot;>Full load weight (kg) <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;oFull&quot; type=&quot;number&quot; inputmode=&quot;decimal&quot; min=&quot;0&quot; placeholder=&quot;loaded&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;oEmpty&quot;>Empty (tare) weight (kg) <span style=&quot;color:var(--muted)&quot;>optional</span></label><input id=&quot;oEmpty&quot; type=&quot;number&quot; inputmode=&quot;decimal&quot; min=&quot;0&quot; placeholder=&quot;if weighed empty&quot;></div>
+        <div><label class=&quot;f&quot;>Net material (kg)</label><div class=&quot;ro&quot; id=&quot;oNet&quot;>0</div></div>
+      </div>
+      <p class=&quot;eyebrow&quot; style=&quot;margin-top:18px&quot;>Photo evidence</p>
+      <div class=&quot;grid g3&quot; id=&quot;oPhotos&quot; style=&quot;margin-top:10px&quot;></div>
+      <div style=&quot;margin-top:14px&quot;><label class=&quot;f&quot; for=&quot;oNote&quot;>Notes</label><textarea id=&quot;oNote&quot; placeholder=&quot;optional&quot;></textarea></div>
+      <div style=&quot;margin-top:14px;display:flex;gap:10px;flex-wrap:wrap&quot;>
+        <button class=&quot;ghost&quot; id=&quot;oReset&quot;>Reset</button>
+        <button class=&quot;act&quot; id=&quot;oSave&quot;>Submit outgoing</button>
+      </div>
+      <div class=&quot;hint&quot; id=&quot;oNoteMsg&quot;></div>
+    </div>
+  </section>
+
+  <!-- ============ LOG BOOK ============ -->
+  <section id=&quot;v-book&quot; hidden>
+    <div class=&quot;panel&quot;>
+      <h2 class=&quot;sec&quot;>Log book</h2>
+      <div class=&quot;filters&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;bFlow&quot;>Flow</label>
+          <select id=&quot;bFlow&quot;><option value=&quot;&quot;>All</option><option value=&quot;in&quot;>Incoming</option><option value=&quot;out&quot;>Outgoing</option></select></div>
+        <div style=&quot;flex:1&quot;><label class=&quot;f&quot; for=&quot;bSearch&quot;>Search</label><input id=&quot;bSearch&quot; placeholder=&quot;truck, material, driver, note…&quot;></div>
+        <div><button class=&quot;ghost&quot; id=&quot;bCsv&quot;>Download CSV</button></div>
+      </div>
+      <div class=&quot;scroll&quot; id=&quot;book&quot; style=&quot;margin-top:12px&quot;></div>
+      <div style=&quot;margin-top:16px;border-top:1px solid var(--rule);padding-top:12px&quot;>
+        <button class=&quot;ghost&quot; id=&quot;mTrashToggle&quot;>Deleted history <span id=&quot;mTrashCount&quot;></span></button>
+        <div id=&quot;mTrashWrap&quot; hidden style=&quot;margin-top:12px&quot;>
+          <div class=&quot;scroll&quot; id=&quot;mTrash&quot;></div>
+          <div style=&quot;margin-top:10px&quot;><button class=&quot;ghost&quot; id=&quot;mTrashEmpty&quot; style=&quot;color:var(--bad);border-color:var(--bad)&quot;>Empty history (admin)</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ANALYSIS ============ -->
+  <section id=&quot;v-an&quot; hidden>
+    <div class=&quot;panel&quot;>
+      <h2 class=&quot;sec&quot;>Analysis</h2>
+      <p class=&quot;eyebrow&quot; style=&quot;margin-top:12px&quot;>Totals (kg)</p>
+      <div class=&quot;tank-tiles&quot; id=&quot;anTiles&quot;></div>
+      <p class=&quot;eyebrow&quot; style=&quot;margin-top:18px&quot;>Daily material OUT from factory (kg) — last 14 days</p>
+      <div class=&quot;scroll&quot;><div id=&quot;anOut&quot; style=&quot;min-width:640px&quot;></div></div>
+      <p class=&quot;eyebrow&quot; style=&quot;margin-top:18px&quot;>Daily incoming trucks (weigh-in) — last 14 days</p>
+      <div class=&quot;scroll&quot;><div id=&quot;anIn&quot; style=&quot;min-width:640px&quot;></div></div>
+    </div>
+  </section>
+</div>
+
+<div class=&quot;lb&quot; id=&quot;lb&quot; hidden><div class=&quot;lb-in&quot;><div id=&quot;lbBody&quot;></div><button class=&quot;ghost&quot; id=&quot;lbClose&quot; style=&quot;color:#F2EFE9;border-color:#5C666E&quot;>Close</button></div></div>
+
+<div class=&quot;lb&quot; id=&quot;okModal&quot; hidden><div class=&quot;lb-in&quot; style=&quot;max-width:360px;text-align:center;background:var(--panel);border-radius:6px;padding:30px 26px&quot;>
+  <div style=&quot;width:74px;height:74px;border-radius:50%;background:var(--good);margin:0 auto 16px;display:flex;align-items:center;justify-content:center&quot;>
+    <svg width=&quot;40&quot; height=&quot;40&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;#fff&quot; stroke-width=&quot;3&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot;><polyline points=&quot;20 6 9 17 4 12&quot;></polyline></svg>
+  </div>
+  <h3 style=&quot;font-family:var(--disp);text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px;color:var(--good);font-size:26px&quot;>Success</h3>
+  <div id=&quot;okMsg&quot; style=&quot;color:var(--ink);margin-bottom:20px;line-height:1.4&quot;>Saved to database.</div>
+  <button class=&quot;act&quot; id=&quot;okClose&quot; style=&quot;min-width:130px&quot;>OK</button>
+</div></div>
+
+<div class=&quot;toast&quot; id=&quot;toast&quot;></div>
+<script>
+function $(id){ return document.getElementById(id); }
+var mem={}, toastTimer;
+function toast(msg){ var t=$(&quot;toast&quot;); t.textContent=msg; t.classList.add(&quot;on&quot;); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove(&quot;on&quot;); },2600); }
+var okTimer;
+function showSuccess(msg){ var m=$(&quot;okModal&quot;); if(!m) return; if(msg) $(&quot;okMsg&quot;).textContent=msg; m.hidden=false; clearTimeout(okTimer); okTimer=setTimeout(function(){ m.hidden=true; },3500); }
+function hideSuccess(){ var m=$(&quot;okModal&quot;); if(m){ m.hidden=true; } clearTimeout(okTimer); }
+function esc(s){ return String(s==null?&quot;&quot;:s).replace(/[&amp;<>&quot;]/g,function(c){return({&quot;&amp;&quot;:&quot;&amp;amp;&quot;,&quot;<&quot;:&quot;&amp;lt;&quot;,&quot;>&quot;:&quot;&amp;gt;&quot;,&quot;\&quot;&quot;:&quot;&amp;quot;&quot;})[c];}); }
+function has(){ return typeof window!==&quot;undefined&quot; &amp;&amp; window.storage &amp;&amp; typeof window.storage.get===&quot;function&quot;; }
+function ls(){ try{ return window.localStorage||null; }catch(e){ return null; } }
+async function load(key,fallback){
+  if(has()){ try{ var r=await window.storage.get(key); if(r&amp;&amp;r.value) return JSON.parse(r.value); }catch(e){} }
+  var L=ls(); if(L){ try{ var v=L.getItem(key); if(v!==null) return JSON.parse(v); }catch(e){} }
+  return (key in mem)?mem[key]:fallback;
+}
+async function save(key,val){ mem[key]=val; var text=JSON.stringify(val);
+  if(has()){ try{ await window.storage.set(key,text); }catch(e){} }
+  var L=ls(); if(L){ try{ L.setItem(key,text); }catch(e){} }
+}
+var MAX_PH=4, PH_MAX_PX=1000;
+function shrink(file){ return new Promise(function(resolve,reject){
+  var draw=function(src,w,h){ var scale=Math.min(1,PH_MAX_PX/Math.max(w,h)); var cw=Math.max(1,Math.round(w*scale)),ch=Math.max(1,Math.round(h*scale));
+    var c=document.createElement(&quot;canvas&quot;); c.width=cw; c.height=ch; c.getContext(&quot;2d&quot;).drawImage(src,0,0,cw,ch); resolve(c.toDataURL(&quot;image/jpeg&quot;,0.6)); };
+  if(typeof createImageBitmap===&quot;function&quot;){ createImageBitmap(file,{imageOrientation:&quot;from-image&quot;}).then(function(bm){ draw(bm,bm.width,bm.height); }).catch(function(){ viaImage(); }); }
+  else { viaImage(); }
+  function viaImage(){ var fr=new FileReader(); fr.onload=function(){ var im=new Image(); im.onload=function(){ draw(im,im.naturalWidth,im.naturalHeight); }; im.onerror=function(){ reject(new Error(&quot;x&quot;)); }; im.src=fr.result; }; fr.onerror=function(){ reject(new Error(&quot;x&quot;)); }; fr.readAsDataURL(file); }
+}); }
+function nowLocalDT(){ var d=new Date(); function p(n){ return (n<10?&quot;0&quot;:&quot;&quot;)+n; } return d.getFullYear()+&quot;-&quot;+p(d.getMonth()+1)+&quot;-&quot;+p(d.getDate())+&quot;T&quot;+p(d.getHours())+&quot;:&quot;+p(d.getMinutes()); }
+function nowLocalFromTs(ts){ var d=new Date(ts); function p(n){ return (n<10?&quot;0&quot;:&quot;&quot;)+n; } return d.getFullYear()+&quot;-&quot;+p(d.getMonth()+1)+&quot;-&quot;+p(d.getDate())+&quot;T&quot;+p(d.getHours())+&quot;:&quot;+p(d.getMinutes()); }
+function fmtDT(s){ if(!s) return &quot;—&quot;; return String(s).replace(&quot;T&quot;,&quot; &quot;); }
+function dayKey(s){ return String(s||&quot;&quot;).slice(0,10); }
+function num(v){ var n=parseFloat(v); return isFinite(n)?n:0; }
+function kg(n){ return (Math.round(n*10)/10).toLocaleString(&quot;en-US&quot;); }
+
+var ENTRY_KEY=&quot;material:entries&quot;, PH_KEY=&quot;material:photo:&quot;, DEL_KEY=&quot;material:entries:deleted&quot;;
+var entries=[], deletedM=[], editingId=null;
+var DEVICE_ID=(function(){ try{ var k=&quot;tdl:deviceId&quot;; var v=localStorage.getItem(k); if(!v){ v=&quot;dev-&quot;+Date.now().toString(36)+&quot;-&quot;+Math.random().toString(36).slice(2,8); localStorage.setItem(k,v);} return v; }catch(e){ return &quot;dev-local&quot;; } })();
+function adminOK(){ var u=prompt(&quot;Administrator username:&quot;); if(u===null) return false; var p=prompt(&quot;Administrator password:&quot;); if(p===null) return false; if(u.trim().toLowerCase()===&quot;admin&quot;&amp;&amp;p===&quot;Engineering&quot;) return true; toast(&quot;Wrong administrator credentials.&quot;); return false; }
+function canDelete(rec){ if(!adminOK()) return false; return confirm(&quot;Are you sure to delete this entry?&quot;); }
+function canEditRec(rec){ var owner=!rec||!rec.deviceId||rec.deviceId===DEVICE_ID; if(!owner&amp;&amp;!adminOK()) return false; return true; }
+
+/* net material = loaded − empty (never negative) */
+function netOf(rec){ var f=num(rec.full), e=num(rec.empty); var n=f-e; return n>0?n:0; }
+
+/* ---- photo component (slots may be optional: {key,label,opt}) ---- */
+function photoField(container, slots){
+  var state={}; slots.forEach(function(s){ state[s.key]=[]; });
+  function render(){
+    container.innerHTML = slots.map(function(s){
+      var star = s.opt ? '<span style=&quot;color:var(--muted)&quot;>optional</span>' : '<span style=&quot;color:var(--bad)&quot;>*</span>';
+      return '<div class=&quot;photo-slot&quot; data-slot=&quot;'+s.key+'&quot;><div class=&quot;pl&quot;>'+esc(s.label)+' '+star+'</div>'+
+        '<div class=&quot;photo-btns&quot;>'+
+        '<button class=&quot;tiny cam&quot; type=&quot;button&quot; data-k=&quot;'+s.key+'&quot;>Take photo</button>'+
+        '<button class=&quot;tiny file&quot; type=&quot;button&quot; data-k=&quot;'+s.key+'&quot;>Choose file</button>'+
+        '</div>'+
+        '<input type=&quot;file&quot; class=&quot;inCam&quot; accept=&quot;image/*&quot; capture=&quot;environment&quot; hidden>'+
+        '<input type=&quot;file&quot; class=&quot;inFile&quot; accept=&quot;image/*&quot; multiple hidden>'+
+        '<div class=&quot;strip&quot;></div></div>';
+    }).join(&quot;&quot;);
+    slots.forEach(function(s){
+      var slot=container.querySelector('[data-slot=&quot;'+s.key+'&quot;]');
+      var inCam=slot.querySelector(&quot;.inCam&quot;), inFile=slot.querySelector(&quot;.inFile&quot;);
+      slot.querySelector(&quot;.cam&quot;).onclick=function(){ inCam.click(); };
+      slot.querySelector(&quot;.file&quot;).onclick=function(){ inFile.click(); };
+      inCam.onchange=async function(e){ await take(s.key,e.target.files); e.target.value=&quot;&quot;; };
+      inFile.onchange=async function(e){ await take(s.key,e.target.files); e.target.value=&quot;&quot;; };
+      drawStrip(s.key);
+    });
+  }
+  async function take(key,files){
+    for(var i=0;i<files.length;i++){ if(state[key].length>=MAX_PH){ toast(MAX_PH+&quot; photos max per slot.&quot;); break; }
+      var f=files[i]; if(!/^image\//.test(f.type)){ toast(&quot;Skipped &quot;+f.name+&quot; — not an image.&quot;); continue; }
+      try{ state[key].push(await shrink(f)); }catch(e){ toast(&quot;Could not read that photo.&quot;); } }
+    drawStrip(key);
+  }
+  function drawStrip(key){
+    var slot=container.querySelector('[data-slot=&quot;'+key+'&quot;]'); if(!slot) return;
+    var strip=slot.querySelector(&quot;.strip&quot;);
+    strip.innerHTML=state[key].map(function(d,i){ return '<div class=&quot;thumb&quot; style=&quot;background-image:url('+d+')&quot;><button data-rm=&quot;'+i+'&quot; title=&quot;Remove&quot;>&amp;#10005;</button></div>'; }).join(&quot;&quot;);
+    strip.querySelectorAll(&quot;[data-rm]&quot;).forEach(function(b){ b.onclick=function(){ state[key].splice(parseInt(b.getAttribute(&quot;data-rm&quot;),10),1); drawStrip(key); }; });
+  }
+  render();
+  return {
+    clear:function(){ slots.forEach(function(s){ state[s.key]=[]; }); render(); },
+    data:function(){ return state; },
+    load:function(map){ slots.forEach(function(s){ state[s.key]=(map&amp;&amp;map[s.key])?map[s.key].slice():[]; }); render(); }
+  };
+}
+async function savePhotos(id, dataMap){
+  var out={};
+  for(var slot in dataMap){ var arr=dataMap[slot]; if(!arr||!arr.length) continue; var keys=[];
+    for(var i=0;i<arr.length;i++){ var k=PH_KEY+id+&quot;:&quot;+slot+i; await save(k,arr[i]); keys.push(k); }
+    out[slot]=keys; }
+  return out;
+}
+function allPhotoKeys(rec){ var out=[]; var p=rec.photos||{}; for(var s in p){ (p[s]||[]).forEach(function(k){ out.push(k); }); } return out; }
+async function loadPhotoData(e){ var out={}, p=e.photos||{}; for(var slot in p){ var arr=[]; for(var i=0;i<(p[slot]||[]).length;i++){ var d=await load(p[slot][i],null); if(d) arr.push(d); } out[slot]=arr; } return out; }
+
+/* ---- tabs ---- */
+var TABS=[[&quot;t-in&quot;,&quot;v-in&quot;],[&quot;t-out&quot;,&quot;v-out&quot;],[&quot;t-book&quot;,&quot;v-book&quot;],[&quot;t-an&quot;,&quot;v-an&quot;]];
+TABS.forEach(function(pair){ $(pair[0]).addEventListener(&quot;click&quot;,function(){
+  TABS.forEach(function(p){ var on=p[0]===pair[0]; $(p[0]).setAttribute(&quot;aria-selected&quot;,on?&quot;true&quot;:&quot;false&quot;); $(p[1]).hidden=!on; });
+  resetEditState();
+  if(pair[0]===&quot;t-book&quot;){ drawBook(); drawTrash(); }
+  if(pair[0]===&quot;t-an&quot;) drawAnalysis();
+}); });
+function resetEditState(){ editingId=null;
+  if($(&quot;iSave&quot;)) $(&quot;iSave&quot;).textContent=&quot;Submit incoming&quot;;
+  if($(&quot;oSave&quot;)) $(&quot;oSave&quot;).textContent=&quot;Submit outgoing&quot;;
+}
+
+/* ---- Now buttons ---- */
+$(&quot;iNow&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;iWhen&quot;).value=nowLocalDT(); });
+$(&quot;oNow&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;oWhen&quot;).value=nowLocalDT(); });
+
+/* ---- material Other toggle (outgoing only) ---- */
+$(&quot;oMat&quot;).addEventListener(&quot;change&quot;,function(){ $(&quot;oMatOtherWrap&quot;).hidden = $(&quot;oMat&quot;).value!==&quot;Other&quot;; });
+
+/* ---- net auto (outgoing only) ---- */
+function recalcOut(){ var n=num($(&quot;oFull&quot;).value)-num($(&quot;oEmpty&quot;).value); if(n<0) n=0; $(&quot;oNet&quot;).textContent=kg(n); return n; }
+$(&quot;oFull&quot;).addEventListener(&quot;input&quot;,recalcOut); $(&quot;oEmpty&quot;).addEventListener(&quot;input&quot;,recalcOut);
+
+/* ---- photo fields ---- */
+var IN_PH=photoField($(&quot;iPhotos&quot;),[
+  {key:&quot;truck&quot;,label:&quot;Truck number&quot;},
+  {key:&quot;empty&quot;,label:&quot;Empty truck on scale&quot;}
+]);
+var OUT_PH=photoField($(&quot;oPhotos&quot;),[
+  {key:&quot;truck&quot;,label:&quot;Truck number&quot;},
+  {key:&quot;full&quot;,label:&quot;Full load on scale&quot;},
+  {key:&quot;empty&quot;,label:&quot;Empty truck on scale&quot;,opt:true}
+]);
+
+/* ---- header ---- */
+function refreshHead(){
+  var nIn=0,nOut=0,outKg=0;
+  entries.forEach(function(e){ if(e.kind===&quot;in&quot;) nIn++; else if(e.kind===&quot;out&quot;){ nOut++; outKg+=netOf(e); } });
+  $(&quot;hIn&quot;).textContent=nIn; $(&quot;hOut&quot;).textContent=nOut;
+  $(&quot;hOutKg&quot;).innerHTML=kg(outKg)+'<small>kg</small>';
+}
+
+/* ---- material label (outgoing carries the material; incoming does not) ---- */
+function matLabel(e){ if(!e.material) return &quot;&quot;; return e.material===&quot;Other&quot;?(&quot;Other: &quot;+(e.matOther||&quot;&quot;)):e.material; }
+
+/* ---- submit incoming (empty-truck weigh-in only) ---- */
+$(&quot;iSave&quot;).addEventListener(&quot;click&quot;,async function(){
+  if(!$(&quot;iWhen&quot;).value){ toast(&quot;Enter date &amp; time of weighing.&quot;); $(&quot;iWhen&quot;).focus(); return; }
+  if(!$(&quot;iTruck&quot;).value.trim()){ toast(&quot;Enter truck number.&quot;); $(&quot;iTruck&quot;).focus(); return; }
+  if($(&quot;iEmpty&quot;).value===&quot;&quot;){ toast(&quot;Enter empty truck weight.&quot;); $(&quot;iEmpty&quot;).focus(); return; }
+  if(!$(&quot;iDriver&quot;).value.trim()){ toast(&quot;Enter driver name.&quot;); $(&quot;iDriver&quot;).focus(); return; }
+  if(!$(&quot;iBy&quot;).value.trim()){ toast(&quot;Enter who reported.&quot;); $(&quot;iBy&quot;).focus(); return; }
+  var ip=IN_PH.data();
+  var iReq=[[&quot;truck&quot;,&quot;truck number&quot;],[&quot;empty&quot;,&quot;empty truck on scale&quot;]];
+  for(var ii=0;ii<iReq.length;ii++){ if(!(ip[iReq[ii][0]]||[]).length){ toast(&quot;Add the &quot;+iReq[ii][1]+&quot; photo.&quot;); return; } }
+  var when=$(&quot;iWhen&quot;).value||nowLocalDT();
+  var editing = editingId!=null &amp;&amp; byId(editingId) &amp;&amp; byId(editingId).kind===&quot;in&quot;;
+  var id = editing ? editingId : Date.now();
+  var photos=await savePhotos(id,IN_PH.data());
+  var rec={ id:id, ts:Date.parse(when)||Date.now(), kind:&quot;in&quot;, date:when,
+    truck:$(&quot;iTruck&quot;).value.trim(),
+    driver:$(&quot;iDriver&quot;).value.trim(), by:$(&quot;iBy&quot;).value.trim(),
+    empty:num($(&quot;iEmpty&quot;).value), full:null, net:0,
+    note:$(&quot;iNote&quot;).value.trim(), photos:photos, deviceId:(editing?(byId(id).deviceId||DEVICE_ID):DEVICE_ID) };
+  if(editing){ var ix=entries.findIndex(function(v){ return String(v.id)===String(id); }); if(ix>=0) entries[ix]=rec; else entries.push(rec); }
+  else entries.push(rec);
+  await save(ENTRY_KEY,entries); refreshHead();
+  $(&quot;iNoteMsg&quot;).textContent=&quot;Incoming logged — &quot;+esc(rec.truck)+&quot;.&quot;;
+  IN_PH.clear(); [&quot;iTruck&quot;,&quot;iDriver&quot;,&quot;iBy&quot;,&quot;iEmpty&quot;,&quot;iNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; });
+  resetEditState();
+  toast(editing?&quot;Incoming updated.&quot;:&quot;Incoming submitted.&quot;);
+  showSuccess(editing?&quot;Incoming updated in database.&quot;:&quot;Incoming record saved to database.&quot;);
+});
+$(&quot;iReset&quot;).addEventListener(&quot;click&quot;,function(){ IN_PH.clear(); [&quot;iTruck&quot;,&quot;iDriver&quot;,&quot;iBy&quot;,&quot;iEmpty&quot;,&quot;iNote&quot;,&quot;iWhen&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); resetEditState(); toast(&quot;Form reset.&quot;); });
+
+/* ---- submit outgoing ---- */
+$(&quot;oSave&quot;).addEventListener(&quot;click&quot;,async function(){
+  if(!$(&quot;oWhen&quot;).value){ toast(&quot;Enter date &amp; time of weighing.&quot;); $(&quot;oWhen&quot;).focus(); return; }
+  if(!$(&quot;oTruck&quot;).value.trim()){ toast(&quot;Enter truck number.&quot;); $(&quot;oTruck&quot;).focus(); return; }
+  if(!$(&quot;oMat&quot;).value){ toast(&quot;Select the material.&quot;); $(&quot;oMat&quot;).focus(); return; }
+  if($(&quot;oMat&quot;).value===&quot;Other&quot; &amp;&amp; !$(&quot;oMatOther&quot;).value.trim()){ toast(&quot;Specify the material.&quot;); $(&quot;oMatOther&quot;).focus(); return; }
+  if(!$(&quot;oDriver&quot;).value.trim()){ toast(&quot;Enter driver name.&quot;); $(&quot;oDriver&quot;).focus(); return; }
+  if(!$(&quot;oBy&quot;).value.trim()){ toast(&quot;Enter who reported.&quot;); $(&quot;oBy&quot;).focus(); return; }
+  if($(&quot;oFull&quot;).value===&quot;&quot;){ toast(&quot;Enter full load weight.&quot;); $(&quot;oFull&quot;).focus(); return; }
+  var op=OUT_PH.data();
+  var oReq=[[&quot;truck&quot;,&quot;truck number&quot;],[&quot;full&quot;,&quot;full load on scale&quot;]];
+  for(var oi=0;oi<oReq.length;oi++){ if(!(op[oReq[oi][0]]||[]).length){ toast(&quot;Add the &quot;+oReq[oi][1]+&quot; photo.&quot;); return; } }
+  var when=$(&quot;oWhen&quot;).value||nowLocalDT();
+  var editing = editingId!=null &amp;&amp; byId(editingId) &amp;&amp; byId(editingId).kind===&quot;out&quot;;
+  var id = editing ? editingId : Date.now();
+  var photos=await savePhotos(id,OUT_PH.data());
+  var rec={ id:id, ts:Date.parse(when)||Date.now(), kind:&quot;out&quot;, date:when,
+    truck:$(&quot;oTruck&quot;).value.trim(), material:$(&quot;oMat&quot;).value, matOther:$(&quot;oMatOther&quot;).value.trim(),
+    driver:$(&quot;oDriver&quot;).value.trim(), by:$(&quot;oBy&quot;).value.trim(),
+    full:num($(&quot;oFull&quot;).value), empty:($(&quot;oEmpty&quot;).value===&quot;&quot;?null:num($(&quot;oEmpty&quot;).value)), net:recalcOut(),
+    note:$(&quot;oNote&quot;).value.trim(), photos:photos, deviceId:(editing?(byId(id).deviceId||DEVICE_ID):DEVICE_ID) };
+  if(editing){ var ix=entries.findIndex(function(v){ return String(v.id)===String(id); }); if(ix>=0) entries[ix]=rec; else entries.push(rec); }
+  else entries.push(rec);
+  await save(ENTRY_KEY,entries); refreshHead();
+  $(&quot;oNoteMsg&quot;).textContent=&quot;Outgoing logged — net &quot;+kg(netOf(rec))+&quot; kg.&quot;;
+  OUT_PH.clear(); [&quot;oTruck&quot;,&quot;oMatOther&quot;,&quot;oDriver&quot;,&quot;oBy&quot;,&quot;oFull&quot;,&quot;oEmpty&quot;,&quot;oNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; });
+  $(&quot;oMat&quot;).value=&quot;&quot;; $(&quot;oMatOtherWrap&quot;).hidden=true; recalcOut();
+  resetEditState();
+  toast(editing?&quot;Outgoing updated.&quot;:&quot;Outgoing submitted.&quot;);
+  showSuccess(editing?&quot;Outgoing updated in database.&quot;:&quot;Outgoing &quot;+kg(netOf(rec))+&quot; kg saved to database.&quot;);
+});
+$(&quot;oReset&quot;).addEventListener(&quot;click&quot;,function(){ OUT_PH.clear(); [&quot;oTruck&quot;,&quot;oMatOther&quot;,&quot;oDriver&quot;,&quot;oBy&quot;,&quot;oFull&quot;,&quot;oEmpty&quot;,&quot;oNote&quot;,&quot;oWhen&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;oMat&quot;).value=&quot;&quot;; $(&quot;oMatOtherWrap&quot;).hidden=true; recalcOut(); resetEditState(); toast(&quot;Form reset.&quot;); });
+
+/* ---- edit ---- */
+function byId(id){ var f=null; entries.forEach(function(e){ if(String(e.id)===String(id)) f=e; }); return f; }
+async function editEntry(e){
+  if(!e || !canEditRec(e)) return;
+  var ph=await loadPhotoData(e);
+  if(e.kind===&quot;in&quot;){
+    $(&quot;t-in&quot;).click(); editingId=e.id;
+    $(&quot;iWhen&quot;).value=e.date||nowLocalDT(); $(&quot;iTruck&quot;).value=e.truck||&quot;&quot;;
+    $(&quot;iDriver&quot;).value=e.driver||&quot;&quot;; $(&quot;iBy&quot;).value=e.by||&quot;&quot;;
+    $(&quot;iEmpty&quot;).value=(e.empty!=null?e.empty:&quot;&quot;); $(&quot;iNote&quot;).value=e.note||&quot;&quot;;
+    IN_PH.load(ph); $(&quot;iSave&quot;).textContent=&quot;Update incoming&quot;;
+  } else if(e.kind===&quot;out&quot;){
+    $(&quot;t-out&quot;).click(); editingId=e.id;
+    $(&quot;oWhen&quot;).value=e.date||nowLocalDT(); $(&quot;oTruck&quot;).value=e.truck||&quot;&quot;; $(&quot;oMat&quot;).value=e.material||&quot;&quot;;
+    $(&quot;oMatOtherWrap&quot;).hidden=(e.material!==&quot;Other&quot;); $(&quot;oMatOther&quot;).value=e.matOther||&quot;&quot;;
+    $(&quot;oDriver&quot;).value=e.driver||&quot;&quot;; $(&quot;oBy&quot;).value=e.by||&quot;&quot;;
+    $(&quot;oFull&quot;).value=(e.full!=null?e.full:&quot;&quot;); $(&quot;oEmpty&quot;).value=(e.empty!=null?e.empty:&quot;&quot;); $(&quot;oNote&quot;).value=e.note||&quot;&quot;;
+    recalcOut(); OUT_PH.load(ph); $(&quot;oSave&quot;).textContent=&quot;Update outgoing&quot;;
+  }
+  toast(&quot;Editing entry — change the fields and press Update.&quot;);
+}
+
+/* ---- log book ---- */
+function detailOf(e){ return [e.truck, matLabel(e), e.driver].filter(Boolean).join(&quot; · &quot;); }
+function kindFlag(k){ return '<span class=&quot;flag '+(k===&quot;in&quot;?&quot;k-receive&quot;:&quot;k-transfer&quot;)+'&quot;>'+(k===&quot;in&quot;?&quot;In&quot;:&quot;Out&quot;)+'</span>'; }
+function drawBook(){
+  var flow=$(&quot;bFlow&quot;).value, q=$(&quot;bSearch&quot;).value.trim().toLowerCase();
+  var list=entries.slice().sort(function(a,b){ return (b.ts||b.id)-(a.ts||a.id); }).filter(function(e){
+    if(flow &amp;&amp; e.kind!==flow) return false;
+    if(q){ var blob=[e.truck,matLabel(e),e.driver,e.by,e.note].join(&quot; &quot;).toLowerCase(); if(blob.indexOf(q)<0) return false; }
+    return true;
+  });
+  if(!list.length){ $(&quot;book&quot;).innerHTML='<div class=&quot;empty&quot;><b>No entries</b>Incoming and outgoing records appear here.</div>'; return; }
+  var h='<table><thead><tr><th>Date &amp;amp; time</th><th>Flow</th><th>Detail</th><th class=&quot;num&quot;>Empty</th><th class=&quot;num&quot;>Loaded</th><th class=&quot;num&quot;>Net (kg)</th><th>Reported</th><th>Photos</th><th></th></tr></thead><tbody>';
+  list.forEach(function(e){
+    var nPh=allPhotoKeys(e).length;
+    h+='<tr><td style=&quot;white-space:nowrap&quot;>'+esc(fmtDT(e.date))+'</td><td>'+kindFlag(e.kind)+'</td>'+
+      '<td>'+esc(detailOf(e))+(e.note?'<div style=&quot;color:var(--ink-soft)&quot;>'+esc(e.note)+'</div>':&quot;&quot;)+'</td>'+
+      '<td class=&quot;num&quot;>'+(e.empty!=null?kg(num(e.empty)):&quot;—&quot;)+'</td>'+
+      '<td class=&quot;num&quot;>'+(e.full!=null?kg(num(e.full)):&quot;—&quot;)+'</td>'+
+      '<td class=&quot;num&quot;>'+(netOf(e)?kg(netOf(e)):&quot;—&quot;)+'</td>'+
+      '<td>'+esc(e.by||&quot;—&quot;)+'</td>'+
+      '<td>'+(nPh?'<button class=&quot;tiny&quot; data-ph=&quot;'+e.id+'&quot;>View '+nPh+'</button>':&quot;—&quot;)+'</td>'+
+      '<td style=&quot;white-space:nowrap&quot;><button class=&quot;tiny&quot; data-edit=&quot;'+e.id+'&quot;>Edit</button> <button class=&quot;tiny warn&quot; data-del=&quot;'+e.id+'&quot;>Delete</button></td></tr>';
+  });
+  $(&quot;book&quot;).innerHTML=h+'</tbody></table>';
+  $(&quot;book&quot;).querySelectorAll(&quot;[data-ph]&quot;).forEach(function(b){ b.onclick=function(){ var e=byId(b.getAttribute(&quot;data-ph&quot;)); if(e) openPhotos(e); }; });
+  $(&quot;book&quot;).querySelectorAll(&quot;[data-edit]&quot;).forEach(function(b){ b.onclick=function(){ var e=byId(b.getAttribute(&quot;data-edit&quot;)); if(e) editEntry(e); }; });
+  $(&quot;book&quot;).querySelectorAll(&quot;[data-del]&quot;).forEach(function(b){ b.onclick=async function(){
+    var e=byId(b.getAttribute(&quot;data-del&quot;)); if(!canDelete(e)) return;
+    entries=entries.filter(function(v){ return String(v.id)!==String(e.id); });
+    e.deletedAt=Date.now(); deletedM.unshift(e);
+    await save(ENTRY_KEY,entries); await save(DEL_KEY,deletedM); refreshHead(); drawBook(); drawTrash(); toast(&quot;Entry moved to deleted history.&quot;);
+  }; });
+}
+$(&quot;bFlow&quot;).addEventListener(&quot;change&quot;,drawBook);
+$(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
+$(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
+  var head=[&quot;datetime&quot;,&quot;flow&quot;,&quot;truck&quot;,&quot;material&quot;,&quot;driver&quot;,&quot;reported_by&quot;,&quot;empty_kg&quot;,&quot;loaded_kg&quot;,&quot;net_kg&quot;,&quot;note&quot;];
+  var rows=entries.slice().sort(function(a,b){ return (a.ts||a.id)-(b.ts||b.id); }).map(function(e){
+    return [fmtDT(e.date), e.kind, e.truck||&quot;&quot;, matLabel(e), e.driver||&quot;&quot;, e.by||&quot;&quot;,
+      e.empty!=null?num(e.empty):&quot;&quot;, e.full!=null?num(e.full):&quot;&quot;, netOf(e), (e.note||&quot;&quot;).replace(/[\r\n]+/g,&quot; &quot;)];
+  });
+  var csv=[head].concat(rows).map(function(r){ return r.map(function(c){ return '&quot;'+String(c).replace(/&quot;/g,'&quot;&quot;')+'&quot;'; }).join(&quot;,&quot;); }).join(&quot;\n&quot;);
+  var a=document.createElement(&quot;a&quot;); a.href=&quot;data:text/csv;charset=utf-8,&quot;+encodeURIComponent(csv); a.download=&quot;material_log.csv&quot;; a.click();
+});
+
+/* ---- deleted history ---- */
+function drawTrash(){
+  var wrap=$(&quot;mTrash&quot;); if(!wrap) return;
+  $(&quot;mTrashCount&quot;).textContent = deletedM.length ? &quot;(&quot;+deletedM.length+&quot;)&quot; : &quot;&quot;;
+  if(!deletedM.length){ wrap.innerHTML='<div class=&quot;empty&quot; style=&quot;padding:16px&quot;>Nothing deleted.</div>'; return; }
+  var h='<table><thead><tr><th>Date &amp;amp; time</th><th>Flow</th><th>Detail</th><th>Deleted</th><th></th></tr></thead><tbody>';
+  deletedM.forEach(function(e){
+    h+='<tr><td style=&quot;white-space:nowrap&quot;>'+esc(fmtDT(e.date))+'</td><td>'+kindFlag(e.kind)+'</td>'+
+      '<td>'+esc(detailOf(e))+'</td><td style=&quot;white-space:nowrap;color:var(--ink-soft)&quot;>'+esc(e.deletedAt?fmtDT(nowLocalFromTs(e.deletedAt)):&quot;—&quot;)+'</td>'+
+      '<td style=&quot;white-space:nowrap&quot;><button class=&quot;tiny&quot; data-rst=&quot;'+e.id+'&quot;>Restore</button> <button class=&quot;tiny warn&quot; data-purge=&quot;'+e.id+'&quot;>Delete</button></td></tr>';
+  });
+  wrap.innerHTML=h+'</tbody></table>';
+  wrap.querySelectorAll(&quot;[data-rst]&quot;).forEach(function(b){ b.onclick=async function(){
+    var id=b.getAttribute(&quot;data-rst&quot;); var e=null; deletedM=deletedM.filter(function(v){ if(String(v.id)===String(id)){ e=v; return false; } return true; });
+    if(e){ delete e.deletedAt; entries.push(e); }
+    await save(ENTRY_KEY,entries); await save(DEL_KEY,deletedM); refreshHead(); drawBook(); drawTrash(); toast(&quot;Entry restored.&quot;);
+  }; });
+  wrap.querySelectorAll(&quot;[data-purge]&quot;).forEach(function(b){ b.onclick=async function(){
+    var id=b.getAttribute(&quot;data-purge&quot;); if(!adminOK()) return; if(!confirm(&quot;Delete this entry permanently? This cannot be undone.&quot;)) return;
+    var e=null; deletedM=deletedM.filter(function(v){ if(String(v.id)===String(id)){ e=v; return false; } return true; });
+    if(e){ var keys=allPhotoKeys(e); for(var i=0;i<keys.length;i++){ try{ if(has()&amp;&amp;window.storage.delete) await window.storage.delete(keys[i]); }catch(x){} } }
+    await save(DEL_KEY,deletedM); drawTrash(); toast(&quot;Entry permanently deleted.&quot;);
+  }; });
+}
+$(&quot;mTrashToggle&quot;).addEventListener(&quot;click&quot;,function(){ var w=$(&quot;mTrashWrap&quot;); w.hidden=!w.hidden; if(!w.hidden) drawTrash(); });
+$(&quot;mTrashEmpty&quot;).addEventListener(&quot;click&quot;,async function(){
+  if(!deletedM.length){ toast(&quot;History already empty.&quot;); return; }
+  if(!adminOK()) return;
+  for(var j=0;j<deletedM.length;j++){ var keys=allPhotoKeys(deletedM[j]); for(var i=0;i<keys.length;i++){ try{ if(has()&amp;&amp;window.storage.delete) await window.storage.delete(keys[i]); }catch(x){} } }
+  deletedM=[]; await save(DEL_KEY,deletedM); drawTrash(); toast(&quot;Deleted history emptied.&quot;);
+});
+
+/* ---- photos lightbox ---- */
+async function openPhotos(e){
+  $(&quot;lbBody&quot;).innerHTML='<div style=&quot;color:#ccc;font-family:var(--mono)&quot;>Loading…</div>'; $(&quot;lb&quot;).hidden=false;
+  var p=e.photos||{}, html=&quot;&quot;;
+  for(var slot in p){ for(var i=0;i<p[slot].length;i++){ var d=await load(p[slot][i],null); if(d) html+='<div><img src=&quot;'+d+'&quot;><div style=&quot;color:#9AA6AE;font-family:var(--mono);font-size:11px;margin-bottom:12px&quot;>'+esc(slot)+'</div></div>'; } }
+  $(&quot;lbBody&quot;).innerHTML=html||'<div style=&quot;color:#ccc;font-family:var(--mono)&quot;>No photos stored.</div>';
+}
+$(&quot;lbClose&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;lb&quot;).hidden=true; });
+$(&quot;lb&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.target===$(&quot;lb&quot;)) $(&quot;lb&quot;).hidden=true; });
+$(&quot;okClose&quot;).addEventListener(&quot;click&quot;,hideSuccess);
+$(&quot;okModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.target===$(&quot;okModal&quot;)) hideSuccess(); });
+
+/* ---- analysis ---- */
+function tile(name, val, cls, sub, unit){
+  unit = (unit===undefined) ? &quot;kg&quot; : unit;
+  return '<div class=&quot;tank-tile'+(cls?&quot; &quot;+cls:&quot;&quot;)+'&quot;><div class=&quot;tt-name&quot;>'+esc(name)+'</div>'+
+    '<div class=&quot;tt-val&quot;>'+kg(val)+(unit?' <small>'+esc(unit)+'</small>':'')+'</div>'+(sub?'<div class=&quot;tt-sub&quot;>'+esc(sub)+'</div>':'')+'</div>';
+}
+/* mode 'net' sums net kg; mode 'count' counts records that day */
+function dailyBars(kind, color, mode){
+  var days=[]; var base=new Date(); base.setHours(0,0,0,0);
+  var map={};
+  entries.forEach(function(e){ if(e.kind!==kind) return; var k=dayKey(e.date); map[k]=(map[k]||0)+(mode===&quot;count&quot;?1:netOf(e)); });
+  for(var i=13;i>=0;i--){ var d=new Date(base.getTime()-i*86400000); function p(n){ return (n<10?&quot;0&quot;:&quot;&quot;)+n; }
+    var key=d.getFullYear()+&quot;-&quot;+p(d.getMonth()+1)+&quot;-&quot;+p(d.getDate()); days.push({key:key,val:map[key]||0}); }
+  var max=1; days.forEach(function(d){ max=Math.max(max,d.val); });
+  var any=days.some(function(d){ return d.val>0; });
+  if(!any) return '<div class=&quot;hint&quot;>No records in the last 14 days.</div>';
+  return days.map(function(d){ var pct=d.val>0?Math.max(3,Math.round(d.val/max*100)):0;
+    var lab = mode===&quot;count&quot; ? (d.val?String(d.val):&quot;—&quot;) : (d.val?kg(d.val):&quot;—&quot;);
+    return '<div class=&quot;sbar&quot;><div class=&quot;lbl&quot;>'+esc(d.key.slice(5))+'</div><div class=&quot;track&quot;><i style=&quot;width:'+pct+'%;background:'+color+'&quot;></i></div><div class=&quot;val&quot;>'+lab+'</div></div>'; }).join(&quot;&quot;);
+}
+function drawAnalysis(){
+  var outKg=0,nIn=0,nOut=0;
+  entries.forEach(function(e){ if(e.kind===&quot;in&quot;){ nIn++; } else if(e.kind===&quot;out&quot;){ nOut++; outKg+=netOf(e); } });
+  var today=dayKey(nowLocalDT()); var outToday=0;
+  entries.forEach(function(e){ if(e.kind===&quot;out&quot; &amp;&amp; dayKey(e.date)===today) outToday+=netOf(e); });
+  $(&quot;anTiles&quot;).innerHTML =
+    tile(&quot;Total OUT (net)&quot;, outKg, &quot;t-good&quot;, nOut+&quot; outgoing records&quot;) +
+    tile(&quot;OUT today&quot;, outToday, &quot;t-warn&quot;, today) +
+    tile(&quot;Incoming trucks&quot;, nIn, &quot;&quot;, &quot;weigh-in records&quot;, &quot;&quot;) +
+    tile(&quot;Outgoing trucks&quot;, nOut, &quot;&quot;, &quot;weigh-out records&quot;, &quot;&quot;);
+  $(&quot;anOut&quot;).innerHTML=dailyBars(&quot;out&quot;,&quot;var(--amber)&quot;,&quot;net&quot;);
+  $(&quot;anIn&quot;).innerHTML=dailyBars(&quot;in&quot;,&quot;var(--good)&quot;,&quot;count&quot;);
+}
+
+/* ---- entity-scoped storage ---- */
+var MAT_ENT=&quot;ALCO&quot;;
+async function setEntity(ent){
+  ent = ent || &quot;ALCO&quot;;
+  if(ent===MAT_ENT) return;
+  MAT_ENT=ent;
+  ENTRY_KEY = ent===&quot;ALCO&quot; ? &quot;material:entries&quot; : &quot;material:entries:&quot;+ent;
+  DEL_KEY   = ent===&quot;ALCO&quot; ? &quot;material:entries:deleted&quot; : &quot;material:entries:deleted:&quot;+ent;
+  entries=await load(ENTRY_KEY,[]); if(!Array.isArray(entries)) entries=[];
+  deletedM=await load(DEL_KEY,[]); if(!Array.isArray(deletedM)) deletedM=[];
+  if(typeof resetEditState===&quot;function&quot;) resetEditState();
+  refreshHead();
+  if($(&quot;v-book&quot;) &amp;&amp; !$(&quot;v-book&quot;).hidden){ drawBook(); drawTrash(); }
+  if($(&quot;v-an&quot;) &amp;&amp; !$(&quot;v-an&quot;).hidden){ drawAnalysis(); }
+}
+window.setEntity=setEntity;
+
+/* ---- boot ---- */
+(async function(){
+  entries=await load(ENTRY_KEY,[]); if(!Array.isArray(entries)) entries=[];
+  deletedM=await load(DEL_KEY,[]); if(!Array.isArray(deletedM)) deletedM=[];
+  $(&quot;iWhen&quot;).value=nowLocalDT(); $(&quot;oWhen&quot;).value=nowLocalDT();
+  recalcOut(); refreshHead();
 })();
 </script>
 </body></html>
@@ -5106,7 +5740,7 @@ const REPORTKINDS = {
 };
 
 /* ---------- navigation ---------- */
-const TITLES={dashboard:"Engineering Dashboard",downtime:"Technician Downtime Report",workorder:"Utility & Facility Work Order",downtime2:"Technician Downtime Log Book",workorder2:"Work Order Request — Utility Facility",linedt:"Downtime by Line",dieselwk:"Diesel — Weekly Analysis",diesel:"Diesel Inventory Management"};
+const TITLES={dashboard:"Engineering Dashboard",downtime:"Technician Downtime Report",workorder:"Utility & Facility Work Order",downtime2:"Technician Downtime Log Book",workorder2:"Work Order Request — Utility Facility",linedt:"Downtime by Line",dieselwk:"Diesel — Weekly Analysis",diesel:"Diesel Inventory Management",material:"Waste Material In / Out — PT SAAT"};
 function nav(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -5119,6 +5753,7 @@ function nav(page){
   if(page==='downtime2') syncDTEntity();
   if(page==='workorder2') syncFrameEntity('workorderFrame');
   if(page==='diesel') syncFrameEntity('dieselFrame');
+  if(page==='material') syncFrameEntity('materialFrame');
 }
 
 /* ---------- Diesel weekly (Mon–Sun) bar chart, per tank ---------- */
@@ -5254,7 +5889,28 @@ function syncFrameEntity(frameId, tries){
   }catch(e){}
   if(tries<60) setTimeout(function(){ syncFrameEntity(frameId, tries+1); }, 100);
 }
-function syncAllEntities(){ syncDTEntity(); syncFrameEntity('workorderFrame'); syncFrameEntity('dieselFrame'); }
+function syncAllEntities(){ syncDTEntity(); syncFrameEntity('workorderFrame'); syncFrameEntity('dieselFrame'); syncFrameEntity('materialFrame'); }
+
+/* Waste Material In/Out is a PT SAAT-only module: show its Overview quick card
+   only for SAAT, and if the user is on that page when switching away, send them home. */
+function updateMaterialNav(){
+  var b=document.getElementById('qnMaterial'); if(!b) return;
+  var isSaat = state.entity==="SAAT";
+  b.hidden = !isSaat;
+  if(!isSaat){ var pg=document.getElementById('page-material'); if(pg && pg.classList.contains('active')) nav('dashboard'); }
+}
+/* Waste Material In/Out is access-controlled: standard admin credentials unlock it
+   (once per session). Same username/password standard as the delete function. */
+var MAT_AUTHED=false;
+function openMaterial(){
+  if(!MAT_AUTHED){
+    var u=prompt("Username:"); if(u===null) return;
+    var p=prompt("Password:"); if(p===null) return;
+    if(!(u.trim().toLowerCase()==="admin" && p==="Engineering")){ alert("Wrong username or password."); return; }
+    MAT_AUTHED=true;
+  }
+  nav('material');
+}
 
 /* open the Work Order Log Book pre-filtered ({status} or {pri}) */
 function openWOLog(opts){
@@ -5358,7 +6014,8 @@ function initEntities(){
   sel.innerHTML=ENTITIES.map(e=>`<option>${esc(e)}</option>`).join('');
   if(!ENTITIES.includes(state.entity)) state.entity=ENTITIES[0];
   sel.value=state.entity;
-  sel.onchange=()=>{ state.entity=sel.value; refreshShared(); renderAll(); syncAllEntities(); };
+  sel.onchange=()=>{ state.entity=sel.value; refreshShared(); renderAll(); syncAllEntities(); updateMaterialNav(); };
+  updateMaterialNav();
 }
 
 /* ---------- dashboard ---------- */
