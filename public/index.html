@@ -5190,20 +5190,26 @@ window.setEntity=setEntity;
   <section id=&quot;v-out&quot; hidden>
     <div class=&quot;panel&quot;>
       <p class=&quot;eyebrow&quot; data-n=&quot;02 /&quot;>Outgoing material — truck weigh out</p>
+      <div style=&quot;margin-top:12px&quot;><label class=&quot;f&quot; for=&quot;oPick&quot;>Select incoming truck <span style=&quot;color:var(--bad)&quot;>*</span></label>
+        <select id=&quot;oPick&quot;><option value=&quot;&quot;>Select a weighed-in truck…</option></select>
+        <div class=&quot;hint&quot; id=&quot;oPickHint&quot;>Pick an incoming record — truck number, driver, reporter and empty (tare) weight fill in automatically.</div>
+      </div>
       <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
-        <div><label class=&quot;f&quot; for=&quot;oWhen&quot;>Date &amp;amp; time (weighing) <span style=&quot;color:var(--bad)&quot;>*</span></label>
+        <div><label class=&quot;f&quot; for=&quot;oTruck&quot;>Truck number <span style=&quot;color:var(--muted)&quot;>auto</span></label><input id=&quot;oTruck&quot; type=&quot;text&quot; readonly placeholder=&quot;from selection&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;oDriver&quot;>Driver name <span style=&quot;color:var(--muted)&quot;>auto</span></label><input id=&quot;oDriver&quot; type=&quot;text&quot; readonly placeholder=&quot;from selection&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;oBy&quot;>Reported by <span style=&quot;color:var(--muted)&quot;>auto</span></label><input id=&quot;oBy&quot; type=&quot;text&quot; readonly placeholder=&quot;from selection&quot;></div>
+      </div>
+      <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;oWhen&quot;>Date &amp;amp; time (weigh-out) <span style=&quot;color:var(--bad)&quot;>*</span></label>
           <div style=&quot;display:flex;gap:6px&quot;><input id=&quot;oWhen&quot; type=&quot;datetime-local&quot; style=&quot;flex:1;min-width:0&quot;>
           <button class=&quot;ghost&quot; type=&quot;button&quot; id=&quot;oNow&quot; style=&quot;padding:8px 10px;white-space:nowrap&quot;>Now</button></div></div>
-        <div><label class=&quot;f&quot; for=&quot;oTruck&quot;>Truck number <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;oTruck&quot; type=&quot;text&quot; placeholder=&quot;e.g. BP 1234 XX&quot;></div>
         <div><label class=&quot;f&quot; for=&quot;oMat&quot;>Material <span style=&quot;color:var(--bad)&quot;>*</span></label>
           <select id=&quot;oMat&quot;><option value=&quot;&quot;>Select…</option><option>Steel</option><option>Wood</option><option>Other</option></select></div>
-        <div><label class=&quot;f&quot; for=&quot;oDriver&quot;>Driver name <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;oDriver&quot; type=&quot;text&quot; placeholder=&quot;Driver&quot;></div>
-        <div><label class=&quot;f&quot; for=&quot;oBy&quot;>Reported by <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;oBy&quot; type=&quot;text&quot; placeholder=&quot;name&quot;></div>
         <div id=&quot;oMatOtherWrap&quot; hidden><label class=&quot;f&quot; for=&quot;oMatOther&quot;>Specify material <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;oMatOther&quot; type=&quot;text&quot; placeholder=&quot;describe&quot;></div>
       </div>
       <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;oEmpty&quot;>Empty (tare) weight (kg) <span style=&quot;color:var(--muted)&quot;>auto</span></label><input id=&quot;oEmpty&quot; type=&quot;number&quot; readonly placeholder=&quot;from selection&quot;></div>
         <div><label class=&quot;f&quot; for=&quot;oFull&quot;>Full load weight (kg) <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;oFull&quot; type=&quot;number&quot; inputmode=&quot;decimal&quot; min=&quot;0&quot; placeholder=&quot;loaded&quot;></div>
-        <div><label class=&quot;f&quot; for=&quot;oEmpty&quot;>Empty (tare) weight (kg) <span style=&quot;color:var(--muted)&quot;>optional</span></label><input id=&quot;oEmpty&quot; type=&quot;number&quot; inputmode=&quot;decimal&quot; min=&quot;0&quot; placeholder=&quot;if weighed empty&quot;></div>
         <div><label class=&quot;f&quot;>Net material (kg)</label><div class=&quot;ro&quot; id=&quot;oNet&quot;>0</div></div>
       </div>
       <p class=&quot;eyebrow&quot; style=&quot;margin-top:18px&quot;>Photo evidence</p>
@@ -5367,6 +5373,7 @@ var TABS=[[&quot;t-in&quot;,&quot;v-in&quot;],[&quot;t-out&quot;,&quot;v-out&quo
 TABS.forEach(function(pair){ $(pair[0]).addEventListener(&quot;click&quot;,function(){
   TABS.forEach(function(p){ var on=p[0]===pair[0]; $(p[0]).setAttribute(&quot;aria-selected&quot;,on?&quot;true&quot;:&quot;false&quot;); $(p[1]).hidden=!on; });
   resetEditState();
+  if(pair[0]===&quot;t-out&quot;) fillPickSelect();
   if(pair[0]===&quot;t-book&quot;){ drawBook(); drawTrash(); }
   if(pair[0]===&quot;t-an&quot;) drawAnalysis();
 }); });
@@ -5374,6 +5381,33 @@ function resetEditState(){ editingId=null;
   if($(&quot;iSave&quot;)) $(&quot;iSave&quot;).textContent=&quot;Submit incoming&quot;;
   if($(&quot;oSave&quot;)) $(&quot;oSave&quot;).textContent=&quot;Submit outgoing&quot;;
 }
+
+/* ---- outgoing: pick a weighed-in truck; its data auto-fills the outgoing form ---- */
+var oLinkId=null;
+function usedInIds(){ var s={}; entries.forEach(function(e){ if(e.kind===&quot;out&quot; &amp;&amp; e.linkId!=null) s[String(e.linkId)]=true; }); return s; }
+function fillPickSelect(){
+  var sel=$(&quot;oPick&quot;); if(!sel) return;
+  var keep=sel.value;
+  var ins=entries.filter(function(e){ return e.kind===&quot;in&quot;; }).sort(function(a,b){ return (b.ts||b.id)-(a.ts||a.id); });
+  var used=usedInIds();
+  var html='<option value=&quot;&quot;>Select a weighed-in truck…</option>'+ins.map(function(e){
+    var tag = used[String(e.id)] ? &quot;  ✓ already out&quot; : &quot;&quot;;
+    return '<option value=&quot;'+esc(String(e.id))+'&quot;>'+esc(e.truck||&quot;—&quot;)+&quot; — &quot;+esc(fmtDT(e.date))+&quot; · tare &quot;+kg(num(e.empty))+&quot; kg&quot;+esc(tag)+'</option>';
+  }).join(&quot;&quot;);
+  sel.innerHTML=html;
+  if(keep) sel.value=keep;
+  if(!ins.length){ $(&quot;oPickHint&quot;).textContent=&quot;No incoming (weighed-in) trucks yet — add one on the Incoming tab first.&quot;; }
+  else { $(&quot;oPickHint&quot;).textContent=&quot;Pick an incoming record — truck number, driver, reporter and empty (tare) weight fill in automatically.&quot;; }
+}
+function applyPick(id){
+  var e=byId(id); oLinkId = e? e.id : null;
+  if(!e){ [&quot;oTruck&quot;,&quot;oDriver&quot;,&quot;oBy&quot;,&quot;oEmpty&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); recalcOut(); return; }
+  $(&quot;oTruck&quot;).value=e.truck||&quot;&quot;; $(&quot;oDriver&quot;).value=e.driver||&quot;&quot;; $(&quot;oBy&quot;).value=e.by||&quot;&quot;;
+  $(&quot;oEmpty&quot;).value=(e.empty!=null?e.empty:&quot;&quot;);
+  if(!$(&quot;oWhen&quot;).value) $(&quot;oWhen&quot;).value=nowLocalDT();
+  recalcOut();
+}
+$(&quot;oPick&quot;).addEventListener(&quot;change&quot;,function(){ applyPick($(&quot;oPick&quot;).value); });
 
 /* ---- Now buttons ---- */
 $(&quot;iNow&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;iWhen&quot;).value=nowLocalDT(); });
@@ -5429,7 +5463,7 @@ $(&quot;iSave&quot;).addEventListener(&quot;click&quot;,async function(){
     note:$(&quot;iNote&quot;).value.trim(), photos:photos, deviceId:(editing?(byId(id).deviceId||DEVICE_ID):DEVICE_ID) };
   if(editing){ var ix=entries.findIndex(function(v){ return String(v.id)===String(id); }); if(ix>=0) entries[ix]=rec; else entries.push(rec); }
   else entries.push(rec);
-  await save(ENTRY_KEY,entries); refreshHead();
+  await save(ENTRY_KEY,entries); refreshHead(); fillPickSelect();
   $(&quot;iNoteMsg&quot;).textContent=&quot;Incoming logged — &quot;+esc(rec.truck)+&quot;.&quot;;
   IN_PH.clear(); [&quot;iTruck&quot;,&quot;iDriver&quot;,&quot;iBy&quot;,&quot;iEmpty&quot;,&quot;iNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; });
   resetEditState();
@@ -5440,13 +5474,12 @@ $(&quot;iReset&quot;).addEventListener(&quot;click&quot;,function(){ IN_PH.clear
 
 /* ---- submit outgoing ---- */
 $(&quot;oSave&quot;).addEventListener(&quot;click&quot;,async function(){
-  if(!$(&quot;oWhen&quot;).value){ toast(&quot;Enter date &amp; time of weighing.&quot;); $(&quot;oWhen&quot;).focus(); return; }
-  if(!$(&quot;oTruck&quot;).value.trim()){ toast(&quot;Enter truck number.&quot;); $(&quot;oTruck&quot;).focus(); return; }
+  if(!$(&quot;oTruck&quot;).value.trim()){ toast(&quot;Select an incoming truck first.&quot;); $(&quot;oPick&quot;).focus(); return; }
+  if(!$(&quot;oWhen&quot;).value){ toast(&quot;Enter date &amp; time of weigh-out.&quot;); $(&quot;oWhen&quot;).focus(); return; }
   if(!$(&quot;oMat&quot;).value){ toast(&quot;Select the material.&quot;); $(&quot;oMat&quot;).focus(); return; }
   if($(&quot;oMat&quot;).value===&quot;Other&quot; &amp;&amp; !$(&quot;oMatOther&quot;).value.trim()){ toast(&quot;Specify the material.&quot;); $(&quot;oMatOther&quot;).focus(); return; }
-  if(!$(&quot;oDriver&quot;).value.trim()){ toast(&quot;Enter driver name.&quot;); $(&quot;oDriver&quot;).focus(); return; }
-  if(!$(&quot;oBy&quot;).value.trim()){ toast(&quot;Enter who reported.&quot;); $(&quot;oBy&quot;).focus(); return; }
   if($(&quot;oFull&quot;).value===&quot;&quot;){ toast(&quot;Enter full load weight.&quot;); $(&quot;oFull&quot;).focus(); return; }
+  if(num($(&quot;oFull&quot;).value)<=num($(&quot;oEmpty&quot;).value)){ toast(&quot;Full load must be greater than the empty (tare) weight.&quot;); $(&quot;oFull&quot;).focus(); return; }
   var op=OUT_PH.data();
   var oReq=[[&quot;truck&quot;,&quot;truck number&quot;],[&quot;full&quot;,&quot;full load on scale&quot;]];
   for(var oi=0;oi<oReq.length;oi++){ if(!(op[oReq[oi][0]]||[]).length){ toast(&quot;Add the &quot;+oReq[oi][1]+&quot; photo.&quot;); return; } }
@@ -5454,7 +5487,7 @@ $(&quot;oSave&quot;).addEventListener(&quot;click&quot;,async function(){
   var editing = editingId!=null &amp;&amp; byId(editingId) &amp;&amp; byId(editingId).kind===&quot;out&quot;;
   var id = editing ? editingId : Date.now();
   var photos=await savePhotos(id,OUT_PH.data());
-  var rec={ id:id, ts:Date.parse(when)||Date.now(), kind:&quot;out&quot;, date:when,
+  var rec={ id:id, ts:Date.parse(when)||Date.now(), kind:&quot;out&quot;, date:when, linkId:oLinkId,
     truck:$(&quot;oTruck&quot;).value.trim(), material:$(&quot;oMat&quot;).value, matOther:$(&quot;oMatOther&quot;).value.trim(),
     driver:$(&quot;oDriver&quot;).value.trim(), by:$(&quot;oBy&quot;).value.trim(),
     full:num($(&quot;oFull&quot;).value), empty:($(&quot;oEmpty&quot;).value===&quot;&quot;?null:num($(&quot;oEmpty&quot;).value)), net:recalcOut(),
@@ -5464,12 +5497,12 @@ $(&quot;oSave&quot;).addEventListener(&quot;click&quot;,async function(){
   await save(ENTRY_KEY,entries); refreshHead();
   $(&quot;oNoteMsg&quot;).textContent=&quot;Outgoing logged — net &quot;+kg(netOf(rec))+&quot; kg.&quot;;
   OUT_PH.clear(); [&quot;oTruck&quot;,&quot;oMatOther&quot;,&quot;oDriver&quot;,&quot;oBy&quot;,&quot;oFull&quot;,&quot;oEmpty&quot;,&quot;oNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; });
-  $(&quot;oMat&quot;).value=&quot;&quot;; $(&quot;oMatOtherWrap&quot;).hidden=true; recalcOut();
+  $(&quot;oMat&quot;).value=&quot;&quot;; $(&quot;oMatOtherWrap&quot;).hidden=true; $(&quot;oPick&quot;).value=&quot;&quot;; oLinkId=null; recalcOut();
   resetEditState();
   toast(editing?&quot;Outgoing updated.&quot;:&quot;Outgoing submitted.&quot;);
   showSuccess(editing?&quot;Outgoing updated in database.&quot;:&quot;Outgoing &quot;+kg(netOf(rec))+&quot; kg saved to database.&quot;);
 });
-$(&quot;oReset&quot;).addEventListener(&quot;click&quot;,function(){ OUT_PH.clear(); [&quot;oTruck&quot;,&quot;oMatOther&quot;,&quot;oDriver&quot;,&quot;oBy&quot;,&quot;oFull&quot;,&quot;oEmpty&quot;,&quot;oNote&quot;,&quot;oWhen&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;oMat&quot;).value=&quot;&quot;; $(&quot;oMatOtherWrap&quot;).hidden=true; recalcOut(); resetEditState(); toast(&quot;Form reset.&quot;); });
+$(&quot;oReset&quot;).addEventListener(&quot;click&quot;,function(){ OUT_PH.clear(); [&quot;oTruck&quot;,&quot;oMatOther&quot;,&quot;oDriver&quot;,&quot;oBy&quot;,&quot;oFull&quot;,&quot;oEmpty&quot;,&quot;oNote&quot;,&quot;oWhen&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;oMat&quot;).value=&quot;&quot;; $(&quot;oMatOtherWrap&quot;).hidden=true; $(&quot;oPick&quot;).value=&quot;&quot;; oLinkId=null; recalcOut(); resetEditState(); toast(&quot;Form reset.&quot;); });
 
 /* ---- edit ---- */
 function byId(id){ var f=null; entries.forEach(function(e){ if(String(e.id)===String(id)) f=e; }); return f; }
@@ -5484,6 +5517,9 @@ async function editEntry(e){
     IN_PH.load(ph); $(&quot;iSave&quot;).textContent=&quot;Update incoming&quot;;
   } else if(e.kind===&quot;out&quot;){
     $(&quot;t-out&quot;).click(); editingId=e.id;
+    fillPickSelect();
+    oLinkId = (e.linkId!=null?e.linkId:null);
+    if(oLinkId!=null &amp;&amp; byId(oLinkId)){ $(&quot;oPick&quot;).value=String(oLinkId); } else { $(&quot;oPick&quot;).value=&quot;&quot;; }
     $(&quot;oWhen&quot;).value=e.date||nowLocalDT(); $(&quot;oTruck&quot;).value=e.truck||&quot;&quot;; $(&quot;oMat&quot;).value=e.material||&quot;&quot;;
     $(&quot;oMatOtherWrap&quot;).hidden=(e.material!==&quot;Other&quot;); $(&quot;oMatOther&quot;).value=e.matOther||&quot;&quot;;
     $(&quot;oDriver&quot;).value=e.driver||&quot;&quot;; $(&quot;oBy&quot;).value=e.by||&quot;&quot;;
@@ -5627,7 +5663,8 @@ async function setEntity(ent){
   entries=await load(ENTRY_KEY,[]); if(!Array.isArray(entries)) entries=[];
   deletedM=await load(DEL_KEY,[]); if(!Array.isArray(deletedM)) deletedM=[];
   if(typeof resetEditState===&quot;function&quot;) resetEditState();
-  refreshHead();
+  $(&quot;oPick&quot;).value=&quot;&quot;; oLinkId=null; [&quot;oTruck&quot;,&quot;oDriver&quot;,&quot;oBy&quot;,&quot;oEmpty&quot;,&quot;oFull&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); recalcOut();
+  refreshHead(); fillPickSelect();
   if($(&quot;v-book&quot;) &amp;&amp; !$(&quot;v-book&quot;).hidden){ drawBook(); drawTrash(); }
   if($(&quot;v-an&quot;) &amp;&amp; !$(&quot;v-an&quot;).hidden){ drawAnalysis(); }
 }
@@ -5638,7 +5675,7 @@ window.setEntity=setEntity;
   entries=await load(ENTRY_KEY,[]); if(!Array.isArray(entries)) entries=[];
   deletedM=await load(DEL_KEY,[]); if(!Array.isArray(deletedM)) deletedM=[];
   $(&quot;iWhen&quot;).value=nowLocalDT(); $(&quot;oWhen&quot;).value=nowLocalDT();
-  recalcOut(); refreshHead();
+  recalcOut(); refreshHead(); fillPickSelect();
 })();
 </script>
 </body></html>
