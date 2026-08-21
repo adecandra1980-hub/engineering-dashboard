@@ -4409,6 +4409,8 @@ window.setEntity = setEntity;
       <div class=&quot;filters&quot; style=&quot;margin-top:12px&quot;>
         <div><label class=&quot;f&quot; for=&quot;bKind&quot;>Type</label>
           <select id=&quot;bKind&quot;><option value=&quot;&quot;>All</option><option value=&quot;receive&quot;>Receiving</option><option value=&quot;usage&quot;>Usage</option><option value=&quot;transfer&quot;>Transfer</option><option value=&quot;opname&quot;>Stock inventory</option></select></div>
+        <div><label class=&quot;f&quot; for=&quot;bTank&quot;>Tank</label>
+          <select id=&quot;bTank&quot;><option value=&quot;&quot;>All tanks</option></select></div>
         <div style=&quot;flex:1&quot;><label class=&quot;f&quot; for=&quot;bSearch&quot;>Search</label><input id=&quot;bSearch&quot; placeholder=&quot;driver, truck, tank, note…&quot;></div>
         <div><button class=&quot;ghost&quot; id=&quot;bCsv&quot;>Download CSV</button></div>
       </div>
@@ -4824,21 +4826,38 @@ function detailOf(e){
   return &quot;&quot;;
 }
 function kindFlag(k){ return '<span class=&quot;flag k-'+k+'&quot;>'+(k===&quot;receive&quot;?&quot;Receive&quot;:k===&quot;usage&quot;?&quot;Usage&quot;:k===&quot;opname&quot;?&quot;Stock&quot;:&quot;Transfer&quot;)+'</span>'; }
+/* tanks touched by an entry (in and/or out) */
+function entryTanks(e){
+  if(e.kind===&quot;receive&quot;) return [canonTank(e.tank)];
+  if(e.kind===&quot;usage&quot;) return [canonTank(e.from)];
+  if(e.kind===&quot;transfer&quot;) return [canonTank(e.from), canonTank(e.dest)];
+  if(e.kind===&quot;opname&quot;) return (e.tanks||[]).map(function(t){ return canonTank(t.name); });
+  return [];
+}
+function fillBookTankFilter(){
+  var sel=$(&quot;bTank&quot;); if(!sel) return; var keep=sel.value;
+  sel.innerHTML='<option value=&quot;&quot;>All tanks</option>'+TANKS.map(function(t){ return '<option>'+esc(t)+'</option>'; }).join(&quot;&quot;);
+  if(keep) sel.value=keep;
+}
 function drawBook(){
-  var kind=$(&quot;bKind&quot;).value, q=$(&quot;bSearch&quot;).value.trim().toLowerCase();
+  var kind=$(&quot;bKind&quot;).value, q=$(&quot;bSearch&quot;).value.trim().toLowerCase(), tank=$(&quot;bTank&quot;)?$(&quot;bTank&quot;).value:&quot;&quot;;
   var list=entries.slice().sort(function(a,b){ return (b.ts||b.id)-(a.ts||a.id); }).filter(function(e){
     if(kind &amp;&amp; e.kind!==kind) return false;
-    if(q){ var blob=[e.driver,e.truck,e.supplier,e.doNo,e.tankLevel,e.usageType,e.usageOther,e.dest,e.by,e.note].join(&quot; &quot;).toLowerCase(); if(blob.indexOf(q)<0) return false; }
+    if(tank &amp;&amp; entryTanks(e).indexOf(tank)<0) return false;
+    if(q){ var blob=[e.driver,e.truck,e.supplier,e.doNo,e.tankLevel,e.usageType,e.usageOther,e.tank,e.from,e.dest,e.by,e.note].join(&quot; &quot;).toLowerCase(); if(blob.indexOf(q)<0) return false; }
     return true;
   });
   if(!list.length){ $(&quot;book&quot;).innerHTML='<div class=&quot;empty&quot;><b>No entries</b>Submitted receiving, usage and transfers appear here.</div>'; return; }
-  var h='<table><thead><tr><th>Date &amp;amp; time</th><th>Type</th><th>Detail</th><th class=&quot;num&quot;>In (L)</th><th class=&quot;num&quot;>Out (L)</th><th>By</th><th>Photos</th><th></th></tr></thead><tbody>';
+  var h='<table><thead><tr><th>Date &amp;amp; time</th><th>Type</th><th>Detail</th><th>Tank in</th><th>Tank out</th><th class=&quot;num&quot;>In (L)</th><th class=&quot;num&quot;>Out (L)</th><th>By</th><th>Photos</th><th></th></tr></thead><tbody>';
   list.forEach(function(e){
     var inL = e.kind===&quot;receive&quot;? num(e.received):0;
     var outL = e.kind===&quot;receive&quot;?0:num(e.litres);
+    var tIn = e.kind===&quot;receive&quot;? canonTank(e.tank) : (e.kind===&quot;transfer&quot;? canonTank(e.dest) : &quot;&quot;);
+    var tOut = e.kind===&quot;usage&quot;? canonTank(e.from) : (e.kind===&quot;transfer&quot;? canonTank(e.from) : &quot;&quot;);
     var nPh=allPhotoKeys(e).length;
     h+='<tr><td style=&quot;white-space:nowrap&quot;>'+esc(fmtDT(e.date))+'</td><td>'+kindFlag(e.kind)+'</td>'+
       '<td>'+esc(detailOf(e))+(e.note?'<div style=&quot;color:var(--ink-soft)&quot;>'+esc(e.note)+'</div>':&quot;&quot;)+'</td>'+
+      '<td>'+(tIn?esc(tIn):&quot;—&quot;)+'</td><td>'+(tOut?esc(tOut):&quot;—&quot;)+'</td>'+
       '<td class=&quot;num&quot;>'+(inL?litres(inL):&quot;—&quot;)+'</td><td class=&quot;num&quot;>'+(outL?litres(outL):&quot;—&quot;)+'</td>'+
       '<td>'+esc(e.driver||e.by||&quot;—&quot;)+'</td>'+
       '<td>'+(nPh?'<button class=&quot;tiny&quot; data-ph=&quot;'+e.id+'&quot;>View '+nPh+'</button>':&quot;—&quot;)+'</td>'+
@@ -4866,6 +4885,7 @@ $(&quot;lb&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.target===
 $(&quot;okClose&quot;).addEventListener(&quot;click&quot;,hideSuccess);
 $(&quot;okModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.target===$(&quot;okModal&quot;)) hideSuccess(); });
 $(&quot;bKind&quot;).addEventListener(&quot;change&quot;,drawBook);
+if($(&quot;bTank&quot;)) $(&quot;bTank&quot;).addEventListener(&quot;change&quot;,drawBook);
 $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
 $(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
   var head=[&quot;datetime&quot;,&quot;type&quot;,&quot;tank_in&quot;,&quot;tank_out&quot;,&quot;detail&quot;,&quot;in_litres&quot;,&quot;out_litres&quot;,&quot;meter_before&quot;,&quot;meter_after&quot;,&quot;tank_level&quot;,&quot;do_no&quot;,&quot;by&quot;,&quot;note&quot;];
@@ -5006,7 +5026,7 @@ window.setEntity=setEntity;
 (async function(){
   entries=await load(ENTRY_KEY,[]); if(!Array.isArray(entries)) entries=[];
   deletedD=await load(DEL_KEY,[]); if(!Array.isArray(deletedD)) deletedD=[];
-  fillTankSelect(&quot;rTankSel&quot;, true); fillTankSelect(&quot;uFrom&quot;, true); fillTankSelect(&quot;xFrom&quot;, true); fillTankSelect(&quot;xDest&quot;, true);
+  fillTankSelect(&quot;rTankSel&quot;, true); fillTankSelect(&quot;uFrom&quot;, true); fillTankSelect(&quot;xFrom&quot;, true); fillTankSelect(&quot;xDest&quot;, true); fillBookTankFilter();
   $(&quot;rWhen&quot;).value=nowLocalDT(); $(&quot;uWhen&quot;).value=nowLocalDT(); $(&quot;xWhen&quot;).value=nowLocalDT();
   recalcRecv(); refreshHead(); drawStock();
 })();
