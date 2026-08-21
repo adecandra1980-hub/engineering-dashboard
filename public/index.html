@@ -4868,9 +4868,11 @@ $(&quot;okModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.targ
 $(&quot;bKind&quot;).addEventListener(&quot;change&quot;,drawBook);
 $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
 $(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
-  var head=[&quot;datetime&quot;,&quot;type&quot;,&quot;detail&quot;,&quot;in_litres&quot;,&quot;out_litres&quot;,&quot;meter_before&quot;,&quot;meter_after&quot;,&quot;tank_level&quot;,&quot;do_no&quot;,&quot;by&quot;,&quot;note&quot;];
+  var head=[&quot;datetime&quot;,&quot;type&quot;,&quot;tank_in&quot;,&quot;tank_out&quot;,&quot;detail&quot;,&quot;in_litres&quot;,&quot;out_litres&quot;,&quot;meter_before&quot;,&quot;meter_after&quot;,&quot;tank_level&quot;,&quot;do_no&quot;,&quot;by&quot;,&quot;note&quot;];
+  function tankIn(e){ if(e.kind===&quot;receive&quot;) return canonTank(e.tank); if(e.kind===&quot;transfer&quot;) return canonTank(e.dest); return &quot;&quot;; }
+  function tankOut(e){ if(e.kind===&quot;usage&quot;) return canonTank(e.from); if(e.kind===&quot;transfer&quot;) return canonTank(e.from); return &quot;&quot;; }
   var rows=entries.slice().sort(function(a,b){ return (a.ts||a.id)-(b.ts||b.id); }).map(function(e){
-    return [fmtDT(e.date), e.kind, detailOf(e), e.kind===&quot;receive&quot;?num(e.received):0, e.kind===&quot;receive&quot;?0:num(e.litres),
+    return [fmtDT(e.date), e.kind, tankIn(e), tankOut(e), detailOf(e), e.kind===&quot;receive&quot;?num(e.received):0, e.kind===&quot;receive&quot;?0:num(e.litres),
       e.meterBefore||&quot;&quot;, e.meterAfter||&quot;&quot;, e.tankLevel||&quot;&quot;, e.doNo||&quot;&quot;, e.driver||e.by||&quot;&quot;, (e.note||&quot;&quot;).replace(/[\r\n]+/g,&quot; &quot;)];
   });
   var csv=[head].concat(rows).map(function(r){ return r.map(function(c){ return '&quot;'+String(c).replace(/&quot;/g,'&quot;&quot;')+'&quot;'; }).join(&quot;,&quot;); }).join(&quot;\n&quot;);
@@ -4881,20 +4883,21 @@ $(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
 /* per-tank running balance: latest stock opname per tank is the baseline,
    then receipts / transfers-in add and usage / transfers-out subtract after it. */
 function tankStock(){
-  /* Per-tank stock = latest stock opname value (opening balance) + EVERY movement for
-     that tank (receipts add, usage &amp; transfers-out subtract, transfers-in add). Movements
-     always count — a receiving is never ignored, even if dated before a stock count. */
-  var base={}, bal={};
-  function ensure(t){ if(!(t in bal)){ base[t]=0; bal[t]=0; } }
+  /* Per-tank stock = latest stock opname value (opening balance, by event date) + only the
+     movements DATED AFTER that opname for the tank (receipts / transfers-in add, usage /
+     transfers-out subtract). A stock opname is a full physical recount, so anything before it
+     is already inside the counted litres and must NOT be applied again. */
+  var base={}, baseTs={}, bal={};
+  function ensure(t){ if(!(t in bal)){ base[t]=0; baseTs[t]=-Infinity; bal[t]=0; } }
   TANKS.forEach(ensure);
-  var seqOf=function(e){ return e.id||e.ts||0; };
-  var ops=entries.filter(function(e){ return e.kind===&quot;opname&quot;; }).sort(function(a,b){ return seqOf(a)-seqOf(b); });
-  ops.forEach(function(o){ (o.tanks||[]).forEach(function(rec){ var nm=canonTank(rec.name); ensure(nm); base[nm]=num(rec.litres); }); });
+  var tsOf=function(e){ var d=Date.parse(e.date); return isFinite(d)?d:(e.ts||e.id||0); };
+  var ops=entries.filter(function(e){ return e.kind===&quot;opname&quot;; }).sort(function(a,b){ return tsOf(a)-tsOf(b); });
+  ops.forEach(function(o){ var ot=tsOf(o); (o.tanks||[]).forEach(function(rec){ var nm=canonTank(rec.name); ensure(nm); base[nm]=num(rec.litres); baseTs[nm]=ot; }); });
   Object.keys(base).forEach(function(t){ bal[t]=base[t]; });
-  entries.forEach(function(e){
-    if(e.kind===&quot;receive&quot;){ var t=canonTank(e.tank); ensure(t); bal[t]+=num(e.received); }
-    else if(e.kind===&quot;usage&quot;){ var u=canonTank(e.from); ensure(u); bal[u]-=num(e.litres); }
-    else if(e.kind===&quot;transfer&quot;){ var s=canonTank(e.from), d=canonTank(e.dest); ensure(s); ensure(d); bal[s]-=num(e.litres); bal[d]+=num(e.litres); }
+  entries.forEach(function(e){ var s=tsOf(e);
+    if(e.kind===&quot;receive&quot;){ var t=canonTank(e.tank); ensure(t); if(s>baseTs[t]) bal[t]+=num(e.received); }
+    else if(e.kind===&quot;usage&quot;){ var u=canonTank(e.from); ensure(u); if(s>baseTs[u]) bal[u]-=num(e.litres); }
+    else if(e.kind===&quot;transfer&quot;){ var a=canonTank(e.from), d=canonTank(e.dest); ensure(a); ensure(d); if(s>baseTs[a]) bal[a]-=num(e.litres); if(s>baseTs[d]) bal[d]+=num(e.litres); }
   });
   return bal;
 }
@@ -4921,7 +4924,7 @@ function drawStock(){
   if($(&quot;totalTiles&quot;)) $(&quot;totalTiles&quot;).innerHTML=
     tile(&quot;Received&quot;, t.recv, &quot;t-good&quot;) + tile(&quot;Used&quot;, t.use, &quot;t-warn&quot;) +
     tile(&quot;Transferred&quot;, t.xfer, &quot;&quot;) +
-    tile(&quot;Total Stock&quot;, opnameTotal, opnameTotal>0?&quot;t-good&quot;:&quot;t-bad&quot;, &quot;sum of all tanks · opening balance + movements&quot;);
+    tile(&quot;Total Stock&quot;, opnameTotal, opnameTotal>0?&quot;t-good&quot;:&quot;t-bad&quot;, &quot;sum of all tanks · last opname + movements after it&quot;);
   // per-tank tiles (canonical tanks + any legacy names found in the data)
   if($(&quot;tankTiles&quot;)) $(&quot;tankTiles&quot;).innerHTML=allTankNames.map(function(tk){
     var v=num(bal[tk]); var cls=v<0?&quot;t-bad&quot;:(v<=0?&quot;t-warn&quot;:&quot;t-good&quot;);
@@ -4930,7 +4933,7 @@ function drawStock(){
       '<div class=&quot;tt-val&quot;'+(v<0?' style=&quot;color:var(--bad)&quot;':'')+'>'+litres(v)+' <small>L</small></div>'+
       '<div class=&quot;tt-sub&quot;>'+(legacy?&quot;legacy tank name&quot;:&quot;current stock&quot;)+'</div></div>';
   }).join(&quot;&quot;);
-  if($(&quot;stockNote&quot;)) $(&quot;stockNote&quot;).textContent=&quot;Per-tank stock counts each receipt into its tank, adds transfers in, and subtracts usage and transfers out (stock opname resets the baseline).&quot;;
+  if($(&quot;stockNote&quot;)) $(&quot;stockNote&quot;).textContent=&quot;Per-tank stock = the latest stock opname (physical count) plus only the receipts, usage and transfers dated after it. A stock opname resets the baseline, so transactions before it are not counted again.&quot;;
   // last stock opname
   var ops=entries.filter(function(e){ return e.kind===&quot;opname&quot;; }).sort(function(a,b){ return (b.ts||b.id)-(a.ts||a.id); });
   if($(&quot;lastOpname&quot;)) $(&quot;lastOpname&quot;).textContent = ops.length ? (&quot;Last stock opname: &quot;+litres(num(ops[0].total))+&quot; L on &quot;+fmtDT(ops[0].date)+&quot; by &quot;+(ops[0].by||&quot;—&quot;)) : &quot;No stock opname recorded yet.&quot;;
@@ -6084,16 +6087,18 @@ function dieselTotals(){
 }
 /* opname-anchored total stock, matching the Stock tab's "Total Stock" tile */
 function dieselTotalStock(){
-  const es=dieselEntries()||[]; const base={},baseSeq={},bal={};
-  function ensure(t){ if(!(t in bal)){ base[t]=0; baseSeq[t]=-Infinity; bal[t]=0; } }
+  const es=dieselEntries()||[]; const base={},baseTs={},bal={};
+  function ensure(t){ if(!(t in bal)){ base[t]=0; baseTs[t]=-Infinity; bal[t]=0; } }
   DIESEL_TANKS.forEach(ensure);
-  const seqOf=x=>(+x.id)||(+x.ts)||0;
-  es.filter(x=>x.kind==='opname').sort((a,b)=>seqOf(a)-seqOf(b)).forEach(function(o){ (o.tanks||[]).forEach(function(rec){ var nm=canonT(rec.name); ensure(nm); base[nm]=(+rec.litres||0); baseSeq[nm]=seqOf(o); }); });
+  const tsOf=x=>{ const d=Date.parse(x.date); return isFinite(d)?d:((+x.ts)||(+x.id)||0); };
+  es.filter(x=>x.kind==='opname').sort((a,b)=>tsOf(a)-tsOf(b)).forEach(function(o){ var ot=tsOf(o); (o.tanks||[]).forEach(function(rec){ var nm=canonT(rec.name); ensure(nm); base[nm]=(+rec.litres||0); baseTs[nm]=ot; }); });
   Object.keys(base).forEach(t=>bal[t]=base[t]);
-  es.forEach(function(x){ var sq=seqOf(x);
-    if(x.kind==='receive'){ var t=canonT(x.tank); ensure(t); if(sq>baseSeq[t]) bal[t]+=(+x.received||0); }
-    else if(x.kind==='usage'){ var u=canonT(x.from); ensure(u); if(sq>baseSeq[u]) bal[u]-=(+x.litres||0); }
-    else if(x.kind==='transfer'){ var s=canonT(x.from),d=canonT(x.dest); ensure(s); ensure(d); if(sq>baseSeq[s]) bal[s]-=(+x.litres||0); if(sq>baseSeq[d]) bal[d]+=(+x.litres||0); }
+  /* opening balance + only movements DATED AFTER the last opname (a stock opname is a full
+     physical recount, so earlier transactions are already inside it). Matches the diesel log. */
+  es.forEach(function(x){ var s=tsOf(x);
+    if(x.kind==='receive'){ var t=canonT(x.tank); ensure(t); if(s>baseTs[t]) bal[t]+=(+x.received||0); }
+    else if(x.kind==='usage'){ var u=canonT(x.from); ensure(u); if(s>baseTs[u]) bal[u]-=(+x.litres||0); }
+    else if(x.kind==='transfer'){ var a=canonT(x.from),d=canonT(x.dest); ensure(a); ensure(d); if(s>baseTs[a]) bal[a]-=(+x.litres||0); if(s>baseTs[d]) bal[d]+=(+x.litres||0); }
   });
   let tot=0; Object.keys(bal).forEach(t=>tot+=bal[t]); return tot;
 }
