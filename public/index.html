@@ -4364,7 +4364,7 @@ var CREDS={};
         <p>Receiving · Usage · Transfer — evidence &amp;amp; running stock</p>
       </div>
       <div class=&quot;stats&quot;>
-        <div class=&quot;stat&quot;><div class=&quot;k&quot;>Current stock</div><div class=&quot;v good&quot; id=&quot;sStock&quot;>0<small>L</small></div></div>
+        <div class=&quot;stat&quot;><div class=&quot;k&quot;>Total Stock</div><div class=&quot;v good&quot; id=&quot;sStock&quot;>0<small>L</small></div></div>
         <div class=&quot;stat&quot;><div class=&quot;k&quot;>Received</div><div class=&quot;v&quot; id=&quot;sRecv&quot;>0<small>L</small></div></div>
         <div class=&quot;stat&quot;><div class=&quot;k&quot;>Used</div><div class=&quot;v&quot; id=&quot;sUse&quot;>0<small>L</small></div></div>
         <div class=&quot;stat&quot;><div class=&quot;k&quot;>Transferred</div><div class=&quot;v&quot; id=&quot;sXfer&quot;>0<small>L</small></div></div>
@@ -4802,8 +4802,8 @@ function totals(){
   entries.forEach(function(e){ if(e.kind===&quot;receive&quot;) recv+=num(e.received); else if(e.kind===&quot;usage&quot;) use+=num(e.litres); else if(e.kind===&quot;transfer&quot;) xfer+=num(e.litres); });
   return {recv:recv,use:use,xfer:xfer,stock:recv-use-xfer};
 }
-function refreshHead(){ var t=totals();
-  $(&quot;sStock&quot;).innerHTML=litres(t.stock)+'<small>L</small>'; $(&quot;sStock&quot;).className=&quot;v &quot;+(t.stock<0?&quot;warn&quot;:&quot;good&quot;);
+function refreshHead(){ var t=totals(); var ts=totalStock();
+  $(&quot;sStock&quot;).innerHTML=litres(ts)+'<small>L</small>'; $(&quot;sStock&quot;).className=&quot;v &quot;+(ts<0?&quot;warn&quot;:&quot;good&quot;);
   $(&quot;sRecv&quot;).innerHTML=litres(t.recv)+'<small>L</small>';
   $(&quot;sUse&quot;).innerHTML=litres(t.use)+'<small>L</small>';
   $(&quot;sXfer&quot;).innerHTML=litres(t.xfer)+'<small>L</small>';
@@ -5004,6 +5004,12 @@ function tankStock(){
   });
   return bal;
 }
+/* Total Stock = sum of every tank balance (same figure shown in the Stock Summary). */
+function totalStock(){
+  var bal=tankStock(), names=TANKS.slice();
+  Object.keys(bal).forEach(function(t){ if(names.indexOf(t)<0) names.push(t); });
+  return names.reduce(function(s,tk){ return s+num(bal[tk]); },0);
+}
 function drawStock(){
   var byUse={}, byX={};
   entries.forEach(function(e){ if(e.kind===&quot;usage&quot;){ var k=e.usageType===&quot;Others&quot;?(&quot;Others: &quot;+(e.usageOther||&quot;other&quot;)):e.usageType; byUse[k]=(byUse[k]||0)+num(e.litres); }
@@ -5023,7 +5029,7 @@ function drawStock(){
   var bal=tankStock();
   var allTankNames=TANKS.slice();
   Object.keys(bal).forEach(function(t){ if(allTankNames.indexOf(t)<0) allTankNames.push(t); });
-  var opnameTotal=allTankNames.reduce(function(s,tk){ return s+num(bal[tk]); },0);
+  var opnameTotal=totalStock();
   if($(&quot;totalTiles&quot;)) $(&quot;totalTiles&quot;).innerHTML=
     tile(&quot;Received&quot;, t.recv, &quot;t-good&quot;) + tile(&quot;Used&quot;, t.use, &quot;t-warn&quot;) +
     tile(&quot;Transferred&quot;, t.xfer, &quot;&quot;) +
