@@ -1157,6 +1157,35 @@ var IKG_CFG = {
   stopcats: DEFAULT_CFG.stopcats.slice(),
   types: DEFAULT_CFG.types.slice()
 };
+/* SAAT has its own dedicated machine list (unlinked from ALCO).
+   Primary Line is identical to ALCO's Primary Line (cloned from DEFAULT_CFG). */
+var SAAT_CFG = {
+  nameV: 1,
+  categories:[
+    { id:&quot;sa1&quot;, name:&quot;Cigarette Making Line&quot;, lines:[
+        { id:&quot;sa1l1&quot;, name:&quot;Line 1 (Protos 90T-1)&quot; },
+        { id:&quot;sa1l2&quot;, name:&quot;Line 2 (Super 9-KS)&quot; } ] },
+    { id:&quot;sa2&quot;, name:&quot;Cigarette Packing Line&quot;, lines:[
+        { id:&quot;sa2l1&quot;, name:&quot;Line 1 (GDX6R FP)&quot; },
+        { id:&quot;sa2l2&quot;, name:&quot;Line 2 (HLP2 - 12KS)&quot; } ] },
+    { id:&quot;sa3&quot;, name:&quot;Filter Making Line&quot;, lines:[
+        { id:&quot;sa3l1&quot;, name:&quot;Line F1 (FM400)&quot; } ] },
+    { id:&quot;c5&quot;, name:&quot;Primary Line&quot;, lines:
+        JSON.parse(JSON.stringify(DEFAULT_CFG.categories.filter(function(c){return c.id===&quot;c5&quot;;})[0].lines)) },
+    { id:&quot;sa6&quot;, name:&quot;Clove Line&quot;, lines:[
+        { id:&quot;sa6l1&quot;, name:&quot;Flattener&quot; },
+        { id:&quot;sa6l2&quot;, name:&quot;Ad moist&quot; },
+        { id:&quot;sa6l3&quot;, name:&quot;HT Tunnel&quot; },
+        { id:&quot;sa6l4&quot;, name:&quot;Cutter KTH&quot; },
+        { id:&quot;sa6l5&quot;, name:&quot;Buffer Feeder&quot; },
+        { id:&quot;sa6l6&quot;, name:&quot;Silo&quot; },
+        { id:&quot;sa6l7&quot;, name:&quot;Conveyor&quot; },
+        { id:&quot;sa6l8&quot;, name:&quot;Vibro Conveyor&quot; },
+        { id:&quot;sa6l9&quot;, name:&quot;Classifier&quot; } ] }
+  ],
+  stopcats: DEFAULT_CFG.stopcats.slice(),
+  types: DEFAULT_CFG.types.slice()
+};
 var ENT = &quot;ALCO&quot;, ALCO_CFG = null;
 
 /* ---- machine specific downtime lists ----
@@ -1681,14 +1710,28 @@ var TYPE_SETS = {
   &quot;TOTAL VENTILATION MIN&quot;,
   &quot;TOTAL VENTILATION MAX&quot;,
   &quot;TABLE GENERATION&quot;
-] }
+] },
+  gdx6rfp: { title:&quot;GDX6R FP&quot;, groups:[
+      { label:&quot;AM-14&quot;, prefix:&quot;&quot;, items:&quot;SERVICE STOP|ELEVATOR JAM|JAM - TRAY LOCK TOOTH CLOSURE|TRAY INFEED GUARD OPEN - Right|INSUFFICIENT AIR PRESSURE|INCOHERENCE - TIPPER HOPPER PHOTOCELL|TRAY INFEED MOTOR GUARD OPEN|MAXIMUM MAKER SPEED&quot;.split(&quot;|&quot;) },
+      { label:&quot;CB&quot;, prefix:&quot;&quot;, items:&quot;DRIVE BREAKDOWN - CHANNEL A|DRIVE BREAKDOWN - CHANNEL B|ETHERCAT WORKING COUNTER INVALID&quot;.split(&quot;|&quot;) },
+      { label:&quot;IL&quot;, prefix:&quot;&quot;, items:&quot;MOTOR FAULT|STOP FROM CABINET|NO FOIL MARK|CHECK - LABEL PRESENCE - Maximum consecutive failed checks|CHECK - LABEL PRESENCE - Inefficiency|BUFFER LEVEL AT MAX - Flap label curling|SUCTION STOP|LABELLER GROUP - NOT OPERATING&quot;.split(&quot;|&quot;) },
+      { label:&quot;XT&quot;, prefix:&quot;&quot;, items:&quot;BUNDLE EXTRACTION BELT FROM MANDREL WHEEL OPEN|MOTOR FAULT - Extraction belt from mandrels wheel|INNER -STIFFENER UNWINDER ROLLER OPENING FOR GLUING AND CUT - Notcher|JAM: DISARRANGED CIGARETTE BUNDLE|INNER-STIFFENER DESCENT JAM|NO CIGARETTE IN VEIN 01|NO CIGARETTE IN VEIN 02|NO CIGARETTE IN VEIN 03|NO CIGARETTE IN VEIN 04|NO CIGARETTE IN VEIN 05|NO CIGARETTE IN VEIN 06|NO CIGARETTE IN VEIN 07|NO CIGARETTE IN VEIN 08|NO CIGARETTE IN VEIN 09|NO CIGARETTE IN VEIN 10|NO CIGARETTE IN VEIN 11|NO CIGARETTE IN VEIN 12|NO CIGARETTE IN VEIN 13|NO CIGARETTE IN VEIN 14|NO CIGARETTE IN VEIN 15|NO CIGARETTE IN VEIN 16|ENTRY BIN REJECTS LEVEL EXCESSIVE|MOTOR NOT SYNCHRONIZED|INCOMPLETE CIGARETTE POCKETS|LOOSE ENDS IN CIGARETTE POCKETS|BUNDLE JAM IN POCKET|INCOMING REJECTS TRAY ABSENT|MATERIAL PRESENCE - Outer presence check|BUFFER FILLING LEVEL|INNER STIFFENERE MISALIGNED AT ENTRY OF MANDREL WHEEL|INNER- STIFFENER WITH MISSING RIGHT FLAP|UNWIDER ROLLER OPENING - INNER STIFFENER SCRAP - Scrapper|INNER-STIFFENER NOTCHING ERROR EXCEEDING THE MAX|INNER-STIFFENER SPLICE CHECK INEFFICIENT - Inner splice|LACK OF REFERENCE FOR INNER-STIFFENER NOTCHING|LACK OF REFERENCE FOR INNER-STIFFENER CENTERING&quot;.split(&quot;|&quot;) },
+      { label:&quot;ISC&quot;, prefix:&quot;&quot;, items:&quot;END OF LEFT INNER-STIFFENER REEL|BUFFER FILLING LEVEL - Out of range|BUFFER FILLING LEVEL - Minimum|INNER - STIFFENER PRE-UNWINDER ROLLER OPENING|END OF RIGHT INNER-STIFFENER REEL|MOTOR FAULT - Inner stiffener preunwinder&quot;.split(&quot;|&quot;) },
+      { label:&quot;XV&quot;, prefix:&quot;&quot;, items:&quot;TOO MANY REJECTS - Notch phasing|REJECT BIN FULL - Lower belt|TOO MANY REJECTS - Mark absence check|HOME FAILED - Unwinder|MOTOR FAULT - Upper belt|FAIL: PACKET COUNT - Pile-up belt|PHOTOCELL INCOHERENCE - Pile-up belt|MOTOR FAULT - Transversal sealer motor|TOO MANY REJECTS - Label check|STOP FROM INNER WRAP AUTOMATION|TORQUE LIMITER - Bundle belt|MOTOR FAULT - Bundle belt|BUNDLE ACCUMULATION CYCLE FAILED - Bundle synchronization|BUNDLE OUT OF POSITION - Spaceroller&quot;.split(&quot;|&quot;) },
+      { label:&quot;XX&quot;, prefix:&quot;&quot;, items:&quot;PACKET JAM ON 2ND WHEEL ENTRY|UNWANTED PRESENCE IN 2ND WHEEL|NO INNER-FRAME ON 3RD WHEEL|5TH WHEEL FOLDERS OPEN|EXTRACTOR BELT TOOTH IN INTERFERENCE|EXTRACTOR LOWER BELT CHECK|EXTRACTOR UPPER BELT CHECK|EXCESSIVE BLANK STACK DROP|UPPER BEAM RETREAT PACKET/EXTRACTION JAM|JAM ON X EXIT CHANNEL|LOWER BEAM RETREAT PACKET/EXTRACTION JAM|NO STACK ON CONVEYOR BELT|MAIN MOTOR FAULT|BLANK PRES. ON 3RD D. BELT: INEFF. CHECK|3RD WHEEL HALF-RING OPEN|3RD JAM ON CHANNEL|BLANK HOPPER CONTRAST OPEN|UNWANTED ABSENCE IN 2ND WHEEL|BLANK ABSENT ON 3RD DRUM BELT|PACKET JAM AT 5TH WHEEL ENTRY|FAIL: PACKET REJECTION ON 4TH WHEEL|STACK LOADING MALFUNCTION|1ST JAM ON CHANNEL|PICK-UP FROM UPPER CONV. NOT IN POSITION|2ND JAM ON CHANNEL|EXTRACTOR EXIT FLOW CHECK JAM|NO PACKET ON 4TH WHEEL&quot;.split(&quot;|&quot;) },
+      { label:&quot;CR&quot;, prefix:&quot;&quot;, items:&quot;NO A.C. POWER&quot;.split(&quot;|&quot;) },
+      { label:&quot;CH&quot;, prefix:&quot;&quot;, items:&quot;NO CENTERING MARK ON FILM|REAR FILM PRESENCE PHOTOCELL BREAKDOWN|TORQUE REGULATOR TRIPPING|STAMP/COUPON ABSENCE ON WHEEL|INCOHERENCE: PACKET CHANNEL SENSORS|CH SPIDER: PACKET OUT OF POSITION|JAM ON CH ENTRY CHANNEL|END OF PACKETS IN HOPPER - CH|SERVICE STOP BUTTON PRESSED|STOP FROM CARTONER|CH TEAR-TAPE MISSING|END OR BREAK IN CH TEAR-TAPE|HANDWHEEL RELEASE|INSUFFICIENT VACUUM|CHECK: INNER SIDE PACKET OPEN AT ENTRY|BREAK/END OF FILM|CHECK: OUTER SIDE PACKET OPEN AT ENTRY|PACKET CENTERING PHOTOCELL INEFFICIENT|LEFT CH LONG-SEAM HEATER NOT READY|NO PACKET IN CH CHAIN|DOUBLE PACKET IN CH CHAIN|CH FEED JAM|PACKET TURNED AT CH ENTRANCE|TORQUE LIMITER FOR STACK PUSHER|FAIL: CH STAMP DETECTOR ON ROTATING HEAD|CH STACK ELEVATOR JAM|CH STAMP MISSING ON ROTATING HEAD|HEATERS OFF-LINE&quot;.split(&quot;|&quot;) },
+      { label:&quot;CT&quot;, prefix:&quot;&quot;, items:&quot;DIAGNOSIS: CARTON REJECT MOTOR DRIVER|END OF CV WRAPPING MATERIAL|CV OVERWRAP MISSING|CV PUSHER JAM|SHEET UNWINDING MOTOR NOT READY|STOP FROM CELLOPHANER|END OF TEAR-TAPE - \&quot;CV\&quot;|CT CONTRAST BRUSH OPEN|NO LOWER PACKET - STACK CHECK|UPPER CT CARTON FORMING|CV OVERWRAP BYPASSED|NO UPPER PACKET - STACK CHECK&quot;.split(&quot;|&quot;) },
+      { label:&quot;CX&quot;, prefix:&quot;&quot;, items:&quot;STOP FROM CABINET|JAM ON CH ENTRY CHANNEL|INCOHERENCE: PACKET CHANNEL SENSORS&quot;.split(&quot;|&quot;) }
+  ] }
 };
 /* which line uses which machine list; any line not listed falls back to the general list */
 var LINE_TYPE_SET = { c1l1:&quot;protos80&quot;, c1l2:&quot;protos80&quot;, c1l3:&quot;protos80&quot;, c1l4:&quot;protos80&quot;,
                       c1l5:&quot;protos90&quot;, c1l6:&quot;super9&quot;,
                       c2l1:&quot;focke350&quot;, c2l2:&quot;focke350&quot;, c2l3:&quot;focke350&quot;, c2l4:&quot;gdx6p&quot;, c2l5:&quot;gdx6r&quot;,
                       c2l6:&quot;hlp&quot;, c2l7:&quot;hlp&quot;,
-                      c3l1:&quot;kdf2af2&quot;, c3l2:&quot;kdf2af2&quot;, c3l3:&quot;kdf6&quot; };
+                      c3l1:&quot;kdf2af2&quot;, c3l2:&quot;kdf2af2&quot;, c3l3:&quot;kdf6&quot;,
+                      sa2l1:&quot;gdx6rfp&quot;, sa1l2:&quot;super9&quot;, sa2l2:&quot;hlp&quot; };
 
 var GROUP_LABEL = {
   VE:&quot;VE \u2014 feeder / distributor&quot;, SE:&quot;SE \u2014 maker / format unit&quot;,
@@ -3025,10 +3068,10 @@ function headline(){
    separate log store per entity (ALCO keeps the original keys). Called by the
    parent dashboard when the Entity selector changes. */
 async function setEntity(ent){
-  ent = (ent === &quot;IKG&quot;) ? &quot;IKG&quot; : &quot;ALCO&quot;;   /* only ALCO + IKG have dedicated lists so far */
+  if(ent !== &quot;IKG&quot; &amp;&amp; ent !== &quot;SAAT&quot;) ent = &quot;ALCO&quot;;   /* ALCO, IKG, SAAT have dedicated lists */
   if(ent === ENT) return;
   ENT = ent; loadCreds();
-  cfg = (ent === &quot;IKG&quot;) ? IKG_CFG : (ALCO_CFG || DEFAULT_CFG);
+  cfg = (ent === &quot;IKG&quot;) ? IKG_CFG : (ent === &quot;SAAT&quot;) ? SAAT_CFG : (ALCO_CFG || DEFAULT_CFG);
   EVT_KEY   = (ent === &quot;ALCO&quot;) ? &quot;tdl:events&quot;  : &quot;tdl:events:&quot;  + ent;
   DEL_KEY   = (ent === &quot;ALCO&quot;) ? &quot;tdl:deleted&quot; : &quot;tdl:deleted:&quot; + ent;
   DRAFT_KEY = (ent === &quot;ALCO&quot;) ? &quot;tdl:draft&quot;   : &quot;tdl:draft:&quot;   + ent;
@@ -6163,6 +6206,7 @@ window.setEntity=setEntity;
   </div>
   <input type=&quot;file&quot; id=&quot;ipCamIn&quot; accept=&quot;image/*&quot; capture=&quot;environment&quot; hidden>
   <input type=&quot;file&quot; id=&quot;ipFileIn&quot; accept=&quot;image/*&quot; multiple hidden>
+  <input type=&quot;file&quot; id=&quot;rcvPhotoIn&quot; accept=&quot;image/*&quot; capture=&quot;environment&quot; hidden>
   <div class=&quot;strip&quot; id=&quot;ipStrip&quot; style=&quot;margin-top:12px&quot;></div>
   <div class=&quot;noprint&quot; style=&quot;margin-top:16px;display:flex;gap:10px;justify-content:flex-end&quot;>
     <button class=&quot;act&quot; id=&quot;ipDone&quot;>Done</button>
@@ -6412,6 +6456,29 @@ async function confirmStep(f, key, label){
   await save(ENTRY_KEY,forms); refreshHead(); drawLog();
   toast(f[key]?(label+&quot; confirmed.&quot;):(label+&quot; confirmation removed.&quot;));
 }
+/* Used parts received — mandatory photo to close the form */
+var rcvPending=null;
+async function confirmReceived(f){
+  if(!f) return;
+  if(f.returned &amp;&amp; f.returned.at){ if(!confirm(&quot;Used parts received already confirmed. Undo it?&quot;)) return; if(!adminOK()) return; f.returned=null;
+    var ix=forms.findIndex(function(v){ return String(v.id)===String(f.id); }); if(ix>=0) forms[ix]=f; await save(ENTRY_KEY,forms); refreshHead(); drawLog(); toast(&quot;Received confirmation removed — form re-opened.&quot;); return; }
+  if(!adminOK()) return;
+  var nm=prompt(&quot;Used parts received (WH) — confirmed by (name):&quot;); if(nm===null) return; nm=(nm||&quot;&quot;).trim();
+  rcvPending={id:f.id, by:nm};
+  $(&quot;rcvPhotoIn&quot;).value=&quot;&quot;; $(&quot;rcvPhotoIn&quot;).click();   /* mandatory photo — form only closes once a photo is taken */
+}
+$(&quot;rcvPhotoIn&quot;).addEventListener(&quot;change&quot;, async function(e){
+  var file=e.target.files&amp;&amp;e.target.files[0]; e.target.value=&quot;&quot;;
+  if(!rcvPending) return;
+  if(!file){ toast(&quot;Photo is required — received NOT confirmed, form stays open.&quot;); rcvPending=null; return; }
+  var f=byId(rcvPending.id); if(!f){ rcvPending=null; return; }
+  try{ var data=await shrink(file); var key=&quot;spare:rcvphoto:&quot;+f.id; await save(key,data);
+    f.returned={by:rcvPending.by, at:Date.now(), photo:key};
+    var ix=forms.findIndex(function(v){ return String(v.id)===String(f.id); }); if(ix>=0) forms[ix]=f;
+    await save(ENTRY_KEY,forms); refreshHead(); drawLog(); toast(&quot;Received confirmed with photo — form closed.&quot;); }
+  catch(x){ toast(&quot;Could not process the photo — try again.&quot;); }
+  rcvPending=null;
+});
 function statusFlag(st){ var c={Requested:&quot;s-req&quot;,Approved:&quot;s-appr&quot;,Issued:&quot;s-issue&quot;,Verified:&quot;s-verify&quot;,Closed:&quot;s-closed&quot;}[st]||&quot;s-req&quot;; return '<span class=&quot;flag '+c+'&quot;>'+esc(st)+'</span>'; }
 function qtyReqTotal(f){ var t=0; (f.items||[]).forEach(function(it){ t+=num(it.qtyReq); }); return t; }
 function deptLabel(f){ if(!f.dept) return &quot;&quot;; return f.dept===&quot;OTHERS&quot; ? (&quot;Others: &quot;+(f.deptOther||&quot;&quot;)) : f.dept; }
@@ -6952,7 +7019,7 @@ function drawLog(){
   $(&quot;log&quot;).querySelectorAll(&quot;.pgLast&quot;).forEach(function(b){ b.onclick=function(){ logPage=pages; drawLog(); }; });
   $(&quot;log&quot;).querySelectorAll(&quot;[data-view]&quot;).forEach(function(b){ b.onclick=function(){ var f=byId(b.getAttribute(&quot;data-view&quot;)); if(f) openViewer(f); }; });
   $(&quot;log&quot;).querySelectorAll(&quot;[data-edit]&quot;).forEach(function(b){ b.onclick=function(){ var f=byId(b.getAttribute(&quot;data-edit&quot;)); if(f) editForm(f); }; });
-  CONF_COLS.forEach(function(c){ $(&quot;log&quot;).querySelectorAll(&quot;[data-&quot;+c.act+&quot;]&quot;).forEach(function(b){ b.onclick=function(){ confirmStep(byId(b.getAttribute(&quot;data-&quot;+c.act)),c.key,c.h); }; }); });
+  CONF_COLS.forEach(function(c){ $(&quot;log&quot;).querySelectorAll(&quot;[data-&quot;+c.act+&quot;]&quot;).forEach(function(b){ b.onclick=function(){ var f=byId(b.getAttribute(&quot;data-&quot;+c.act)); if(c.photo){ confirmReceived(f); } else { confirmStep(f,c.key,c.h); } }; }); });
   $(&quot;log&quot;).querySelectorAll(&quot;[data-del]&quot;).forEach(function(b){ b.onclick=async function(){
     var f=byId(b.getAttribute(&quot;data-del&quot;)); if(!canDelete()) return;
     forms=forms.filter(function(v){ return String(v.id)!==String(f.id); });
@@ -7003,6 +7070,8 @@ async function openViewer(f){
     for(var k=0;k<keys.length;k++){ var d=await load(keys[k],null); if(d) imgs+='<img src=&quot;'+d+'&quot; style=&quot;width:120px;height:120px;object-fit:cover;border:1px solid #000;margin:0 6px 6px 0&quot;>'; }
     if(imgs) photoHtml+='<div style=&quot;margin-top:6px&quot;><div style=&quot;font-family:var(--mono);font-size:10px&quot;>Item '+(pi+1)+' — '+esc(pit.partNo||pit.navDesc||&quot;&quot;)+'</div>'+imgs+'</div>';
   }
+  /* received-confirmation photo (closes the form) */
+  var rcvPhotoHtml=&quot;&quot;; if(f.returned &amp;&amp; f.returned.photo){ var rd=await load(f.returned.photo,null); if(rd) rcvPhotoHtml='<div style=&quot;font-weight:700;margin:10px 0 4px&quot;>Used parts received — photo evidence</div><img src=&quot;'+rd+'&quot; style=&quot;width:160px;height:160px;object-fit:cover;border:1px solid #000&quot;>'; }
   function sb(r){ var v=(f.sign&amp;&amp;f.sign[r.key])||{}; return '<div><div style=&quot;font-weight:700&quot;>'+esc(r.role)+'</div><div style=&quot;color:#555&quot;>'+esc(r.pos)+'</div>'+
     '<div style=&quot;margin-top:8px&quot;>Name: '+esc(v.name||&quot;&quot;)+'</div><div>Date: '+esc(v.date||&quot;&quot;)+'</div></div>'; }
   var html='<div class=&quot;doc&quot;><div class=&quot;dhead&quot;><div style=&quot;font-family:var(--disp);font-weight:700;font-size:22px&quot;>ALCO<div style=&quot;font-size:9px;letter-spacing:.1em&quot;>PT ALCOTRAINDO BATAM</div></div>'+
@@ -7019,6 +7088,7 @@ async function openViewer(f){
       '<div><div style=&quot;font-weight:700&quot;>Used parts received</div><div style=&quot;margin-top:8px&quot;>By: '+esc((f.returned&amp;&amp;f.returned.by)||&quot;&quot;)+'</div><div>Date: '+esc(f.returned&amp;&amp;f.returned.at?fmtDate(nowLocalFromTs(f.returned.at)):&quot;&quot;)+'</div></div>'+
       '<div><div style=&quot;font-weight:700&quot;>Status</div><div style=&quot;margin-top:8px&quot;>'+esc(statusOf(f))+'</div></div>'+
     '</div>'+
+    rcvPhotoHtml+
     (f.note?'<div style=&quot;margin-top:8px;font-family:var(--mono);font-size:11px&quot;><b>Notes:</b> '+esc(f.note)+'</div>':'')+
     '</div>';
   $(&quot;printArea&quot;).innerHTML=html; $(&quot;viewer&quot;).hidden=false;
