@@ -290,7 +290,11 @@
       </button>
       <button class="nav-item" data-page="spare">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Spare Part Request
+        Spare Part Request <span style="font-size:9px;color:var(--amber);font-weight:600;letter-spacing:.04em">(under development)</span>
+      </button>
+      <button class="nav-item" data-page="utility">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+        Water &amp; Electricity <span style="font-size:9px;color:var(--amber);font-weight:600;letter-spacing:.04em">(under development)</span>
       </button>
     </nav>
     <div class="sidebar-foot">
@@ -347,7 +351,11 @@
             </button>
             <button class="qn-btn" onclick="nav('spare')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-              Spare Part Request
+              Spare Part Request <span style="font-size:10px;color:var(--amber);font-weight:600">(under development)</span>
+            </button>
+            <button class="qn-btn" onclick="nav('utility')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+              Water &amp; Electricity Monitoring <span style="font-size:10px;color:var(--amber);font-weight:600">(under development)</span>
             </button>
           </div>
         </div>
@@ -7216,26 +7224,32 @@ function drawAnalysis(){
   var catAgg={};
   function avg1(a){ return a.length? Math.round(a.reduce(function(s,x){return s+x;},0)/a.length*10)/10 : null; }
   function avgI(a){ return a.length? Math.round(a.reduce(function(s,x){return s+x;},0)/a.length) : null; }
+  /* lifespan (hrs) = HM(this usage) − HM(previous usage), same part on same machine,
+     ordered by date then shift. Average = sum of those differences ÷ total usages
+     = (HM of last usage − HM of first usage) ÷ usages  (telescoping cancels bad values). */
   var lifeRows=Object.keys(ev).map(function(k){ var e=ev[k];
     e.events.sort(function(a,b){ return a.seq-b.seq; });
-    var dayInts=[], hmInts=[], cats={};
-    for(var i=1;i<e.events.length;i++){
-      var gs=e.events[i].seq - e.events[i-1].seq; var cc=e.events[i].cat||&quot;(uncategorized)&quot;;
-      if(gs>0){ var gd=gs/3; dayInts.push(gd); (catAgg[cc]||(catAgg[cc]={dayInts:[],hmInts:[],rows:{}})).dayInts.push(gd); catAgg[cc].rows[k]=1; }
-      var h0=e.events[i-1].hm, h1=e.events[i].hm; if(h0>0&amp;&amp;h1>0&amp;&amp;h1>=h0){ hmInts.push(h1-h0); (catAgg[cc]||(catAgg[cc]={dayInts:[],hmInts:[],rows:{}})).hmInts.push(h1-h0); catAgg[cc].rows[k]=1; }
-    }
+    var cats={}, dayInts=[];
     for(var j=0;j<e.events.length;j++){ var c2=e.events[j].cat; if(c2) cats[c2]=(cats[c2]||0)+1; }
+    for(var g=1;g<e.events.length;g++){ var gs=e.events[g].seq-e.events[g-1].seq; if(gs>0) dayInts.push(gs/3); }
     var cat=Object.keys(cats).sort(function(a,b){return cats[b]-cats[a];})[0]||&quot;—&quot;;
+    var uses=e.events.length;
+    /* first/last usages that carry a real HM value */
+    var hmEvents=e.events.filter(function(ev){ return anNum(ev.hm)>0; });
+    var firstHM=hmEvents.length?anNum(hmEvents[0].hm):null;
+    var lastHM=hmEvents.length?anNum(hmEvents[hmEvents.length-1].hm):null;
+    var span=(firstHM!=null&amp;&amp;lastHM!=null)?(lastHM-firstHM):null;
+    var avgHM=(span!=null&amp;&amp;span>=0&amp;&amp;uses>0)?Math.round(span/uses):null;   /* negative span = meter reset / bad reading → not meaningful */
+    var lastLife=(hmEvents.length>=2)?Math.round(anNum(hmEvents[hmEvents.length-1].hm)-anNum(hmEvents[hmEvents.length-2].hm)):null;
     var first=e.events[0], last=e.events[e.events.length-1];
-    return {partNo:e.partNo, machine:e.machine, desc:e.desc, cat:cat, uses:e.events.length,
-      replacements:Math.max(0,e.events.length-1),
-      avgHM:avgI(hmInts), minHM:(hmInts.length?Math.round(Math.min.apply(null,hmInts)):null), maxHM:(hmInts.length?Math.round(Math.max.apply(null,hmInts)):null),
-      avgDay:avg1(dayInts),
-      first:first?{date:first.date,shift:first.shift}:null, last:last?{date:last.date,shift:last.shift}:null };
+    if(span!=null&amp;&amp;span>=0){ var cc2=cat; (catAgg[cc2]||(catAgg[cc2]={span:0,uses:0,rows:{}})); catAgg[cc2].span+=span; catAgg[cc2].uses+=uses; catAgg[cc2].rows[k]=1; }
+    return {partNo:e.partNo, machine:e.machine, desc:e.desc, cat:cat, uses:uses,
+      span:(span!=null?Math.round(span):null), avgHM:avgHM, lastLife:lastLife, avgDay:avg1(dayInts),
+      first:first?{date:first.date,shift:first.shift,hm:firstHM}:null, last:last?{date:last.date,shift:last.shift,hm:lastHM}:null };
   });
-  lifeRows.sort(function(a,b){ return (b.replacements-a.replacements)||(b.uses-a.uses); });
-  var lifeCatRows=Object.keys(catAgg).map(function(c){ var x=catAgg[c]; return {cat:c,avgDay:avg1(x.dayInts),avgHM:avgI(x.hmInts),parts:Object.keys(x.rows).length,samples:x.dayInts.length}; });
-  lifeCatRows.sort(function(a,b){ return (a.avgDay||1e9)-(b.avgDay||1e9); });
+  lifeRows.sort(function(a,b){ return (b.uses-a.uses); });
+  var lifeCatRows=Object.keys(catAgg).map(function(c){ var x=catAgg[c]; return {cat:c,avgHM:(x.uses>0?Math.round(x.span/x.uses):null),parts:Object.keys(x.rows).length,samples:x.uses}; });
+  lifeCatRows.sort(function(a,b){ return (a.avgHM||1e9)-(b.avgHM||1e9); });
   anLast.life=lifeRows; anLast.lifeCat=lifeCatRows;
 
   /* ===== usage per machine, weekly / monthly ===== */
@@ -7252,16 +7266,16 @@ function drawAnalysis(){
   anLast.pivot={period:period,periods:periods,rows:machRows};
 
   /* ===== render ===== */
-  var totalReplace=lifeRows.reduce(function(s,r){return s+r.replacements;},0);
-  var withLife=lifeRows.filter(function(r){return r.replacements>0;}).length;
-  var h='<div class=&quot;an-kpis&quot;>'+anKpi(&quot;Forms&quot;,list.length)+anKpi(&quot;Part · machine pairs&quot;,lifeRows.length)+anKpi(&quot;Pairs with lifespan&quot;,withLife)+anKpi(&quot;Replacement intervals&quot;,totalReplace)+anKpi(&quot;Machines&quot;,machRows.length)+'</div>';
+  var totalUses=lifeRows.reduce(function(s,r){return s+r.uses;},0);
+  var withLife=lifeRows.filter(function(r){return r.avgHM!=null;}).length;
+  var h='<div class=&quot;an-kpis&quot;>'+anKpi(&quot;Forms&quot;,list.length)+anKpi(&quot;Part · machine pairs&quot;,lifeRows.length)+anKpi(&quot;Pairs with lifespan&quot;,withLife)+anKpi(&quot;Total usages&quot;,totalUses)+anKpi(&quot;Machines&quot;,machRows.length)+'</div>';
 
   /* Section 1: lifespan by category summary (running hours) */
   h+=anBarSection(&quot;Average lifespan by spare-part category&quot;,&quot;Average running hours (Machine HM) between replacements — &quot;+(catFilter||&quot;all categories&quot;),
     lifeCatRows.filter(function(c){return c.avgHM!=null;}).map(function(c){ return {label:c.cat, value:c.avgHM, sub:c.parts+&quot; part·machine&quot;}; }),&quot;&quot;);
 
   /* Section 1b: per-part-per-machine lifespan table (rendered by drawLifeDetail) */
-  h+='<div class=&quot;an-sec&quot;><h3>Part lifespan detail</h3><div class=&quot;sub&quot;>One row per Part Number on each machine · lifespan (hrs) = difference in Machine HM between one request and the next for the same part on the same machine, ordered by date then shift (e.g. HM 45143 → 45148 = 5 hrs) · filter and sort each column</div><div id=&quot;anLifeWrap&quot;></div></div>';
+  h+='<div class=&quot;an-sec&quot;><h3>Part lifespan detail</h3><div class=&quot;sub&quot;>One row per Part Number on each machine · each usage\'s lifespan = Machine HM(this) − HM(previous usage), same machine, ordered by date then shift (e.g. 45148 − 45143 = 5 hrs) · Avg life (hrs) = (last HM − first HM) ÷ total usages · filter and sort each column</div><div id=&quot;anLifeWrap&quot;></div></div>';
 
   /* Section 2: usage per machine, pivot */
   var phead=periods.map(function(k){ return '<th class=&quot;num&quot;>'+esc(plbl(k))+'</th>'; }).join(&quot;&quot;);
@@ -7282,24 +7296,21 @@ var LIFE_COLS=[
   {k:&quot;cat&quot;,         h:&quot;Category&quot;,          filter:true},
   {k:&quot;desc&quot;,        h:&quot;Description&quot;,        filter:true},
   {k:&quot;partNo&quot;,      h:&quot;Part No.&quot;, bold:true,filter:true},
-  {k:&quot;uses&quot;,        h:&quot;Uses&quot;,              num:true},
-  {k:&quot;replacements&quot;,h:&quot;Replacements&quot;,      num:true},
+  {k:&quot;uses&quot;,        h:&quot;Usages&quot;,            num:true},
   {k:&quot;avgHM&quot;,       h:&quot;Avg life (hrs)&quot;,    num:true},
-  {k:&quot;minHM&quot;,       h:&quot;Min life (hrs)&quot;,    num:true},
-  {k:&quot;maxHM&quot;,       h:&quot;Max life (hrs)&quot;,    num:true},
-  {k:&quot;avgDay&quot;,      h:&quot;Avg gap (days)&quot;,    num:true},
+  {k:&quot;lastLife&quot;,    h:&quot;Last life (hrs)&quot;,   num:true},
   {k:&quot;first&quot;,       h:&quot;First used&quot;},
   {k:&quot;last&quot;,        h:&quot;Last used&quot;}
 ];
 var anLifeColF={}, anLifeSort={key:null,dir:1};
-function lifeDS(x){ return x? (fmtDate(x.date)+&quot; · S&quot;+x.shift) : &quot;&quot;; }
+function lifeDS(x){ return x? (fmtDate(x.date)+&quot; · S&quot;+x.shift+(x.hm!=null?(&quot; · &quot;+x.hm+&quot; HM&quot;):&quot;&quot;)) : &quot;&quot;; }
 function lifeCell(r,k){ if(k===&quot;first&quot;) return lifeDS(r.first); if(k===&quot;last&quot;) return lifeDS(r.last);
-  if(k===&quot;avgHM&quot;||k===&quot;minHM&quot;||k===&quot;maxHM&quot;||k===&quot;avgDay&quot;) return r[k]!=null?r[k]:&quot;&quot;;
+  if(k===&quot;avgHM&quot;||k===&quot;span&quot;||k===&quot;lastLife&quot;||k===&quot;avgDay&quot;) return r[k]!=null?r[k]:&quot;&quot;;
   return r[k]==null?&quot;&quot;:r[k]; }
 function drawLifeDetail(){
   var wrap=$(&quot;anLifeWrap&quot;); if(!wrap) return;
-  var base=(anLast.life||[]).filter(function(r){ return r.replacements>0; });
-  if(!base.length){ wrap.innerHTML='<div class=&quot;hint&quot; style=&quot;padding:12px&quot;>No part appears twice yet — a lifespan needs at least two uses of the same part on the same machine.</div>'; return; }
+  var base=(anLast.life||[]).filter(function(r){ return r.uses>=2; });
+  if(!base.length){ wrap.innerHTML='<div class=&quot;hint&quot; style=&quot;padding:12px&quot;>No lifespan yet — a part needs at least two usages on the same machine.</div>'; return; }
   /* distinct values per column */
   var dv={}; LIFE_COLS.forEach(function(c){ dv[c.k]={}; });
   base.forEach(function(r){ LIFE_COLS.forEach(function(c){ var v=lifeCell(r,c.k); if(v!==&quot;&quot; &amp;&amp; v!=null) dv[c.k][v]=1; }); });
@@ -7332,10 +7343,10 @@ $(&quot;anCat&quot;).addEventListener(&quot;change&quot;,drawAnalysis);
 $(&quot;anPeriod&quot;).addEventListener(&quot;change&quot;,drawAnalysis);
 $(&quot;anClear&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;anFrom&quot;).value=&quot;&quot;; $(&quot;anTo&quot;).value=&quot;&quot;; $(&quot;anLineCat&quot;).value=&quot;&quot;; $(&quot;anCat&quot;).value=&quot;&quot;; $(&quot;anPeriod&quot;).value=&quot;month&quot;; drawAnalysis(); });
 $(&quot;anCsv&quot;).addEventListener(&quot;click&quot;,function(){ drawAnalysis();
-  var b=[]; b.push([&quot;Average lifespan by spare-part category&quot;]); b.push([&quot;Category&quot;,&quot;Avg life (days)&quot;,&quot;Avg life (HM)&quot;,&quot;Parts&quot;,&quot;Interval samples&quot;]);
-  anLast.lifeCat.forEach(function(c){ b.push([c.cat,c.avgDay==null?&quot;&quot;:c.avgDay,c.avgHM==null?&quot;&quot;:c.avgHM,c.parts,c.samples]); });
-  b.push([]); b.push([&quot;Part lifespan detail (per part + machine)&quot;]); b.push([&quot;Category&quot;,&quot;Part Number&quot;,&quot;Machine&quot;,&quot;Description&quot;,&quot;Uses&quot;,&quot;Replacements&quot;,&quot;Avg life (hrs)&quot;,&quot;Min life (hrs)&quot;,&quot;Max life (hrs)&quot;,&quot;Avg gap (days)&quot;,&quot;First used&quot;,&quot;Last used&quot;]);
-  anLast.life.forEach(function(r){ if(r.replacements>0) b.push([r.cat,r.partNo,r.machine,r.desc,r.uses,r.replacements,r.avgHM==null?&quot;&quot;:r.avgHM,r.minHM==null?&quot;&quot;:r.minHM,r.maxHM==null?&quot;&quot;:r.maxHM,r.avgDay==null?&quot;&quot;:r.avgDay,lifeDS(r.first),lifeDS(r.last)]); });
+  var b=[]; b.push([&quot;Average lifespan by spare-part category (running hours)&quot;]); b.push([&quot;Category&quot;,&quot;Avg life (hrs)&quot;,&quot;Parts&quot;,&quot;Usages&quot;]);
+  anLast.lifeCat.forEach(function(c){ b.push([c.cat,c.avgHM==null?&quot;&quot;:c.avgHM,c.parts,c.samples]); });
+  b.push([]); b.push([&quot;Part lifespan detail (per part + machine)&quot;]); b.push([&quot;Category&quot;,&quot;Part Number&quot;,&quot;Machine&quot;,&quot;Description&quot;,&quot;Usages&quot;,&quot;HM span (last-first)&quot;,&quot;Avg life (hrs)&quot;,&quot;Last life (hrs)&quot;,&quot;First used&quot;,&quot;Last used&quot;]);
+  anLast.life.forEach(function(r){ if(r.uses>=2) b.push([r.cat,r.partNo,r.machine,r.desc,r.uses,r.span==null?&quot;&quot;:r.span,r.avgHM==null?&quot;&quot;:r.avgHM,r.lastLife==null?&quot;&quot;:r.lastLife,lifeDS(r.first),lifeDS(r.last)]); });
   if(anLast.pivot){ b.push([]); b.push([&quot;Usage per machine line — &quot;+(anLast.pivot.period===&quot;week&quot;?&quot;weekly&quot;:&quot;monthly&quot;)]);
     var lbl=anLast.pivot.period===&quot;week&quot;?anWeekLbl:anMonthLbl;
     b.push([&quot;Machine&quot;].concat(anLast.pivot.periods.map(lbl)).concat([&quot;Total&quot;]));
@@ -7374,6 +7385,489 @@ buildSignoffs();
   fillPartDatalists(); fillDbInputs(); fillPmDatalist(); fillLogFilters(); fillAnFilters(); fillHmFilter();
   refreshHead(); resetForm(); showDraftBanner();
 })();
+</script>
+</body></html>
+"></iframe>
+      </section>
+      <section class="page" id="page-utility">
+        <iframe class="embed-frame" id="utilityFrame" title="Water &amp; Electricity Monitoring" srcdoc="<!DOCTYPE html>
+<html lang=&quot;en&quot;><head>
+<meta charset=&quot;utf-8&quot;>
+<meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1, viewport-fit=cover&quot;>
+<title>Water &amp;amp; Electricity Monitoring</title>
+<script>/* shared-storage bridge -> Cloudflare D1 via /api/kv */
+(function(){
+  var API=&quot;/api/kv&quot;;
+  window.storage={
+    get:function(key){ return fetch(API+&quot;?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;})
+      .then(function(r){ return r.ok? r.json(): null; })
+      .then(function(j){ return (j&amp;&amp;j.value!=null)?{value:j.value}:null; })
+      .catch(function(){ return null; }); },
+    set:function(key,value){ return fetch(API,{method:&quot;POST&quot;,headers:{&quot;Content-Type&quot;:&quot;application/json&quot;},
+      body:JSON.stringify({key:key,value:String(value)})})
+      .then(function(r){ return r.ok; }).catch(function(){ return false; }); }
+  };
+})();</script>
+<style>
+  :root{
+    --concrete:#EDE9E2; --panel:#FFFFFF; --panel-2:#FBFAF7; --wash:#F4F1EA;
+    --ink:#1B1F23; --ink-soft:#5C666E; --muted:#8A8478; --rule:#D5CFC5;
+    --starch:#1F5673; --kraft:#B07845; --amber:#D98A0B; --good:#2E7D4F; --bad:#B3402F;
+    --disp:&quot;Barlow Condensed&quot;,&quot;Oswald&quot;,&quot;Arial Narrow&quot;,sans-serif;
+    --body:&quot;IBM Plex Sans&quot;,&quot;Segoe UI&quot;,system-ui,sans-serif;
+    --mono:&quot;IBM Plex Mono&quot;,ui-monospace,&quot;Courier New&quot;,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--body);background:var(--concrete);color:var(--ink);font-size:14px;line-height:1.5}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 16px 64px}
+  h2.sec{font-family:var(--disp);font-size:22px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+  .head{background:var(--ink);color:#F2EFE9;border-radius:3px;overflow:hidden;border-bottom:5px solid var(--amber)}
+  .head-in{padding:22px 22px 18px;display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between}
+  .head h1{font-family:var(--disp);font-weight:700;font-size:30px;letter-spacing:.03em;text-transform:uppercase;line-height:.98}
+  .head p{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#9AA6AE;margin-top:6px}
+  .stats{display:flex;gap:22px;flex-wrap:wrap}
+  .stat .k{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9AA6AE}
+  .stat .v{font-family:var(--disp);font-weight:700;font-size:24px;line-height:1;margin-top:3px}
+  nav.tabs{display:flex;flex-wrap:wrap;gap:2px;margin:14px 0 0}
+  nav.tabs button{flex:0 1 auto;background:var(--wash);border:1px solid var(--rule);border-bottom:none;
+    font-family:var(--disp);font-size:15px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);
+    padding:10px 16px;cursor:pointer;border-radius:4px 4px 0 0}
+  nav.tabs button[aria-selected=&quot;true&quot;]{background:var(--panel);color:var(--ink);border-bottom:2px solid var(--amber);font-weight:600}
+  .panel{background:var(--panel);border:1px solid var(--rule);border-radius:0 3px 3px 3px;padding:20px}
+  label.f{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:4px}
+  input,select,textarea{width:100%;font-family:var(--mono);font-size:13px;color:var(--ink);background:var(--panel-2);border:1px solid var(--rule);border-radius:2px;padding:8px 9px}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--starch);outline-offset:-1px;background:#fff}
+  .grid{display:grid;gap:12px}
+  .g2{grid-template-columns:repeat(2,1fr)} .g3{grid-template-columns:repeat(3,1fr)} .g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:820px){ .g4{grid-template-columns:repeat(2,1fr)} .g3{grid-template-columns:1fr 1fr} }
+  @media(max-width:560px){ .g2,.g3,.g4{grid-template-columns:1fr} }
+  .btn,button.act,button.ghost,.tiny{font-family:var(--disp);letter-spacing:.05em;text-transform:uppercase;cursor:pointer;border-radius:3px}
+  button.act{background:var(--starch);color:#fff;border:1px solid var(--starch);font-size:15px;font-weight:600;padding:10px 16px}
+  button.ghost{background:var(--panel);color:var(--starch);border:1px solid var(--rule);font-size:14px;padding:9px 14px}
+  .tiny{font-size:12px;padding:4px 8px;background:var(--panel);border:1px solid var(--rule);color:var(--starch)}
+  .tiny.warn{color:var(--bad);border-color:var(--bad)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{border-bottom:1px solid var(--rule);padding:7px 9px;text-align:left;vertical-align:top}
+  th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap}
+  td.num,th.num{text-align:right}
+  .scroll{overflow-x:auto}
+  .uscroll{overflow-x:auto;width:100%}
+  #logTbl table,#mTbl table{width:auto;min-width:100%}
+  #logTbl table th,#logTbl table td{white-space:nowrap}
+  .hint{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .empty{text-align:center;color:var(--muted);padding:26px;border:1px dashed var(--rule);border-radius:3px}
+  .empty b{display:block;font-family:var(--disp);font-size:18px;color:var(--ink-soft);text-transform:uppercase}
+  .flag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;padding:2px 7px;border-radius:20px;text-transform:uppercase}
+  .flag.elec{background:#FBF0DA;color:#8a5a00} .flag.water{background:#E1EEF3;color:#1F5673}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:8px}
+  .kpi{background:var(--panel-2);border:1px solid var(--rule);border-radius:3px;padding:12px 14px}
+  .kpi .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .kpi .v{font-family:var(--disp);font-weight:700;font-size:24px;line-height:1.05;margin-top:4px}
+  .calc{background:var(--panel-2);border:1px solid var(--rule);border-radius:3px;padding:12px 14px;margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+  .calc .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .calc .v{font-family:var(--disp);font-weight:700;font-size:20px;margin-top:2px}
+  .pagebar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:8px 0}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:var(--ink);color:#fff;padding:10px 16px;border-radius:4px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:80}
+  .toast.on{opacity:1}
+  .an-bar-row{display:grid;grid-template-columns:200px 1fr 120px;gap:10px;align-items:center;margin:4px 0;font-size:13px}
+  .an-bar-row .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .an-track{background:var(--wash);border-radius:3px;height:16px;overflow:hidden}
+  .an-fill{height:100%;background:var(--starch);border-radius:3px} .an-fill.w{background:var(--kraft)}
+  .an-amt{font-family:var(--mono);font-size:12px;text-align:right;color:var(--ink-soft)}
+  @media(max-width:640px){ .an-bar-row{grid-template-columns:120px 1fr 90px} }
+</style>
+</head>
+<body>
+<div class=&quot;wrap&quot;>
+  <div class=&quot;head&quot;><div class=&quot;head-in&quot;>
+    <div><h1>Water &amp;amp; Electricity Monitoring</h1><p id=&quot;hSub&quot;>Utility meter readings · consumption &amp;amp; cost</p></div>
+    <div class=&quot;stats&quot;>
+      <div class=&quot;stat&quot;><div class=&quot;k&quot;>Readings</div><div class=&quot;v&quot; id=&quot;hCount&quot;>0</div></div>
+      <div class=&quot;stat&quot;><div class=&quot;k&quot;>Elec meters</div><div class=&quot;v&quot; id=&quot;hElec&quot;>0</div></div>
+      <div class=&quot;stat&quot;><div class=&quot;k&quot;>Water meters</div><div class=&quot;v&quot; id=&quot;hWater&quot;>0</div></div>
+    </div>
+  </div></div>
+
+  <nav class=&quot;tabs&quot; role=&quot;tablist&quot;>
+    <button role=&quot;tab&quot; id=&quot;t-new&quot; aria-selected=&quot;true&quot;>New Reading</button>
+    <button role=&quot;tab&quot; id=&quot;t-log&quot; aria-selected=&quot;false&quot;>Log Book</button>
+    <button role=&quot;tab&quot; id=&quot;t-met&quot; aria-selected=&quot;false&quot;>Meters &amp;amp; Tariff</button>
+    <button role=&quot;tab&quot; id=&quot;t-an&quot; aria-selected=&quot;false&quot;>Analysis</button>
+  </nav>
+
+  <!-- ===== NEW READING ===== -->
+  <section id=&quot;v-new&quot;>
+    <div class=&quot;panel&quot;>
+      <p class=&quot;eyebrow&quot;>Record a meter reading</p>
+      <div class=&quot;grid g4&quot; style=&quot;margin-top:12px;align-items:end&quot;>
+        <div style=&quot;grid-column:span 2&quot;><label class=&quot;f&quot; for=&quot;rWhen&quot;>Date &amp;amp; time</label>
+          <div style=&quot;display:flex;gap:6px&quot;><input id=&quot;rWhen&quot; type=&quot;datetime-local&quot; style=&quot;flex:1;min-width:0&quot;>
+          <button class=&quot;ghost&quot; type=&quot;button&quot; id=&quot;rNow&quot; style=&quot;padding:8px 10px;white-space:nowrap&quot;>Now</button></div></div>
+        <div><label class=&quot;f&quot; for=&quot;rShift&quot;>Shift</label><select id=&quot;rShift&quot;><option value=&quot;&quot;>—</option><option>1</option><option>2</option><option>3</option></select></div>
+        <div><label class=&quot;f&quot; for=&quot;rMeter&quot;>Meter</label><select id=&quot;rMeter&quot;><option value=&quot;&quot;>Select meter…</option></select></div>
+        <div><label class=&quot;f&quot; for=&quot;rReading&quot;>Meter reading <span id=&quot;rUnit&quot; style=&quot;color:var(--muted)&quot;></span></label><input id=&quot;rReading&quot; type=&quot;text&quot; inputmode=&quot;decimal&quot; placeholder=&quot;cumulative value&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;rBy&quot;>Recorded by</label><input id=&quot;rBy&quot; type=&quot;text&quot; placeholder=&quot;name&quot;></div>
+        <div style=&quot;grid-column:span 2&quot;><label class=&quot;f&quot; for=&quot;rNote&quot;>Note</label><input id=&quot;rNote&quot; type=&quot;text&quot; placeholder=&quot;optional&quot;></div>
+      </div>
+      <div class=&quot;calc&quot; id=&quot;rCalc&quot;>
+        <div><div class=&quot;k&quot;>Previous reading</div><div class=&quot;v&quot; id=&quot;cPrev&quot;>—</div></div>
+        <div><div class=&quot;k&quot;>Consumption</div><div class=&quot;v&quot; id=&quot;cCons&quot; style=&quot;color:var(--starch)&quot;>—</div></div>
+        <div><div class=&quot;k&quot;>Tariff</div><div class=&quot;v&quot; id=&quot;cTar&quot;>—</div></div>
+        <div><div class=&quot;k&quot;>Cost</div><div class=&quot;v&quot; id=&quot;cCost&quot; style=&quot;color:var(--bad)&quot;>—</div></div>
+        <div><div class=&quot;k&quot;>Cost (USD)</div><div class=&quot;v&quot; id=&quot;cCostU&quot;>—</div></div>
+      </div>
+      <div id=&quot;rWarn&quot; style=&quot;margin-top:8px;color:var(--bad);font-weight:700;font-size:13px;background:#fbece9;border:1px solid var(--bad);border-radius:3px;padding:8px 10px&quot; hidden></div>
+      <div style=&quot;margin-top:14px;display:flex;gap:10px;flex-wrap:wrap&quot;>
+        <button class=&quot;ghost&quot; id=&quot;rReset&quot;>Reset</button>
+        <button class=&quot;act&quot; id=&quot;rSave&quot;>Save reading</button>
+      </div>
+      <div class=&quot;hint&quot; id=&quot;rMsg&quot; style=&quot;margin-top:8px&quot;></div>
+    </div>
+  </section>
+
+  <!-- ===== LOG BOOK ===== -->
+  <section id=&quot;v-log&quot; hidden>
+    <div class=&quot;panel&quot;>
+      <h2 class=&quot;sec&quot;>Log book</h2>
+      <div class=&quot;grid g4&quot; style=&quot;margin-top:12px;align-items:end&quot;>
+        <div><label class=&quot;f&quot; for=&quot;bMeter&quot;>Meter</label><select id=&quot;bMeter&quot;><option value=&quot;&quot;>All meters</option></select></div>
+        <div><label class=&quot;f&quot; for=&quot;bType&quot;>Utility</label><select id=&quot;bType&quot;><option value=&quot;&quot;>All</option><option value=&quot;ELEC&quot;>Electricity</option><option value=&quot;WATER&quot;>Water</option></select></div>
+        <div><label class=&quot;f&quot; for=&quot;bFrom&quot;>From date</label><input id=&quot;bFrom&quot; type=&quot;date&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;bTo&quot;>To date</label><input id=&quot;bTo&quot; type=&quot;date&quot;></div>
+      </div>
+      <div style=&quot;margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center&quot;>
+        <input id=&quot;bSearch&quot; placeholder=&quot;meter, name, note…&quot; style=&quot;flex:1;min-width:180px&quot;>
+        <button class=&quot;ghost&quot; id=&quot;bClear&quot;>Clear</button>
+        <button class=&quot;ghost&quot; id=&quot;bCsv&quot;>Download CSV</button>
+      </div>
+      <div id=&quot;logTbl&quot; class=&quot;scroll&quot; style=&quot;margin-top:10px&quot;></div>
+      <div style=&quot;margin-top:16px;border-top:1px solid var(--rule);padding-top:12px&quot;>
+        <button class=&quot;ghost&quot; id=&quot;bTrashToggle&quot;>Deleted history <span id=&quot;bTrashCount&quot; class=&quot;hint&quot;></span></button>
+      </div>
+      <div id=&quot;bTrashWrap&quot; hidden style=&quot;margin-top:8px&quot;></div>
+    </div>
+  </section>
+
+  <!-- ===== METERS &amp; TARIFF ===== -->
+  <section id=&quot;v-met&quot; hidden>
+    <div class=&quot;panel&quot;>
+      <h2 class=&quot;sec&quot;>Meters &amp;amp; tariff</h2>
+      <p class=&quot;hint&quot;>Manage the metering points and the tariff used to compute cost.</p>
+      <div class=&quot;grid g4&quot; style=&quot;margin-top:12px;align-items:end&quot;>
+        <div><label class=&quot;f&quot; for=&quot;mName&quot;>Meter name</label><input id=&quot;mName&quot; type=&quot;text&quot; placeholder=&quot;e.g. Main Incoming&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;mType&quot;>Utility</label><select id=&quot;mType&quot;><option value=&quot;ELEC&quot;>Electricity (kWh)</option><option value=&quot;WATER&quot;>Water (m³)</option></select></div>
+        <div><label class=&quot;f&quot; for=&quot;mLoc&quot;>Location</label><input id=&quot;mLoc&quot; type=&quot;text&quot; placeholder=&quot;e.g. Substation&quot;></div>
+        <div style=&quot;display:flex;gap:8px;align-items:end&quot;><button class=&quot;act&quot; id=&quot;mAdd&quot; style=&quot;flex:1&quot;>Add / Update</button></div>
+      </div>
+      <div class=&quot;hint&quot; id=&quot;mMsg&quot; style=&quot;margin-top:6px&quot;></div>
+      <div id=&quot;mTbl&quot; class=&quot;scroll&quot; style=&quot;margin-top:10px&quot;></div>
+      <div style=&quot;margin-top:16px;border-top:1px solid var(--rule);padding-top:12px&quot;>
+        <h2 class=&quot;sec&quot; style=&quot;font-size:17px&quot;>Tariff &amp;amp; currency</h2>
+        <div class=&quot;grid g4&quot; style=&quot;margin-top:10px;align-items:end&quot;>
+          <div><label class=&quot;f&quot; for=&quot;tElec&quot;>Electricity tariff <span id=&quot;tElecCur&quot; style=&quot;color:var(--muted)&quot;>(IDR / kWh)</span></label><input id=&quot;tElec&quot; type=&quot;text&quot; inputmode=&quot;decimal&quot; placeholder=&quot;e.g. 1450&quot;></div>
+          <div><label class=&quot;f&quot; for=&quot;tWater&quot;>Water tariff <span id=&quot;tWaterCur&quot; style=&quot;color:var(--muted)&quot;>(IDR / m³)</span></label><input id=&quot;tWater&quot; type=&quot;text&quot; inputmode=&quot;decimal&quot; placeholder=&quot;e.g. 9500&quot;></div>
+          <div><label class=&quot;f&quot; for=&quot;tBase&quot;>Currency</label><input id=&quot;tBase&quot; type=&quot;text&quot; value=&quot;IDR&quot; style=&quot;text-transform:uppercase&quot;></div>
+          <div><label class=&quot;f&quot; for=&quot;tFx&quot;>1 USD =</label><input id=&quot;tFx&quot; type=&quot;text&quot; inputmode=&quot;decimal&quot; value=&quot;16000&quot;></div>
+        </div>
+        <div style=&quot;margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap&quot;>
+          <button class=&quot;ghost&quot; id=&quot;tSave&quot;>Save tariff</button><span class=&quot;hint&quot; id=&quot;tMsg&quot;></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ANALYSIS ===== -->
+  <section id=&quot;v-an&quot; hidden>
+    <div class=&quot;panel&quot;>
+      <h2 class=&quot;sec&quot;>Analysis</h2>
+      <p class=&quot;hint&quot;>Consumption and cost by meter and by period.</p>
+      <div class=&quot;grid g4&quot; style=&quot;margin-top:12px;align-items:end&quot;>
+        <div><label class=&quot;f&quot; for=&quot;aFrom&quot;>From date</label><input id=&quot;aFrom&quot; type=&quot;date&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;aTo&quot;>To date</label><input id=&quot;aTo&quot; type=&quot;date&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;aType&quot;>Utility</label><select id=&quot;aType&quot;><option value=&quot;&quot;>All</option><option value=&quot;ELEC&quot;>Electricity</option><option value=&quot;WATER&quot;>Water</option></select></div>
+        <div><label class=&quot;f&quot; for=&quot;aPeriod&quot;>Period</label><select id=&quot;aPeriod&quot;><option value=&quot;month&quot;>Monthly</option><option value=&quot;week&quot;>Weekly</option></select></div>
+      </div>
+      <div style=&quot;margin-top:10px&quot;><button class=&quot;ghost&quot; id=&quot;aCsv&quot;>Download analysis CSV</button></div>
+      <div id=&quot;anBody&quot; style=&quot;margin-top:14px&quot;></div>
+    </div>
+  </section>
+</div>
+
+<div class=&quot;toast&quot; id=&quot;toast&quot;></div>
+
+<script>
+var $=function(id){ return document.getElementById(id); };
+var mem={}, toastTimer;
+function toast(m){ var t=$(&quot;toast&quot;); t.textContent=m; t.classList.add(&quot;on&quot;); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove(&quot;on&quot;); },2600); }
+function esc(s){ return String(s==null?&quot;&quot;:s).replace(/[&amp;<>&quot;]/g,function(c){return({&quot;&amp;&quot;:&quot;&amp;amp;&quot;,&quot;<&quot;:&quot;&amp;lt;&quot;,&quot;>&quot;:&quot;&amp;gt;&quot;,&quot;\&quot;&quot;:&quot;&amp;quot;&quot;})[c];}); }
+function has(){ return typeof window!==&quot;undefined&quot; &amp;&amp; window.storage &amp;&amp; typeof window.storage.get===&quot;function&quot;; }
+function ls(){ try{ return window.localStorage||null; }catch(e){ return null; } }
+async function load(key,fb){ if(has()){ try{ var r=await window.storage.get(key); if(r&amp;&amp;r.value) return JSON.parse(r.value); }catch(e){} } var L=ls(); if(L){ try{ var v=L.getItem(key); if(v!==null) return JSON.parse(v); }catch(e){} } return (key in mem)?mem[key]:fb; }
+async function save(key,val){ mem[key]=val; var t=JSON.stringify(val); if(has()){ try{ await window.storage.set(key,t); }catch(e){} } var L=ls(); if(L){ try{ L.setItem(key,t); }catch(e){} } }
+function num(v){ var n=parseFloat(String(v==null?&quot;&quot;:v).replace(/[^0-9.\-]/g,&quot;&quot;)); return isFinite(n)?n:0; }
+function p2(n){ return (n<10?&quot;0&quot;:&quot;&quot;)+n; }
+function todayISO(){ var d=new Date(); return d.getFullYear()+&quot;-&quot;+p2(d.getMonth()+1)+&quot;-&quot;+p2(d.getDate()); }
+function nowTime(){ var d=new Date(); return p2(d.getHours())+&quot;:&quot;+p2(d.getMinutes()); }
+function fmtDate(iso){ if(!iso) return &quot;—&quot;; var m=String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/); if(!m) return esc(String(iso)); var MON=[&quot;Jan&quot;,&quot;Feb&quot;,&quot;Mar&quot;,&quot;Apr&quot;,&quot;May&quot;,&quot;Jun&quot;,&quot;Jul&quot;,&quot;Aug&quot;,&quot;Sep&quot;,&quot;Oct&quot;,&quot;Nov&quot;,&quot;Dec&quot;]; return m[3]+&quot; &quot;+MON[+m[2]-1]+&quot; &quot;+m[1]; }
+function nowTs(){ return new Date().getTime(); }
+function nowLocalFromTs(ts){ var d=new Date(ts); return d.getFullYear()+&quot;-&quot;+p2(d.getMonth()+1)+&quot;-&quot;+p2(d.getDate()); }
+function fmtNum(n){ return (Math.round(n*100)/100).toLocaleString(&quot;en-US&quot;); }
+
+/* ---- admin (credential matrix: entity|utility, default admin/Engineering) ---- */
+var CREDS={};
+async function loadCreds(){ try{ var c=await load(&quot;auth:creds&quot;,{}); CREDS=(c&amp;&amp;typeof c===&quot;object&quot;)?c:{}; }catch(e){ CREDS={}; } }
+function credWanted(){ var c=CREDS[ENT+&quot;|utility&quot;]||CREDS[&quot;*|utility&quot;]||CREDS[ENT+&quot;|*&quot;]||null; return {u:(c&amp;&amp;c.u)?c.u:&quot;admin&quot;, p:(c&amp;&amp;c.p)?c.p:&quot;Engineering&quot;}; }
+function adminOK(){ var w=credWanted(); var u=prompt(&quot;Administrator username:&quot;); if(u===null) return false; var p=prompt(&quot;Administrator password:&quot;); if(p===null) return false; if(u.trim().toLowerCase()===String(w.u).toLowerCase() &amp;&amp; p===w.p) return true; toast(&quot;Wrong administrator credentials.&quot;); return false; }
+
+/* ---- keys + state ---- */
+var ENT=&quot;ALCO&quot;;
+var RKEY=&quot;util:readings&quot;, DKEY=&quot;util:readings:deleted&quot;, MKEY=&quot;util:meters&quot;, TKEY=&quot;util:tariff&quot;;
+var readings=[], deletedR=[], meters=[], TAR={elec:0, water:0, base:&quot;IDR&quot;, fx:16000};
+function unitOf(t){ return t===&quot;WATER&quot;?&quot;m³&quot;:&quot;kWh&quot;; }
+function typeLabel(t){ return t===&quot;WATER&quot;?&quot;Water&quot;:&quot;Electricity&quot;; }
+function meterById(id){ for(var i=0;i<meters.length;i++){ if(String(meters[i].id)===String(id)) return meters[i]; } return null; }
+function usd(v){ var r=TAR.fx>0?TAR.fx:1; return v/r; }
+function fmtMoney(v){ return TAR.base+&quot; &quot;+fmtNum(v); }
+function fmtUSD(v){ return &quot;$&quot;+usd(v).toLocaleString(&quot;en-US&quot;,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+/* previous cumulative reading for a meter strictly before ts (chronological) */
+function prevReading(meterId, ts, excludeId){
+  var best=null;
+  readings.forEach(function(r){ if(String(r.meterId)!==String(meterId)) return; if(excludeId!=null &amp;&amp; String(r.id)===String(excludeId)) return; if(r.ts>=ts) return; if(!best || r.ts>best.ts) best=r; });
+  return best;
+}
+function consumptionOf(r){ var pv=prevReading(r.meterId, r.ts, r.id); if(!pv) return null; var c=num(r.reading)-num(pv.reading); return c>=0?c:null; }
+
+/* ---- header ---- */
+function refreshHead(){ $(&quot;hCount&quot;).textContent=readings.length;
+  $(&quot;hElec&quot;).textContent=meters.filter(function(m){return m.type!==&quot;WATER&quot;;}).length;
+  $(&quot;hWater&quot;).textContent=meters.filter(function(m){return m.type===&quot;WATER&quot;;}).length; }
+
+/* ---- tabs ---- */
+var TABS=[[&quot;t-new&quot;,&quot;v-new&quot;],[&quot;t-log&quot;,&quot;v-log&quot;],[&quot;t-met&quot;,&quot;v-met&quot;],[&quot;t-an&quot;,&quot;v-an&quot;]];
+TABS.forEach(function(p){ $(p[0]).addEventListener(&quot;click&quot;,function(){
+  TABS.forEach(function(q){ var on=q[0]===p[0]; $(q[0]).setAttribute(&quot;aria-selected&quot;,on?&quot;true&quot;:&quot;false&quot;); $(q[1]).hidden=!on; });
+  if(p[0]===&quot;t-log&quot;) drawLog();
+  if(p[0]===&quot;t-met&quot;) drawMeters();
+  if(p[0]===&quot;t-an&quot;) drawAnalysis();
+}); });
+
+/* ---- meter dropdowns ---- */
+function fillMeterSelects(){
+  var opt='<option value=&quot;&quot;>Select meter…</option>'+meters.map(function(m){ return '<option value=&quot;'+esc(m.id)+'&quot;>'+esc(m.name)+' ('+typeLabel(m.type)+')</option>'; }).join(&quot;&quot;);
+  if($(&quot;rMeter&quot;)){ var k=$(&quot;rMeter&quot;).value; $(&quot;rMeter&quot;).innerHTML=opt; if(k) $(&quot;rMeter&quot;).value=k; }
+  if($(&quot;bMeter&quot;)){ var k2=$(&quot;bMeter&quot;).value; $(&quot;bMeter&quot;).innerHTML='<option value=&quot;&quot;>All meters</option>'+meters.map(function(m){ return '<option value=&quot;'+esc(m.id)+'&quot;>'+esc(m.name)+' ('+typeLabel(m.type)+')</option>'; }).join(&quot;&quot;); if(k2) $(&quot;bMeter&quot;).value=k2; }
+}
+
+/* ---- new reading ---- */
+function setWhen(dt){ $(&quot;rWhen&quot;).value=dt; }
+$(&quot;rNow&quot;).addEventListener(&quot;click&quot;,function(){ setWhen(todayISO()+&quot;T&quot;+nowTime()); updateCalc(); });
+$(&quot;rMeter&quot;).addEventListener(&quot;change&quot;,function(){ var m=meterById(this.value); $(&quot;rUnit&quot;).textContent=m?(&quot;(&quot;+unitOf(m.type)+&quot;)&quot;):&quot;&quot;; updateCalc(); });
+$(&quot;rReading&quot;).addEventListener(&quot;input&quot;,updateCalc);
+$(&quot;rWhen&quot;).addEventListener(&quot;input&quot;,updateCalc);
+function currentWhenTs(){ var v=$(&quot;rWhen&quot;).value; if(!v) return nowTs(); var d=new Date(v); return isNaN(d)?nowTs():d.getTime(); }
+function updateCalc(){
+  var m=meterById($(&quot;rMeter&quot;).value); var warn=$(&quot;rWarn&quot;); warn.hidden=true;
+  if(!m){ $(&quot;cPrev&quot;).textContent=&quot;—&quot;; $(&quot;cCons&quot;).textContent=&quot;—&quot;; $(&quot;cTar&quot;).textContent=&quot;—&quot;; $(&quot;cCost&quot;).textContent=&quot;—&quot;; $(&quot;cCostU&quot;).textContent=&quot;—&quot;; return; }
+  var ts=currentWhenTs(); var pv=prevReading(m.id, ts, null);
+  var rate=(m.type===&quot;WATER&quot;?TAR.water:TAR.elec);
+  $(&quot;cTar&quot;).textContent=rate?(fmtMoney(rate)+&quot; / &quot;+unitOf(m.type)):&quot;— (set tariff)&quot;;
+  if(!pv){ $(&quot;cPrev&quot;).textContent=&quot;— (first reading)&quot;; $(&quot;cCons&quot;).textContent=&quot;—&quot;; $(&quot;cCost&quot;).textContent=&quot;—&quot;; $(&quot;cCostU&quot;).textContent=&quot;—&quot;; return; }
+  $(&quot;cPrev&quot;).textContent=fmtNum(num(pv.reading))+&quot; &quot;+unitOf(m.type)+&quot; · &quot;+fmtDate(pv.date);
+  var rv=$(&quot;rReading&quot;).value.trim(); if(rv===&quot;&quot;){ $(&quot;cCons&quot;).textContent=&quot;—&quot;; $(&quot;cCost&quot;).textContent=&quot;—&quot;; $(&quot;cCostU&quot;).textContent=&quot;—&quot;; return; }
+  var cons=num(rv)-num(pv.reading);
+  if(cons<0){ warn.hidden=false; warn.textContent=&quot;⚠ Reading (&quot;+fmtNum(num(rv))+&quot;) is LOWER than the previous reading (&quot;+fmtNum(num(pv.reading))+&quot;). Check for a meter reset.&quot;; $(&quot;cCons&quot;).textContent=&quot;—&quot;; $(&quot;cCost&quot;).textContent=&quot;—&quot;; $(&quot;cCostU&quot;).textContent=&quot;—&quot;; return; }
+  $(&quot;cCons&quot;).textContent=fmtNum(cons)+&quot; &quot;+unitOf(m.type);
+  var cost=cons*rate; $(&quot;cCost&quot;).textContent=fmtMoney(cost); $(&quot;cCostU&quot;).textContent=fmtUSD(cost);
+}
+var editingId=null;
+function resetReading(){ editingId=null; setWhen(todayISO()+&quot;T&quot;+nowTime()); $(&quot;rShift&quot;).value=&quot;&quot;; $(&quot;rMeter&quot;).value=&quot;&quot;; $(&quot;rUnit&quot;).textContent=&quot;&quot;; $(&quot;rReading&quot;).value=&quot;&quot;; $(&quot;rBy&quot;).value=&quot;&quot;; $(&quot;rNote&quot;).value=&quot;&quot;; $(&quot;rSave&quot;).textContent=&quot;Save reading&quot;; $(&quot;rMsg&quot;).textContent=&quot;&quot;; updateCalc(); }
+$(&quot;rReset&quot;).addEventListener(&quot;click&quot;,function(){ resetReading(); toast(&quot;Form reset.&quot;); });
+$(&quot;rSave&quot;).addEventListener(&quot;click&quot;,async function(){
+  var m=meterById($(&quot;rMeter&quot;).value); if(!m){ toast(&quot;Select a meter.&quot;); return; }
+  if(!$(&quot;rWhen&quot;).value){ toast(&quot;Enter date &amp; time.&quot;); return; }
+  if($(&quot;rReading&quot;).value.trim()===&quot;&quot;){ toast(&quot;Enter the meter reading.&quot;); return; }
+  var ts=currentWhenTs(); var reading=num($(&quot;rReading&quot;).value); var pv=prevReading(m.id, ts, editingId);
+  if(pv &amp;&amp; reading<num(pv.reading)){ if(!confirm(&quot;Reading (&quot;+fmtNum(reading)+&quot;) is lower than the previous reading (&quot;+fmtNum(num(pv.reading))+&quot;).\n\nSave anyway (meter reset)?&quot;)) return; }
+  var v=$(&quot;rWhen&quot;).value.split(&quot;T&quot;); var rec={ id:(editingId||ts), ts:ts, date:v[0]||&quot;&quot;, time:(v[1]||&quot;&quot;).slice(0,5), shift:$(&quot;rShift&quot;).value, meterId:m.id, meterName:m.name, type:m.type, reading:reading, by:$(&quot;rBy&quot;).value.trim(), note:$(&quot;rNote&quot;).value.trim() };
+  if(editingId){ var ix=readings.findIndex(function(x){return String(x.id)===String(editingId);}); if(ix>=0) readings[ix]=rec; else readings.push(rec); }
+  else readings.push(rec);
+  await save(RKEY,readings); refreshHead();
+  toast(editingId?&quot;Reading updated.&quot;:&quot;Reading saved.&quot;); resetReading();
+});
+
+/* ---- log book ---- */
+var logPage=1, logPageSize=50;
+function logFilter(){ var mt=$(&quot;bMeter&quot;).value, ty=$(&quot;bType&quot;).value, from=$(&quot;bFrom&quot;).value, to=$(&quot;bTo&quot;).value, q=$(&quot;bSearch&quot;).value.trim().toLowerCase();
+  return readings.filter(function(r){
+    if(mt &amp;&amp; String(r.meterId)!==mt) return false;
+    if(ty &amp;&amp; r.type!==ty) return false;
+    if(from &amp;&amp; (!r.date || r.date<from)) return false;
+    if(to &amp;&amp; (!r.date || r.date>to)) return false;
+    if(q){ var blob=[r.meterName,r.by,r.note,r.shift].join(&quot; &quot;).toLowerCase(); if(blob.indexOf(q)<0) return false; }
+    return true;
+  });
+}
+function drawLog(){
+  var list=logFilter().slice().sort(function(a,b){ return b.ts-a.ts; });
+  var total=list.length, pages=Math.max(1,Math.ceil(total/logPageSize));
+  if(logPage>pages) logPage=pages; if(logPage<1) logPage=1;
+  var start=(logPage-1)*logPageSize, end=Math.min(start+logPageSize,total), slice=list.slice(start,end);
+  function bar(){ var opts=[50,100,200].map(function(n){ return '<option value=&quot;'+n+'&quot;'+(logPageSize===n?' selected':'')+'>'+n+'</option>'; }).join(&quot;&quot;);
+    return '<div class=&quot;pagebar&quot;><label class=&quot;hint&quot; style=&quot;display:flex;gap:6px;align-items:center&quot;>Rows per page <select class=&quot;pgSize&quot; style=&quot;width:auto;padding:4px 8px&quot;>'+opts+'</select></label>'+
+    '<span class=&quot;hint&quot;>'+(total?(start+1):0)+'–'+end+' of '+total+' readings · page '+logPage+' of '+pages+'</span><span style=&quot;flex:1&quot;></span>'+
+    '<button class=&quot;tiny pgFirst&quot;'+(logPage<=1?' disabled':'')+'>« First</button><button class=&quot;tiny pgPrev&quot;'+(logPage<=1?' disabled':'')+'>‹ Prev</button>'+
+    '<button class=&quot;tiny pgNext&quot;'+(logPage>=pages?' disabled':'')+'>Next ›</button><button class=&quot;tiny pgLast&quot;'+(logPage>=pages?' disabled':'')+'>Last »</button></div>'; }
+  var h=bar()+'<div class=&quot;uscroll&quot;><table><thead><tr><th>Date</th><th>Shift</th><th>Meter</th><th>Utility</th><th class=&quot;num&quot;>Reading</th><th class=&quot;num&quot;>Consumption</th><th class=&quot;num&quot;>Tariff</th><th class=&quot;num&quot;>Cost</th><th class=&quot;num&quot;>Cost (USD)</th><th>By</th><th>Note</th><th></th></tr></thead><tbody>';
+  if(!slice.length){ h+='<tr><td colspan=&quot;12&quot; class=&quot;hint&quot; style=&quot;padding:14px&quot;>No readings match.</td></tr>'; }
+  slice.forEach(function(r){ var cons=consumptionOf(r); var rate=(r.type===&quot;WATER&quot;?TAR.water:TAR.elec); var cost=(cons!=null)?cons*rate:null;
+    h+='<tr><td style=&quot;white-space:nowrap&quot;>'+esc(fmtDate(r.date))+(r.time?(' '+esc(r.time)):'')+'</td><td>'+esc(r.shift||&quot;&quot;)+'</td><td>'+esc(r.meterName||&quot;&quot;)+'</td>'+
+       '<td><span class=&quot;flag '+(r.type===&quot;WATER&quot;?&quot;water&quot;:&quot;elec&quot;)+'&quot;>'+typeLabel(r.type)+'</span></td>'+
+       '<td class=&quot;num&quot;>'+fmtNum(num(r.reading))+' '+unitOf(r.type)+'</td>'+
+       '<td class=&quot;num&quot;>'+(cons!=null?(fmtNum(cons)+' '+unitOf(r.type)):&quot;—&quot;)+'</td>'+
+       '<td class=&quot;num&quot;>'+(rate?fmtMoney(rate):&quot;—&quot;)+'</td>'+
+       '<td class=&quot;num&quot; style=&quot;color:var(--bad);font-weight:700&quot;>'+(cost!=null?fmtMoney(cost):&quot;—&quot;)+'</td>'+
+       '<td class=&quot;num&quot;>'+(cost!=null?fmtUSD(cost):&quot;—&quot;)+'</td>'+
+       '<td>'+esc(r.by||&quot;&quot;)+'</td><td>'+esc(r.note||&quot;&quot;)+'</td>'+
+       '<td style=&quot;white-space:nowrap&quot;><button class=&quot;tiny&quot; data-edit=&quot;'+esc(r.id)+'&quot;>Edit</button> <button class=&quot;tiny warn&quot; data-del=&quot;'+esc(r.id)+'&quot;>Delete</button></td></tr>';
+  });
+  h+='</tbody></table></div>'+bar();
+  $(&quot;logTbl&quot;).innerHTML=h;
+  $(&quot;logTbl&quot;).querySelectorAll(&quot;.pgSize&quot;).forEach(function(s){ s.onchange=function(){ logPageSize=parseInt(this.value,10)||50; logPage=1; drawLog(); }; });
+  $(&quot;logTbl&quot;).querySelectorAll(&quot;.pgFirst&quot;).forEach(function(b){ b.onclick=function(){ logPage=1; drawLog(); }; });
+  $(&quot;logTbl&quot;).querySelectorAll(&quot;.pgPrev&quot;).forEach(function(b){ b.onclick=function(){ if(logPage>1){ logPage--; drawLog(); } }; });
+  $(&quot;logTbl&quot;).querySelectorAll(&quot;.pgNext&quot;).forEach(function(b){ b.onclick=function(){ if(logPage<pages){ logPage++; drawLog(); } }; });
+  $(&quot;logTbl&quot;).querySelectorAll(&quot;.pgLast&quot;).forEach(function(b){ b.onclick=function(){ logPage=pages; drawLog(); }; });
+  $(&quot;logTbl&quot;).querySelectorAll(&quot;[data-edit]&quot;).forEach(function(b){ b.onclick=function(){ var r=readings.filter(function(x){return String(x.id)===b.getAttribute(&quot;data-edit&quot;);})[0]; if(!r) return; editForm(r); }; });
+  $(&quot;logTbl&quot;).querySelectorAll(&quot;[data-del]&quot;).forEach(function(b){ b.onclick=async function(){ if(!adminOK()) return; var id=b.getAttribute(&quot;data-del&quot;); if(!confirm(&quot;Delete this reading?&quot;)) return; var gone=null; readings=readings.filter(function(x){ if(String(x.id)===id){ gone=x; return false; } return true; }); if(gone){ gone.deletedAt=nowTs(); deletedR.unshift(gone); await save(DKEY,deletedR); } await save(RKEY,readings); refreshHead(); drawLog(); toast(&quot;Reading moved to deleted history.&quot;); }; });
+  drawTrash();
+}
+function editForm(r){ $(&quot;t-new&quot;).click(); editingId=r.id; setWhen((r.date||todayISO())+&quot;T&quot;+(r.time||nowTime())); $(&quot;rShift&quot;).value=r.shift||&quot;&quot;; fillMeterSelects(); $(&quot;rMeter&quot;).value=r.meterId; var m=meterById(r.meterId); $(&quot;rUnit&quot;).textContent=m?(&quot;(&quot;+unitOf(m.type)+&quot;)&quot;):&quot;&quot;; $(&quot;rReading&quot;).value=r.reading; $(&quot;rBy&quot;).value=r.by||&quot;&quot;; $(&quot;rNote&quot;).value=r.note||&quot;&quot;; $(&quot;rSave&quot;).textContent=&quot;Update reading&quot;; updateCalc(); toast(&quot;Loaded — edit and Update.&quot;); }
+function drawTrash(){ var wrap=$(&quot;bTrashWrap&quot;); if(!wrap) return; $(&quot;bTrashCount&quot;).textContent=deletedR.length?(&quot;(&quot;+deletedR.length+&quot;)&quot;):&quot;&quot;;
+  if(!deletedR.length){ wrap.innerHTML='<div class=&quot;empty&quot; style=&quot;padding:12px&quot;>Nothing deleted.</div>'; return; }
+  var rows=deletedR.map(function(r,i){ return '<tr><td>'+esc(fmtDate(r.date))+'</td><td>'+esc(r.meterName||&quot;&quot;)+'</td><td>'+typeLabel(r.type)+'</td><td class=&quot;num&quot;>'+fmtNum(num(r.reading))+'</td><td>'+esc(fmtDate(nowLocalFromTs(r.deletedAt)))+'</td><td style=&quot;white-space:nowrap&quot;><button class=&quot;tiny&quot; data-rst=&quot;'+i+'&quot;>Restore</button> <button class=&quot;tiny warn&quot; data-purge=&quot;'+i+'&quot;>Delete permanently</button></td></tr>'; }).join(&quot;&quot;);
+  wrap.innerHTML='<div style=&quot;display:flex;justify-content:flex-end;margin-bottom:6px&quot;><button class=&quot;tiny warn&quot; id=&quot;bTrashEmpty&quot;>Empty history (admin)</button></div><div class=&quot;uscroll&quot;><table><thead><tr><th>Date</th><th>Meter</th><th>Utility</th><th class=&quot;num&quot;>Reading</th><th>Deleted</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  wrap.querySelectorAll(&quot;[data-rst]&quot;).forEach(function(b){ b.onclick=async function(){ var i=+b.getAttribute(&quot;data-rst&quot;); var r=deletedR[i]; if(!r) return; delete r.deletedAt; readings.push(r); deletedR.splice(i,1); await save(RKEY,readings); await save(DKEY,deletedR); refreshHead(); drawLog(); toast(&quot;Reading restored.&quot;); }; });
+  wrap.querySelectorAll(&quot;[data-purge]&quot;).forEach(function(b){ b.onclick=async function(){ if(!adminOK()) return; if(!confirm(&quot;Permanently delete this reading?&quot;)) return; var i=+b.getAttribute(&quot;data-purge&quot;); deletedR.splice(i,1); await save(DKEY,deletedR); drawTrash(); toast(&quot;Permanently deleted.&quot;); }; });
+  var eb=wrap.querySelector(&quot;#bTrashEmpty&quot;); if(eb) eb.onclick=async function(){ if(!deletedR.length) return; if(!adminOK()) return; if(!confirm(&quot;Empty the deleted history permanently?&quot;)) return; deletedR=[]; await save(DKEY,deletedR); drawTrash(); toast(&quot;History emptied.&quot;); };
+}
+function drawLog1(){ logPage=1; drawLog(); }
+[&quot;bMeter&quot;,&quot;bType&quot;,&quot;bFrom&quot;,&quot;bTo&quot;].forEach(function(id){ $(id).addEventListener(&quot;change&quot;,drawLog1); });
+$(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawLog1);
+$(&quot;bClear&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;bMeter&quot;).value=&quot;&quot;; $(&quot;bType&quot;).value=&quot;&quot;; $(&quot;bFrom&quot;).value=&quot;&quot;; $(&quot;bTo&quot;).value=&quot;&quot;; $(&quot;bSearch&quot;).value=&quot;&quot;; drawLog1(); });
+$(&quot;bTrashToggle&quot;).addEventListener(&quot;click&quot;,function(){ var w=$(&quot;bTrashWrap&quot;); w.hidden=!w.hidden; if(!w.hidden) drawTrash(); });
+$(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
+  var head=[&quot;date&quot;,&quot;time&quot;,&quot;shift&quot;,&quot;meter&quot;,&quot;utility&quot;,&quot;reading&quot;,&quot;unit&quot;,&quot;consumption&quot;,&quot;tariff&quot;,&quot;cost&quot;,&quot;cost_usd&quot;,&quot;by&quot;,&quot;note&quot;];
+  var rows=logFilter().slice().sort(function(a,b){return a.ts-b.ts;}).map(function(r){ var cons=consumptionOf(r); var rate=(r.type===&quot;WATER&quot;?TAR.water:TAR.elec); var cost=(cons!=null)?cons*rate:&quot;&quot;;
+    return [r.date,r.time,r.shift,r.meterName,typeLabel(r.type),r.reading,unitOf(r.type),(cons!=null?cons:&quot;&quot;),rate,cost,(cost!==&quot;&quot;?usd(cost).toFixed(2):&quot;&quot;),r.by,r.note]; });
+  var csv=[head].concat(rows).map(function(r){ return r.map(function(c){ return '&quot;'+String(c==null?&quot;&quot;:c).replace(/&quot;/g,'&quot;&quot;')+'&quot;'; }).join(&quot;,&quot;); }).join(&quot;\n&quot;);
+  var a=document.createElement(&quot;a&quot;); a.href=&quot;data:text/csv;charset=utf-8,&quot;+encodeURIComponent(csv); a.download=&quot;utility_readings.csv&quot;; a.click();
+});
+
+/* ---- meters &amp; tariff ---- */
+var mEdit=null;
+$(&quot;mAdd&quot;).addEventListener(&quot;click&quot;,async function(){
+  var name=$(&quot;mName&quot;).value.trim(); if(!name){ toast(&quot;Enter a meter name.&quot;); return; }
+  var type=$(&quot;mType&quot;).value, loc=$(&quot;mLoc&quot;).value.trim();
+  if(mEdit){ var m=meterById(mEdit); if(m){ m.name=name; m.type=type; m.loc=loc; } toast(&quot;Meter updated.&quot;); }
+  else { meters.push({id:&quot;m&quot;+nowTs()+Math.floor(readings.length+meters.length), name:name, type:type, loc:loc}); toast(&quot;Meter added.&quot;); }
+  await save(MKEY,meters); mEdit=null; $(&quot;mName&quot;).value=&quot;&quot;; $(&quot;mLoc&quot;).value=&quot;&quot;; $(&quot;mAdd&quot;).textContent=&quot;Add / Update&quot;; fillMeterSelects(); refreshHead(); drawMeters();
+});
+function drawMeters(){
+  var h='<div class=&quot;uscroll&quot;><table id=&quot;mListTbl&quot;><thead><tr><th>Meter</th><th>Utility</th><th>Unit</th><th>Location</th><th class=&quot;num&quot;>Readings</th><th></th></tr></thead><tbody>';
+  if(!meters.length){ h+='<tr><td colspan=&quot;6&quot; class=&quot;hint&quot; style=&quot;padding:14px&quot;>No meters yet — add one above.</td></tr>'; }
+  meters.forEach(function(m){ var cnt=readings.filter(function(r){return String(r.meterId)===String(m.id);}).length;
+    h+='<tr><td><b>'+esc(m.name)+'</b></td><td><span class=&quot;flag '+(m.type===&quot;WATER&quot;?&quot;water&quot;:&quot;elec&quot;)+'&quot;>'+typeLabel(m.type)+'</span></td><td>'+unitOf(m.type)+'</td><td>'+esc(m.loc||&quot;—&quot;)+'</td><td class=&quot;num&quot;>'+cnt+'</td>'+
+       '<td style=&quot;white-space:nowrap&quot;><button class=&quot;tiny&quot; data-medit=&quot;'+esc(m.id)+'&quot;>Edit</button> <button class=&quot;tiny warn&quot; data-mdel=&quot;'+esc(m.id)+'&quot;>Delete</button></td></tr>'; });
+  h+='</tbody></table></div>';
+  $(&quot;mTbl&quot;).innerHTML=h;
+  $(&quot;mTbl&quot;).querySelectorAll(&quot;[data-medit]&quot;).forEach(function(b){ b.onclick=function(){ var m=meterById(b.getAttribute(&quot;data-medit&quot;)); if(!m) return; mEdit=m.id; $(&quot;mName&quot;).value=m.name; $(&quot;mType&quot;).value=m.type; $(&quot;mLoc&quot;).value=m.loc||&quot;&quot;; $(&quot;mAdd&quot;).textContent=&quot;Update meter&quot;; $(&quot;mName&quot;).focus(); }; });
+  $(&quot;mTbl&quot;).querySelectorAll(&quot;[data-mdel]&quot;).forEach(function(b){ b.onclick=async function(){ if(!adminOK()) return; var id=b.getAttribute(&quot;data-mdel&quot;); var used=readings.filter(function(r){return String(r.meterId)===String(id);}).length; if(!confirm(&quot;Delete this meter?&quot;+(used?(&quot;\n\nIt has &quot;+used+&quot; reading(s); they will stay in the log but lose their meter link.&quot;):&quot;&quot;))) return; meters=meters.filter(function(m){return String(m.id)!==String(id);}); await save(MKEY,meters); fillMeterSelects(); refreshHead(); drawMeters(); toast(&quot;Meter deleted.&quot;); }; });
+}
+function applyTarLabels(){ $(&quot;tElecCur&quot;).textContent=&quot;(&quot;+TAR.base+&quot; / kWh)&quot;; $(&quot;tWaterCur&quot;).textContent=&quot;(&quot;+TAR.base+&quot; / m³)&quot;; $(&quot;tElec&quot;).value=TAR.elec||&quot;&quot;; $(&quot;tWater&quot;).value=TAR.water||&quot;&quot;; $(&quot;tBase&quot;).value=TAR.base||&quot;IDR&quot;; $(&quot;tFx&quot;).value=TAR.fx; }
+$(&quot;tSave&quot;).addEventListener(&quot;click&quot;,async function(){ var base=($(&quot;tBase&quot;).value||&quot;IDR&quot;).trim().toUpperCase()||&quot;IDR&quot;; var fx=num($(&quot;tFx&quot;).value); if(fx<=0){ toast(&quot;Enter a valid USD rate.&quot;); return; } TAR={elec:num($(&quot;tElec&quot;).value), water:num($(&quot;tWater&quot;).value), base:base, fx:fx}; await save(TKEY,TAR); applyTarLabels(); $(&quot;tMsg&quot;).textContent=&quot;Saved.&quot;; toast(&quot;Tariff saved.&quot;); if(!$(&quot;v-log&quot;).hidden) drawLog(); });
+
+/* ---- analysis ---- */
+var AN_MON=[&quot;Jan&quot;,&quot;Feb&quot;,&quot;Mar&quot;,&quot;Apr&quot;,&quot;May&quot;,&quot;Jun&quot;,&quot;Jul&quot;,&quot;Aug&quot;,&quot;Sep&quot;,&quot;Oct&quot;,&quot;Nov&quot;,&quot;Dec&quot;];
+function monthKey(iso){ return (iso||&quot;&quot;).slice(0,7); }
+function weekKey(iso){ var d=new Date((iso||&quot;&quot;)+&quot;T00:00:00&quot;); if(isNaN(d)) return &quot;&quot;; var off=(d.getDay()+6)%7; d.setDate(d.getDate()-off); return d.getFullYear()+&quot;-&quot;+p2(d.getMonth()+1)+&quot;-&quot;+p2(d.getDate()); }
+function monthLbl(k){ var p=k.split(&quot;-&quot;); return AN_MON[+p[1]-1]+&quot; &quot;+p[0]; }
+function weekLbl(k){ var d=new Date(k+&quot;T00:00:00&quot;); return isNaN(d)?k:(d.getDate()+&quot; &quot;+AN_MON[d.getMonth()]); }
+var anLast={rows:[],periods:[],pivot:[]};
+function drawAnalysis(){
+  var from=$(&quot;aFrom&quot;).value, to=$(&quot;aTo&quot;).value, ty=$(&quot;aType&quot;).value, period=$(&quot;aPeriod&quot;).value||&quot;month&quot;;
+  var pkey=period===&quot;week&quot;?weekKey:monthKey, plbl=period===&quot;week&quot;?weekLbl:monthLbl;
+  /* consumption events: for each reading with a previous, an event {meter,type,date,cons,cost} */
+  var evs=[];
+  readings.forEach(function(r){ if(ty &amp;&amp; r.type!==ty) return; if(from &amp;&amp; (!r.date||r.date<from)) return; if(to &amp;&amp; (!r.date||r.date>to)) return; var cons=consumptionOf(r); if(cons==null) return; var rate=(r.type===&quot;WATER&quot;?TAR.water:TAR.elec); evs.push({meterId:r.meterId, name:r.meterName, type:r.type, date:r.date, cons:cons, cost:cons*rate, key:pkey(r.date)}); });
+  if(!evs.length){ $(&quot;anBody&quot;).innerHTML='<div class=&quot;empty&quot;><b>No data</b>No consumption in range (a meter needs at least two readings).</div>'; anLast={rows:[],periods:[],pivot:[]}; return; }
+  var totalE=0,totalW=0,costE=0,costW=0;
+  var byMeter={}, periodsSet={}, pivot={};
+  evs.forEach(function(e){ if(e.type===&quot;WATER&quot;){ totalW+=e.cons; costW+=e.cost; } else { totalE+=e.cons; costE+=e.cost; }
+    var m=byMeter[e.meterId]||(byMeter[e.meterId]={name:e.name,type:e.type,cons:0,cost:0}); m.cons+=e.cons; m.cost+=e.cost;
+    periodsSet[e.key]=1; var row=pivot[e.meterId]||(pivot[e.meterId]={name:e.name,type:e.type,cells:{},total:0}); row.cells[e.key]=(row.cells[e.key]||0)+e.cons; row.total+=e.cons;
+  });
+  var meterArr=Object.keys(byMeter).map(function(k){return byMeter[k];}).sort(function(a,b){return b.cons-a.cons;});
+  var periods=Object.keys(periodsSet).sort(); var capN=period===&quot;week&quot;?26:18, capped=false; if(periods.length>capN){ periods=periods.slice(periods.length-capN); capped=true; }
+  var pivArr=Object.keys(pivot).map(function(k){return pivot[k];}).sort(function(a,b){return b.total-a.total;});
+  anLast={rows:meterArr, periods:periods, pivot:pivArr, plbl:plbl};
+
+  var h='<div class=&quot;kpis&quot;>'+
+    '<div class=&quot;kpi&quot;><div class=&quot;k&quot;>Electricity</div><div class=&quot;v&quot;>'+fmtNum(totalE)+' <small style=&quot;font-size:12px&quot;>kWh</small></div></div>'+
+    '<div class=&quot;kpi&quot;><div class=&quot;k&quot;>Water</div><div class=&quot;v&quot;>'+fmtNum(totalW)+' <small style=&quot;font-size:12px&quot;>m³</small></div></div>'+
+    '<div class=&quot;kpi&quot;><div class=&quot;k&quot;>Elec cost</div><div class=&quot;v&quot; style=&quot;font-size:19px&quot;>'+fmtMoney(costE)+'</div><div class=&quot;hint&quot;>'+fmtUSD(costE)+'</div></div>'+
+    '<div class=&quot;kpi&quot;><div class=&quot;k&quot;>Water cost</div><div class=&quot;v&quot; style=&quot;font-size:19px&quot;>'+fmtMoney(costW)+'</div><div class=&quot;hint&quot;>'+fmtUSD(costW)+'</div></div>'+
+    '<div class=&quot;kpi&quot;><div class=&quot;k&quot;>Total cost</div><div class=&quot;v&quot; style=&quot;font-size:19px;color:var(--bad)&quot;>'+fmtMoney(costE+costW)+'</div><div class=&quot;hint&quot;>'+fmtUSD(costE+costW)+'</div></div>'+
+    '</div>';
+  /* by meter bars */
+  var maxC=meterArr.reduce(function(m,x){return Math.max(m,x.cons);},0)||1;
+  h+='<div style=&quot;margin-top:16px&quot;><h2 class=&quot;sec&quot; style=&quot;font-size:17px&quot;>Consumption by meter</h2><div style=&quot;margin-top:8px&quot;>';
+  meterArr.forEach(function(m){ var w=Math.max(2,Math.round(m.cons/maxC*100));
+    h+='<div class=&quot;an-bar-row&quot;><div class=&quot;lbl&quot; title=&quot;'+esc(m.name)+'&quot;>'+esc(m.name)+'</div><div class=&quot;an-track&quot;><div class=&quot;an-fill '+(m.type===&quot;WATER&quot;?&quot;w&quot;:&quot;&quot;)+'&quot; style=&quot;width:'+w+'%&quot;></div></div><div class=&quot;an-amt&quot;>'+fmtNum(m.cons)+' '+unitOf(m.type)+'<br><span style=&quot;color:var(--muted)&quot;>'+fmtMoney(m.cost)+'</span></div></div>'; });
+  h+='</div></div>';
+  /* pivot */
+  var phead=periods.map(function(k){ return '<th class=&quot;num&quot;>'+esc(plbl(k))+'</th>'; }).join(&quot;&quot;);
+  var pbody=pivArr.map(function(m){ var cells=periods.map(function(k){ var v=m.cells[k]||0; return '<td class=&quot;num&quot;>'+(v?fmtNum(v):'')+'</td>'; }).join(&quot;&quot;); return '<tr><td>'+esc(m.name)+'</td><td>'+typeLabel(m.type)+'</td>'+cells+'<td class=&quot;num&quot;><b>'+fmtNum(m.total)+'</b></td></tr>'; }).join(&quot;&quot;);
+  h+='<div style=&quot;margin-top:18px&quot;><h2 class=&quot;sec&quot; style=&quot;font-size:17px&quot;>Consumption per meter — '+(period===&quot;week&quot;?&quot;weekly&quot;:&quot;monthly&quot;)+'</h2>'+(capped?'<div class=&quot;hint&quot;>showing last '+capN+' periods</div>':'')+
+     '<div class=&quot;uscroll&quot; style=&quot;margin-top:8px&quot;><table><thead><tr><th>Meter</th><th>Utility</th>'+phead+'<th class=&quot;num&quot;>Total</th></tr></thead><tbody>'+pbody+'</tbody></table></div></div>';
+  $(&quot;anBody&quot;).innerHTML=h;
+}
+$(&quot;aCsv&quot;).addEventListener(&quot;click&quot;,function(){ drawAnalysis();
+  var b=[]; b.push([&quot;Consumption by meter&quot;]); b.push([&quot;Meter&quot;,&quot;Utility&quot;,&quot;Consumption&quot;,&quot;Unit&quot;,&quot;Cost&quot;,&quot;Cost USD&quot;]);
+  anLast.rows.forEach(function(m){ b.push([m.name,typeLabel(m.type),m.cons,unitOf(m.type),m.cost,usd(m.cost).toFixed(2)]); });
+  if(anLast.pivot.length){ b.push([]); b.push([&quot;Per meter — periods&quot;]); b.push([&quot;Meter&quot;,&quot;Utility&quot;].concat(anLast.periods.map(anLast.plbl)).concat([&quot;Total&quot;])); anLast.pivot.forEach(function(m){ b.push([m.name,typeLabel(m.type)].concat(anLast.periods.map(function(k){return m.cells[k]||0;})).concat([m.total])); }); }
+  var csv=b.map(function(r){ return r.map(function(c){ return '&quot;'+String(c==null?&quot;&quot;:c).replace(/&quot;/g,'&quot;&quot;')+'&quot;'; }).join(&quot;,&quot;); }).join(&quot;\n&quot;);
+  var a=document.createElement(&quot;a&quot;); a.href=&quot;data:text/csv;charset=utf-8,&quot;+encodeURIComponent(csv); a.download=&quot;utility_analysis.csv&quot;; a.click();
+});
+[&quot;aFrom&quot;,&quot;aTo&quot;,&quot;aType&quot;,&quot;aPeriod&quot;].forEach(function(id){ $(id).addEventListener(&quot;change&quot;,drawAnalysis); });
+
+/* ---- entity scoping ---- */
+async function loadAll(){
+  readings=await load(RKEY,[]); if(!Array.isArray(readings)) readings=[];
+  deletedR=await load(DKEY,[]); if(!Array.isArray(deletedR)) deletedR=[];
+  meters=await load(MKEY,null); if(!Array.isArray(meters)||!meters.length) meters=DEFAULT_METERS.slice();
+  var t=await load(TKEY,null); if(t&amp;&amp;typeof t===&quot;object&quot;) TAR={elec:num(t.elec),water:num(t.water),base:(t.base||&quot;IDR&quot;),fx:num(t.fx)||16000};
+  fillMeterSelects(); applyTarLabels(); refreshHead();
+}
+var DEFAULT_METERS=[
+  {id:&quot;m-elec-main&quot;,name:&quot;Main Incoming&quot;,type:&quot;ELEC&quot;,loc:&quot;Substation&quot;},
+  {id:&quot;m-elec-prod&quot;,name:&quot;Production&quot;,type:&quot;ELEC&quot;,loc:&quot;Plant&quot;},
+  {id:&quot;m-water-main&quot;,name:&quot;Main Incoming&quot;,type:&quot;WATER&quot;,loc:&quot;Intake&quot;}
+];
+async function setEntity(ent){ ent=ent||&quot;ALCO&quot;; if(ent===ENT) return; ENT=ent; loadCreds();
+  RKEY=ent===&quot;ALCO&quot;?&quot;util:readings&quot;:&quot;util:readings:&quot;+ent;
+  DKEY=ent===&quot;ALCO&quot;?&quot;util:readings:deleted&quot;:&quot;util:readings:deleted:&quot;+ent;
+  MKEY=ent===&quot;ALCO&quot;?&quot;util:meters&quot;:&quot;util:meters:&quot;+ent;
+  await loadAll(); resetReading();
+  if(!$(&quot;v-log&quot;).hidden) drawLog(); if(!$(&quot;v-met&quot;).hidden) drawMeters(); if(!$(&quot;v-an&quot;).hidden) drawAnalysis();
+}
+window.setEntity=setEntity;
+
+/* ---- boot ---- */
+loadCreds();
+setWhen(todayISO()+&quot;T&quot;+nowTime());
+(async function(){ await loadAll(); resetReading(); })();
 </script>
 </body></html>
 "></iframe>
@@ -7418,7 +7912,7 @@ buildSignoffs();
 </div>
 <script>
 (function(){
-  var AUTH_CATS=[["dt","Technician Downtime"],["wo","Work Order"],["diesel","Diesel Inventory"],["material","Waste Material"],["spare","Spare Part"]];
+  var AUTH_CATS=[["dt","Technician Downtime"],["wo","Work Order"],["diesel","Diesel Inventory"],["material","Waste Material"],["spare","Spare Part"],["utility","Water & Electricity"]];
   var API="/api/kv", KEY="auth:creds", CREDS={};
   function ge(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]);}); }
   async function kvLoad(){ try{ var r=await fetch(API+"?key="+encodeURIComponent(KEY),{cache:"no-store"}); var j=await r.json(); if(j&&j.value) return JSON.parse(j.value); }catch(e){} return {}; }
@@ -7531,7 +8025,7 @@ const REPORTKINDS = {
 };
 
 /* ---------- navigation ---------- */
-const TITLES={dashboard:"Engineering Dashboard",downtime:"Technician Downtime Report",workorder:"Utility & Facility Work Order",downtime2:"Technician Downtime Log Book",workorder2:"Work Order Request — Utility Facility",linedt:"Downtime by Line",dieselwk:"Diesel — Weekly Analysis",diesel:"Diesel Inventory Management",material:"Waste Material In / Out — PT SAAT",spare:"Spare Part Request & Return"};
+const TITLES={dashboard:"Engineering Dashboard",downtime:"Technician Downtime Report",workorder:"Utility & Facility Work Order",downtime2:"Technician Downtime Log Book",workorder2:"Work Order Request — Utility Facility",linedt:"Downtime by Line",dieselwk:"Diesel — Weekly Analysis",diesel:"Diesel Inventory Management",material:"Waste Material In / Out — PT SAAT",spare:"Spare Part Request & Return",utility:"Water & Electricity Monitoring"};
 function nav(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -7546,6 +8040,7 @@ function nav(page){
   if(page==='diesel') syncFrameEntity('dieselFrame');
   if(page==='material') syncFrameEntity('materialFrame');
   if(page==='spare') syncFrameEntity('spareFrame');
+  if(page==='utility') syncFrameEntity('utilityFrame');
 }
 
 /* ---------- Diesel weekly (Mon–Sun) bar chart, per tank ---------- */
@@ -7681,7 +8176,7 @@ function syncFrameEntity(frameId, tries){
   }catch(e){}
   if(tries<60) setTimeout(function(){ syncFrameEntity(frameId, tries+1); }, 100);
 }
-function syncAllEntities(){ syncDTEntity(); syncFrameEntity('workorderFrame'); syncFrameEntity('dieselFrame'); syncFrameEntity('materialFrame'); syncFrameEntity('spareFrame'); }
+function syncAllEntities(){ syncDTEntity(); syncFrameEntity('workorderFrame'); syncFrameEntity('dieselFrame'); syncFrameEntity('materialFrame'); syncFrameEntity('spareFrame'); syncFrameEntity('utilityFrame'); }
 
 /* Waste Material In/Out is a PT SAAT-only module: show its Overview quick card
    only for SAAT, and if the user is on that page when switching away, send them home. */
@@ -8175,7 +8670,7 @@ autoFit(document.getElementById('dieselFrame'));
 window.addEventListener('resize', ()=>{ fitFrame(document.getElementById('logbookFrame')); fitFrame(document.getElementById('workorderFrame')); fitFrame(document.getElementById('dieselFrame')); });
 
 /* ---------- embedded apps: grow to fit content so the MAIN window scrolls (no inner scrollbar) ---------- */
-var EMBED_FRAMES=['logbookFrame','workorderFrame','dieselFrame','materialFrame','spareFrame'];
+var EMBED_FRAMES=['logbookFrame','workorderFrame','dieselFrame','materialFrame','spareFrame','utilityFrame'];
 function frameDoc(f){ try{ return f.contentDocument||(f.contentWindow&&f.contentWindow.document)||null; }catch(e){ return null; } }
 function autoFit(id){ var f=document.getElementById(id); if(!f) return; var d=frameDoc(f); if(!d||!d.body) return;
   f.classList.add('autofit');
