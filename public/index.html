@@ -6779,9 +6779,9 @@ var LOG_COLS=[
 /* confirmation / approval columns (per-row Confirm + bulk Confirm-all, admin-gated) */
 var CONF_COLS=[
   {key:&quot;supTech&quot;, h:&quot;Supervisor Technician&quot;,    act:&quot;sup&quot;,   mass:&quot;bMassSup&quot;,   btn:&quot;Confirm&quot; },
-  {key:&quot;engMgr&quot;,  h:&quot;Engineering Manager&quot;,      act:&quot;eng&quot;,   mass:&quot;bMassEng&quot;,   btn:&quot;Confirm&quot; },
   {key:&quot;issued&quot;,  h:&quot;Parts issued (WH)&quot;,        act:&quot;issue&quot;, mass:&quot;bMassIssue&quot;, btn:&quot;Confirm issued&quot; },
-  {key:&quot;returned&quot;,h:&quot;Used parts received (WH)&quot;, act:&quot;return&quot;,mass:&quot;bMassRecv&quot;,  btn:&quot;Confirm received&quot; }
+  {key:&quot;returned&quot;,h:&quot;Used parts received (WH)&quot;, act:&quot;return&quot;,mass:&quot;bMassRecv&quot;,  btn:&quot;Confirm received&quot; },
+  {key:&quot;engMgr&quot;,  h:&quot;Engineering Manager&quot;,      act:&quot;eng&quot;,   mass:&quot;bMassEng&quot;,   btn:&quot;Confirm&quot; }
 ];
 function logCellVals(f,it){ return {
   reqBy:(f.sign&amp;&amp;f.sign.reqBy&amp;&amp;f.sign.reqBy.name)||&quot;&quot;, date:fmtDate(f.dateReq), shift:(f.shift||&quot;&quot;),
