@@ -1109,7 +1109,19 @@ var DEFAULT_CFG = {
     { id:&quot;c3&quot;, name:&quot;Filter Making Line&quot;, lines: [
         { id:&quot;c3l1&quot;, name:&quot;Line F1 (KDF2-1)&quot; },
         { id:&quot;c3l2&quot;, name:&quot;Line F2 (KDF2-2)&quot; },
-        { id:&quot;c3l3&quot;, name:&quot;Line F3 (KDF6)&quot; } ] }
+        { id:&quot;c3l3&quot;, name:&quot;Line F3 (KDF6)&quot; } ] },
+    { id:&quot;c5&quot;, name:&quot;Primary Line&quot;, lines: [
+        { id:&quot;c5l1&quot;, name:&quot;Slicer&quot; },
+        { id:&quot;c5l2&quot;, name:&quot;Conditioning&quot; },
+        { id:&quot;c5l3&quot;, name:&quot;Cylinder Dryer&quot; },
+        { id:&quot;c5l4&quot;, name:&quot;Cutter KTH&quot; },
+        { id:&quot;c5l5&quot;, name:&quot;Cutter KTC&quot; },
+        { id:&quot;c5l6&quot;, name:&quot;Burley Toaster&quot; },
+        { id:&quot;c5l7&quot;, name:&quot;Buffer Feeder&quot; },
+        { id:&quot;c5l8&quot;, name:&quot;Silo&quot; },
+        { id:&quot;c5l9&quot;, name:&quot;Conveyor&quot; },
+        { id:&quot;c5l10&quot;, name:&quot;Classifier&quot; },
+        { id:&quot;c5l11&quot;, name:&quot;Vibratory Conveyor&quot; } ] }
   ],
   stopcats:[&quot;Breakdown — unplanned&quot;,&quot;Minor stop / jam&quot;,&quot;Changeover / setup&quot;,&quot;Speed loss&quot;,
     &quot;Material shortage&quot;,&quot;Quality stop&quot;,&quot;Utility failure (air, steam, power)&quot;,&quot;No operator&quot;,
@@ -6329,7 +6341,12 @@ var LINE_CATS=[
     {id:&quot;c4l1&quot;,name:&quot;Boiler&quot;},{id:&quot;c4l2&quot;,name:&quot;Air Compressor&quot;},{id:&quot;c4l3&quot;,name:&quot;Chiller&quot;},
     {id:&quot;c4l4&quot;,name:&quot;Cooling Tower&quot;},{id:&quot;c4l5&quot;,name:&quot;Water Pump&quot;},{id:&quot;c4l6&quot;,name:&quot;Generator&quot;},
     {id:&quot;c4l7&quot;,name:&quot;HVAC / AHU&quot;},{id:&quot;c4l8&quot;,name:&quot;Electrical Panel&quot;},{id:&quot;c4l9&quot;,name:&quot;Dust Collector&quot;},
-    {id:&quot;c4l10&quot;,name:&quot;Other&quot;}]}
+    {id:&quot;c4l10&quot;,name:&quot;Other&quot;}]},
+  {id:&quot;c5&quot;,name:&quot;Primary Line&quot;,lines:[
+    {id:&quot;c5l1&quot;,name:&quot;Slicer&quot;},{id:&quot;c5l2&quot;,name:&quot;Conditioning&quot;},{id:&quot;c5l3&quot;,name:&quot;Cylinder Dryer&quot;},
+    {id:&quot;c5l4&quot;,name:&quot;Cutter KTH&quot;},{id:&quot;c5l5&quot;,name:&quot;Cutter KTC&quot;},{id:&quot;c5l6&quot;,name:&quot;Burley Toaster&quot;},
+    {id:&quot;c5l7&quot;,name:&quot;Buffer Feeder&quot;},{id:&quot;c5l8&quot;,name:&quot;Silo&quot;},{id:&quot;c5l9&quot;,name:&quot;Conveyor&quot;},
+    {id:&quot;c5l10&quot;,name:&quot;Classifier&quot;},{id:&quot;c5l11&quot;,name:&quot;Vibratory Conveyor&quot;}]}
 ];
 function catById(id){ for(var i=0;i<LINE_CATS.length;i++){ if(LINE_CATS[i].id===id) return LINE_CATS[i]; } return null; }
 function lineName(catId,lineId){ var c=catById(catId); if(!c) return &quot;&quot;; for(var i=0;i<c.lines.length;i++){ if(c.lines[i].id===lineId) return c.lines[i].name; } return &quot;&quot;; }
