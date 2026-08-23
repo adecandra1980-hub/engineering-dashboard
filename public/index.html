@@ -3034,12 +3034,20 @@ async function setEntity(ent){
   headline();
 }
 window.setEntity = setEntity;
+/* merge any new categories / machines from DEFAULT_CFG into a saved config
+   (adds only what's missing by id — never removes the user's own edits) */
+function reconcileCfg(base){ var changed=false; base.categories=base.categories||[];
+  DEFAULT_CFG.categories.forEach(function(dc){ var ec=base.categories.filter(function(c){return c.id===dc.id;})[0];
+    if(!ec){ base.categories.push(JSON.parse(JSON.stringify(dc))); changed=true; return; }
+    ec.lines=ec.lines||[];
+    (dc.lines||[]).forEach(function(dl){ if(!ec.lines.some(function(l){return l.id===dl.id;})){ var idx=dc.lines.indexOf(dl); if(idx>=0 &amp;&amp; idx<=ec.lines.length) ec.lines.splice(idx,0,{id:dl.id,name:dl.name}); else ec.lines.push({id:dl.id,name:dl.name}); changed=true; } });
+  }); return changed; }
 (async function init(){
   cfg = await load(CFG_KEY, DEFAULT_CFG);
   if(!cfg || !cfg.categories || !cfg.categories.length) cfg = DEFAULT_CFG;
   cfg.categories.forEach(function(c){ if(!c.lines || !c.lines.length) c.lines = mkLines(c.id, 6); });
   [&quot;stopcats&quot;,&quot;types&quot;].forEach(function(k){ if(!cfg[k] || !cfg[k].length) cfg[k] = DEFAULT_CFG[k].slice(); });
-  if(applyNames()) await save(CFG_KEY, cfg);
+  var needSave=false; if(reconcileCfg(cfg)) needSave=true; if(applyNames()) needSave=true; if(needSave) await save(CFG_KEY, cfg);
   ALCO_CFG = cfg;
   evts = await load(EVT_KEY, []);
   if(!Array.isArray(evts)) evts = [];
