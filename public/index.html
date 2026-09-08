@@ -5362,6 +5362,8 @@ window.setEntity=setEntity;
       <h2 class=&quot;sec&quot;>Analysis</h2>
       <p class=&quot;eyebrow&quot; style=&quot;margin-top:12px&quot;>Totals (kg)</p>
       <div class=&quot;tank-tiles&quot; id=&quot;anTiles&quot;></div>
+      <p class=&quot;eyebrow&quot; style=&quot;margin-top:18px&quot;>Total OUT by material (kg)</p>
+      <div class=&quot;scroll&quot;><div id=&quot;anByMat&quot; style=&quot;min-width:480px&quot;></div></div>
       <p class=&quot;eyebrow&quot; style=&quot;margin-top:18px&quot;>Daily material OUT from factory (kg) — last 14 days</p>
       <div class=&quot;scroll&quot;><div id=&quot;anOut&quot; style=&quot;min-width:640px&quot;></div></div>
       <p class=&quot;eyebrow&quot; style=&quot;margin-top:18px&quot;>Daily incoming trucks (weigh-in) — last 14 days</p>
@@ -5763,6 +5765,16 @@ function dailyBars(kind, color, mode){
     var lab = mode===&quot;count&quot; ? (d.val?String(d.val):&quot;—&quot;) : (d.val?kg(d.val):&quot;—&quot;);
     return '<div class=&quot;sbar&quot;><div class=&quot;lbl&quot;>'+esc(d.key.slice(5))+'</div><div class=&quot;track&quot;><i style=&quot;width:'+pct+'%;background:'+color+'&quot;></i></div><div class=&quot;val&quot;>'+lab+'</div></div>'; }).join(&quot;&quot;);
 }
+/* total net kg OUT grouped by material type */
+function matBars(){
+  var map={};
+  entries.forEach(function(e){ if(e.kind!==&quot;out&quot;) return; var m=e.material||&quot;—&quot;; if(m===&quot;Other&quot; &amp;&amp; e.matOther) m=&quot;Other: &quot;+e.matOther; map[m]=(map[m]||0)+netOf(e); });
+  var keys=Object.keys(map); if(!keys.length) return '<div class=&quot;hint&quot;>No outgoing records yet.</div>';
+  keys.sort(function(a,b){ return map[b]-map[a]; });
+  var max=1; keys.forEach(function(k){ max=Math.max(max,map[k]); });
+  return keys.map(function(k){ var pct=Math.max(3,Math.round(map[k]/max*100));
+    return '<div class=&quot;sbar&quot;><div class=&quot;lbl&quot; title=&quot;'+esc(k)+'&quot;>'+esc(k)+'</div><div class=&quot;track&quot;><i style=&quot;width:'+pct+'%;background:var(--starch)&quot;></i></div><div class=&quot;val&quot;>'+kg(map[k])+'</div></div>'; }).join(&quot;&quot;);
+}
 function drawAnalysis(){
   var outKg=0,nIn=0,nOut=0;
   entries.forEach(function(e){ if(e.kind===&quot;in&quot;){ nIn++; } else if(e.kind===&quot;out&quot;){ nOut++; outKg+=netOf(e); } });
@@ -5773,6 +5785,7 @@ function drawAnalysis(){
     tile(&quot;OUT today&quot;, outToday, &quot;t-warn&quot;, today) +
     tile(&quot;Incoming trucks&quot;, nIn, &quot;&quot;, &quot;weigh-in records&quot;, &quot;&quot;) +
     tile(&quot;Outgoing trucks&quot;, nOut, &quot;&quot;, &quot;weigh-out records&quot;, &quot;&quot;);
+  $(&quot;anByMat&quot;).innerHTML=matBars();
   $(&quot;anOut&quot;).innerHTML=dailyBars(&quot;out&quot;,&quot;var(--amber)&quot;,&quot;net&quot;);
   $(&quot;anIn&quot;).innerHTML=dailyBars(&quot;in&quot;,&quot;var(--good)&quot;,&quot;count&quot;);
 }
