@@ -5435,9 +5435,9 @@ function kg(n){ return (Math.round(n*10)/10).toLocaleString(&quot;en-US&quot;); 
 
 var ENTRY_KEY=&quot;material:entries&quot;, PH_KEY=&quot;material:photo:&quot;, DEL_KEY=&quot;material:entries:deleted&quot;;
 var PRICE_KEY=&quot;material:pricing&quot;, PRICES=[];
-var DEFAULT_PRICES=[{m:&quot;Steel Structure&quot;,p:5500},{m:&quot;Kandang Steel&quot;,p:2500},{m:&quot;Kabel&quot;,p:2000},{m:&quot;Steel Pondasi&quot;,p:1500}];
+var DEFAULT_PRICES=[{m:&quot;Steel Structure&quot;,p:5500},{m:&quot;Kandang Steel&quot;,p:2500},{m:&quot;Cable&quot;,p:2000},{m:&quot;Steel Pondasi&quot;,p:1500}];
 function priceFmt(n){ return &quot;IDR &quot;+(num(n)).toLocaleString(&quot;id-ID&quot;,{minimumFractionDigits:2,maximumFractionDigits:2}); }
-async function loadPrices(){ var v=await load(PRICE_KEY,null); if(v===null){ PRICES=DEFAULT_PRICES.map(function(x){return {m:x.m,p:x.p};}); await save(PRICE_KEY,PRICES); } else { PRICES=Array.isArray(v)?v:[]; } }
+async function loadPrices(){ var v=await load(PRICE_KEY,null); if(v===null){ PRICES=DEFAULT_PRICES.map(function(x){return {m:x.m,p:x.p};}); await save(PRICE_KEY,PRICES); } else { PRICES=Array.isArray(v)?v:[]; var chg=false; PRICES.forEach(function(r){ if(String(r.m).toLowerCase()===&quot;kabel&quot;){ r.m=&quot;Cable&quot;; chg=true; } }); if(chg) await save(PRICE_KEY,PRICES); } }
 function drawPricing(){
   var rows=PRICES.length? PRICES.map(function(r,i){ return '<tr><td>'+esc(r.m)+'</td><td style=&quot;text-align:right&quot;>'+priceFmt(r.p)+'</td><td style=&quot;white-space:nowrap;text-align:right&quot;><button class=&quot;ghost&quot; type=&quot;button&quot; style=&quot;padding:4px 8px&quot; onclick=&quot;delPrice('+i+')&quot;>Delete</button></td></tr>'; }).join(&quot;&quot;) : '<tr><td colspan=&quot;3&quot; class=&quot;hint&quot; style=&quot;text-align:center;padding:18px&quot;>No prices yet — add one above.</td></tr>';
   if($(&quot;prBody&quot;)) $(&quot;prBody&quot;).innerHTML=rows;
