@@ -5272,6 +5272,7 @@ window.setEntity=setEntity;
     <button role=&quot;tab&quot; id=&quot;t-out&quot; aria-selected=&quot;false&quot;>Outgoing</button>
     <button role=&quot;tab&quot; id=&quot;t-book&quot; aria-selected=&quot;false&quot;>Log book</button>
     <button role=&quot;tab&quot; id=&quot;t-an&quot; aria-selected=&quot;false&quot;>Analysis</button>
+    <button role=&quot;tab&quot; id=&quot;t-price&quot; aria-selected=&quot;false&quot;>Pricing</button>
   </nav>
 
   <!-- ============ INCOMING ============ -->
@@ -5316,7 +5317,7 @@ window.setEntity=setEntity;
           <div style=&quot;display:flex;gap:6px&quot;><input id=&quot;oWhen&quot; type=&quot;datetime-local&quot; style=&quot;flex:1;min-width:0&quot;>
           <button class=&quot;ghost&quot; type=&quot;button&quot; id=&quot;oNow&quot; style=&quot;padding:8px 10px;white-space:nowrap&quot;>Now</button></div></div>
         <div><label class=&quot;f&quot; for=&quot;oMat&quot;>Material <span style=&quot;color:var(--bad)&quot;>*</span></label>
-          <select id=&quot;oMat&quot;><option value=&quot;&quot;>Select…</option><option>Steel Structure</option><option>Kandang Steel</option><option>Cable</option><option>Wood</option><option>Other</option></select></div>
+          <select id=&quot;oMat&quot;><option value=&quot;&quot;>Select…</option><option>Steel Structure</option><option>Kandang Steel</option><option>Cable</option><option>Steel Pondasi</option><option>Wood</option><option>Other</option></select></div>
         <div id=&quot;oMatOtherWrap&quot; hidden><label class=&quot;f&quot; for=&quot;oMatOther&quot;>Specify material <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;oMatOther&quot; type=&quot;text&quot; placeholder=&quot;describe&quot;></div>
       </div>
       <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
@@ -5362,12 +5363,26 @@ window.setEntity=setEntity;
       <h2 class=&quot;sec&quot;>Analysis</h2>
       <p class=&quot;eyebrow&quot; style=&quot;margin-top:12px&quot;>Totals (kg)</p>
       <div class=&quot;tank-tiles&quot; id=&quot;anTiles&quot;></div>
-      <p class=&quot;eyebrow&quot; style=&quot;margin-top:18px&quot;>Total OUT by material (kg)</p>
+      <p class=&quot;eyebrow&quot; style=&quot;margin-top:18px&quot;>Total OUT by material — kg &amp;amp; value (IDR from Pricing tab)</p>
       <div class=&quot;scroll&quot;><div id=&quot;anByMat&quot; style=&quot;min-width:480px&quot;></div></div>
       <p class=&quot;eyebrow&quot; style=&quot;margin-top:18px&quot;>Daily material OUT from factory (kg) — last 14 days</p>
       <div class=&quot;scroll&quot;><div id=&quot;anOut&quot; style=&quot;min-width:640px&quot;></div></div>
       <p class=&quot;eyebrow&quot; style=&quot;margin-top:18px&quot;>Daily incoming trucks (weigh-in) — last 14 days</p>
       <div class=&quot;scroll&quot;><div id=&quot;anIn&quot; style=&quot;min-width:640px&quot;></div></div>
+    </div>
+  </section>
+
+  <!-- ============ PRICING ============ -->
+  <section id=&quot;v-price&quot; hidden>
+    <div class=&quot;panel&quot;>
+      <h2 class=&quot;sec&quot;>Pricing material database</h2>
+      <p class=&quot;eyebrow&quot; style=&quot;margin-top:12px&quot;>Add / update material price (IDR per kg)</p>
+      <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;prMat&quot;>Material</label><input id=&quot;prMat&quot; type=&quot;text&quot; placeholder=&quot;e.g. Steel Structure&quot;></div>
+        <div><label class=&quot;f&quot; for=&quot;prVal&quot;>Price (IDR / kg)</label><input id=&quot;prVal&quot; type=&quot;number&quot; step=&quot;any&quot; placeholder=&quot;0&quot;></div>
+        <div style=&quot;display:flex;align-items:flex-end&quot;><button class=&quot;act&quot; type=&quot;button&quot; id=&quot;prAdd&quot;>Add / update</button></div>
+      </div>
+      <div class=&quot;scroll&quot; style=&quot;margin-top:16px&quot;><table style=&quot;min-width:420px&quot;><thead><tr><th>Material</th><th style=&quot;text-align:right&quot;>Price (IDR / kg)</th><th></th></tr></thead><tbody id=&quot;prBody&quot;></tbody></table></div>
     </div>
   </section>
 </div>
@@ -5419,6 +5434,23 @@ function num(v){ var n=parseFloat(v); return isFinite(n)?n:0; }
 function kg(n){ return (Math.round(n*10)/10).toLocaleString(&quot;en-US&quot;); }
 
 var ENTRY_KEY=&quot;material:entries&quot;, PH_KEY=&quot;material:photo:&quot;, DEL_KEY=&quot;material:entries:deleted&quot;;
+var PRICE_KEY=&quot;material:pricing&quot;, PRICES=[];
+var DEFAULT_PRICES=[{m:&quot;Steel Structure&quot;,p:5500},{m:&quot;Kandang Steel&quot;,p:2500},{m:&quot;Kabel&quot;,p:2000},{m:&quot;Steel Pondasi&quot;,p:1500}];
+function priceFmt(n){ return &quot;IDR &quot;+(num(n)).toLocaleString(&quot;id-ID&quot;,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+async function loadPrices(){ var v=await load(PRICE_KEY,null); if(v===null){ PRICES=DEFAULT_PRICES.map(function(x){return {m:x.m,p:x.p};}); await save(PRICE_KEY,PRICES); } else { PRICES=Array.isArray(v)?v:[]; } }
+function drawPricing(){
+  var rows=PRICES.length? PRICES.map(function(r,i){ return '<tr><td>'+esc(r.m)+'</td><td style=&quot;text-align:right&quot;>'+priceFmt(r.p)+'</td><td style=&quot;white-space:nowrap;text-align:right&quot;><button class=&quot;ghost&quot; type=&quot;button&quot; style=&quot;padding:4px 8px&quot; onclick=&quot;delPrice('+i+')&quot;>Delete</button></td></tr>'; }).join(&quot;&quot;) : '<tr><td colspan=&quot;3&quot; class=&quot;hint&quot; style=&quot;text-align:center;padding:18px&quot;>No prices yet — add one above.</td></tr>';
+  if($(&quot;prBody&quot;)) $(&quot;prBody&quot;).innerHTML=rows;
+}
+async function addPrice(){
+  var m=$(&quot;prMat&quot;).value.trim(); if(!m){ toast(&quot;Enter a material name.&quot;); return; }
+  var p=num($(&quot;prVal&quot;).value);
+  var ex=PRICES.filter(function(x){return String(x.m).toLowerCase()===m.toLowerCase();})[0];
+  if(ex){ ex.m=m; ex.p=p; } else PRICES.push({m:m,p:p});
+  await save(PRICE_KEY,PRICES); $(&quot;prMat&quot;).value=&quot;&quot;; $(&quot;prVal&quot;).value=&quot;&quot;; drawPricing();
+  toast(ex?&quot;Price updated.&quot;:&quot;Price added.&quot;);
+}
+async function delPrice(i){ if(!adminOK()) return; PRICES.splice(i,1); await save(PRICE_KEY,PRICES); drawPricing(); toast(&quot;Price removed.&quot;); }
 var entries=[], deletedM=[], editingId=null;
 var DEVICE_ID=(function(){ try{ var k=&quot;tdl:deviceId&quot;; var v=localStorage.getItem(k); if(!v){ v=&quot;dev-&quot;+Date.now().toString(36)+&quot;-&quot;+Math.random().toString(36).slice(2,8); localStorage.setItem(k,v);} return v; }catch(e){ return &quot;dev-local&quot;; } })();
 var CREDS={};
@@ -5486,13 +5518,14 @@ function allPhotoKeys(rec){ var out=[]; var p=rec.photos||{}; for(var s in p){ (
 async function loadPhotoData(e){ var out={}, p=e.photos||{}; for(var slot in p){ var arr=[]; for(var i=0;i<(p[slot]||[]).length;i++){ var d=await load(p[slot][i],null); if(d) arr.push(d); } out[slot]=arr; } return out; }
 
 /* ---- tabs ---- */
-var TABS=[[&quot;t-in&quot;,&quot;v-in&quot;],[&quot;t-out&quot;,&quot;v-out&quot;],[&quot;t-book&quot;,&quot;v-book&quot;],[&quot;t-an&quot;,&quot;v-an&quot;]];
+var TABS=[[&quot;t-in&quot;,&quot;v-in&quot;],[&quot;t-out&quot;,&quot;v-out&quot;],[&quot;t-book&quot;,&quot;v-book&quot;],[&quot;t-an&quot;,&quot;v-an&quot;],[&quot;t-price&quot;,&quot;v-price&quot;]];
 TABS.forEach(function(pair){ $(pair[0]).addEventListener(&quot;click&quot;,function(){
   TABS.forEach(function(p){ var on=p[0]===pair[0]; $(p[0]).setAttribute(&quot;aria-selected&quot;,on?&quot;true&quot;:&quot;false&quot;); $(p[1]).hidden=!on; });
   resetEditState();
   if(pair[0]===&quot;t-out&quot;) fillPickSelect();
   if(pair[0]===&quot;t-book&quot;){ drawBook(); drawTrash(); }
   if(pair[0]===&quot;t-an&quot;) drawAnalysis();
+  if(pair[0]===&quot;t-price&quot;) drawPricing();
 }); });
 function resetEditState(){ editingId=null;
   if($(&quot;iSave&quot;)) $(&quot;iSave&quot;).textContent=&quot;Submit incoming&quot;;
@@ -5766,14 +5799,17 @@ function dailyBars(kind, color, mode){
     return '<div class=&quot;sbar&quot;><div class=&quot;lbl&quot;>'+esc(d.key.slice(5))+'</div><div class=&quot;track&quot;><i style=&quot;width:'+pct+'%;background:'+color+'&quot;></i></div><div class=&quot;val&quot;>'+lab+'</div></div>'; }).join(&quot;&quot;);
 }
 /* total net kg OUT grouped by material type */
+function priceOfMaterial(name){ var base=(String(name).indexOf(&quot;Other: &quot;)===0)?String(name).slice(7):name; var r=(PRICES||[]).filter(function(x){return String(x.m).toLowerCase()===String(base).toLowerCase();})[0]; return r?num(r.p):null; }
 function matBars(){
   var map={};
   entries.forEach(function(e){ if(e.kind!==&quot;out&quot;) return; var m=e.material||&quot;—&quot;; if(m===&quot;Other&quot; &amp;&amp; e.matOther) m=&quot;Other: &quot;+e.matOther; map[m]=(map[m]||0)+netOf(e); });
   var keys=Object.keys(map); if(!keys.length) return '<div class=&quot;hint&quot;>No outgoing records yet.</div>';
   keys.sort(function(a,b){ return map[b]-map[a]; });
-  var max=1; keys.forEach(function(k){ max=Math.max(max,map[k]); });
-  return keys.map(function(k){ var pct=Math.max(3,Math.round(map[k]/max*100));
-    return '<div class=&quot;sbar&quot;><div class=&quot;lbl&quot; title=&quot;'+esc(k)+'&quot;>'+esc(k)+'</div><div class=&quot;track&quot;><i style=&quot;width:'+pct+'%;background:var(--starch)&quot;></i></div><div class=&quot;val&quot;>'+kg(map[k])+'</div></div>'; }).join(&quot;&quot;);
+  var totKg=0, totIdr=0;
+  var rows=keys.map(function(k){ var kgv=map[k]; var pr=priceOfMaterial(k); var amt=(pr!=null)?kgv*pr:null; totKg+=kgv; if(amt!=null) totIdr+=amt;
+    return '<tr><td>'+esc(k)+'</td><td style=&quot;text-align:right&quot;>'+kg(kgv)+' kg</td><td style=&quot;text-align:right&quot;>'+(amt!=null?priceFmt(amt):'—')+'</td></tr>'; }).join(&quot;&quot;);
+  var foot='<tr style=&quot;font-weight:700&quot;><td>Total</td><td style=&quot;text-align:right&quot;>'+kg(totKg)+' kg</td><td style=&quot;text-align:right&quot;>'+priceFmt(totIdr)+'</td></tr>';
+  return '<table style=&quot;min-width:420px&quot;><thead><tr><th>Material</th><th style=&quot;text-align:right&quot;>Total (kg)</th><th style=&quot;text-align:right&quot;>Amount (IDR)</th></tr></thead><tbody>'+rows+foot+'</tbody></table>';
 }
 function drawAnalysis(){
   var outKg=0,nIn=0,nOut=0;
@@ -5798,13 +5834,16 @@ async function setEntity(ent){
   MAT_ENT=ent; loadCreds();
   ENTRY_KEY = ent===&quot;ALCO&quot; ? &quot;material:entries&quot; : &quot;material:entries:&quot;+ent;
   DEL_KEY   = ent===&quot;ALCO&quot; ? &quot;material:entries:deleted&quot; : &quot;material:entries:deleted:&quot;+ent;
+  PRICE_KEY = ent===&quot;ALCO&quot; ? &quot;material:pricing&quot; : &quot;material:pricing:&quot;+ent;
   entries=await load(ENTRY_KEY,[]); if(!Array.isArray(entries)) entries=[];
   deletedM=await load(DEL_KEY,[]); if(!Array.isArray(deletedM)) deletedM=[];
+  await loadPrices();
   if(typeof resetEditState===&quot;function&quot;) resetEditState();
   $(&quot;oPick&quot;).value=&quot;&quot;; oLinkId=null; [&quot;oTruck&quot;,&quot;oDriver&quot;,&quot;oBy&quot;,&quot;oEmpty&quot;,&quot;oFull&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); recalcOut();
   refreshHead(); fillPickSelect();
   if($(&quot;v-book&quot;) &amp;&amp; !$(&quot;v-book&quot;).hidden){ drawBook(); drawTrash(); }
   if($(&quot;v-an&quot;) &amp;&amp; !$(&quot;v-an&quot;).hidden){ drawAnalysis(); }
+  if($(&quot;v-price&quot;) &amp;&amp; !$(&quot;v-price&quot;).hidden){ drawPricing(); }
 }
 window.setEntity=setEntity;
 
@@ -5812,8 +5851,10 @@ window.setEntity=setEntity;
 (async function(){
   entries=await load(ENTRY_KEY,[]); if(!Array.isArray(entries)) entries=[];
   deletedM=await load(DEL_KEY,[]); if(!Array.isArray(deletedM)) deletedM=[];
+  await loadPrices();
+  if($(&quot;prAdd&quot;)) $(&quot;prAdd&quot;).addEventListener(&quot;click&quot;, addPrice);
   $(&quot;iWhen&quot;).value=nowLocalDT(); $(&quot;oWhen&quot;).value=nowLocalDT();
-  recalcOut(); refreshHead(); fillPickSelect();
+  recalcOut(); refreshHead(); fillPickSelect(); drawPricing();
 })();
 </script>
 </body></html>
