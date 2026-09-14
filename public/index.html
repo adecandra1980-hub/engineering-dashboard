@@ -4390,7 +4390,7 @@ var CREDS={};
         <div><label class=&quot;f&quot; for=&quot;anBucket&quot;>Period</label><select id=&quot;anBucket&quot;></select></div>
       </div>
       <p class=&quot;hint&quot; style=&quot;margin-top:8px&quot;>One pie per tank — share of Received (green), Used (brown) and Transferred (amber) litres for the selected period. Only tanks with activity are shown.</p>
-      <div id=&quot;anPies&quot; class=&quot;tank-tiles&quot; style=&quot;margin-top:14px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))&quot;></div>
+      <div id=&quot;anPies&quot; class=&quot;tank-tiles&quot; style=&quot;margin-top:14px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))&quot;></div>
     </div>
   </section>
 
@@ -5084,12 +5084,10 @@ function fillAnBuckets(){
 }
 function anPie(parts){
   var total=parts.reduce(function(s,p){ return s+(p.v>0?p.v:0); },0);
-  if(total<=0) return '<div class=&quot;hint&quot; style=&quot;padding:22px 0;text-align:center&quot;>No activity</div>';
-  var r=15.9155, C=100, off=0, segs='';
-  parts.forEach(function(p){ if(p.v<=0) return; var len=p.v/total*C;
-    segs+='<circle r=&quot;'+r+'&quot; cx=&quot;18&quot; cy=&quot;18&quot; fill=&quot;transparent&quot; stroke=&quot;'+p.color+'&quot; stroke-width=&quot;9&quot; stroke-dasharray=&quot;'+len+' '+(C-len)+'&quot; stroke-dashoffset=&quot;'+(-off)+'&quot; transform=&quot;rotate(-90 18 18)&quot;></circle>';
-    off+=len; });
-  return '<svg viewBox=&quot;0 0 36 36&quot; width=&quot;96&quot; height=&quot;96&quot; style=&quot;flex:none&quot;>'+segs+'</svg>';
+  if(total<=0) return '<div style=&quot;width:120px;height:120px;border-radius:50%;background:var(--wash);border:1px solid var(--rule);display:grid;place-items:center;color:var(--muted);font-family:var(--mono);font-size:10px;flex:none&quot;>no data</div>';
+  var stops='', acc=0;
+  parts.forEach(function(p){ if(p.v<=0) return; var start=acc/total*100; acc+=p.v; var end=acc/total*100; stops+=(stops?',':'')+p.color+' '+start+'% '+end+'%'; });
+  return '<div style=&quot;width:120px;height:120px;border-radius:50%;background:conic-gradient('+stops+');border:1px solid var(--rule);flex:none&quot; title=&quot;Received / Used / Transferred&quot;></div>';
 }
 function drawDieselAnalysis(){
   var wrap=$(&quot;anPies&quot;); if(!wrap) return;
@@ -5106,12 +5104,12 @@ function drawDieselAnalysis(){
   var cards=order.filter(function(t){ return agg[t] &amp;&amp; (agg[t].recv+agg[t].use+agg[t].xfer)>0; }).map(function(t){
     var a=agg[t]; var tot=a.recv+a.use+a.xfer;
     var pie=anPie([{v:a.recv,color:'var(--good)'},{v:a.use,color:'var(--kraft)'},{v:a.xfer,color:'var(--amber)'}]);
-    function row(c,label,val){ return '<div style=&quot;display:flex;align-items:center;gap:6px;white-space:nowrap&quot;><span style=&quot;width:9px;height:9px;border-radius:2px;background:'+c+';flex:none&quot;></span><span style=&quot;color:var(--muted)&quot;>'+label+'</span><span style=&quot;margin-left:auto;font-weight:600&quot;>'+litres(val)+' L</span></div>'; }
+    function row(c,label,val){ return '<div style=&quot;display:flex;align-items:center;gap:6px;white-space:nowrap&quot;><span style=&quot;width:10px;height:10px;border-radius:2px;background:'+c+';flex:none&quot;></span><span style=&quot;color:var(--muted)&quot;>'+label+'</span><span style=&quot;margin-left:auto;font-weight:600&quot;>'+litres(val)+' L</span></div>'; }
     return '<div class=&quot;tank-tile&quot;><div class=&quot;tt-name&quot;>'+esc(t)+'</div>'+
-      '<div style=&quot;display:flex;gap:12px;align-items:center;margin-top:6px&quot;>'+pie+
-        '<div style=&quot;font-family:var(--mono);font-size:11px;display:flex;flex-direction:column;gap:5px;min-width:130px;flex:1&quot;>'+
+      '<div style=&quot;display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:8px&quot;>'+pie+
+        '<div style=&quot;width:100%;font-family:var(--mono);font-size:12px;display:flex;flex-direction:column;gap:6px&quot;>'+
           row('var(--good)','Received',a.recv)+row('var(--kraft)','Used',a.use)+row('var(--amber)','Transferred',a.xfer)+
-          '<div style=&quot;border-top:1px solid var(--rule);margin-top:2px;padding-top:4px;display:flex&quot;><span style=&quot;color:var(--muted)&quot;>Total</span><span style=&quot;margin-left:auto;font-weight:700&quot;>'+litres(tot)+' L</span></div>'+
+          '<div style=&quot;border-top:1px solid var(--rule);margin-top:2px;padding-top:5px;display:flex&quot;><span style=&quot;color:var(--muted)&quot;>Total</span><span style=&quot;margin-left:auto;font-weight:700&quot;>'+litres(tot)+' L</span></div>'+
         '</div>'+
       '</div></div>';
   }).join(&quot;&quot;);
