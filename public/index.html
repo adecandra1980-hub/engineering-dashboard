@@ -4551,6 +4551,11 @@ var CREDS={};
 
 <div class=&quot;lb&quot; id=&quot;lb&quot; hidden><div class=&quot;lb-in&quot;><div id=&quot;lbBody&quot;></div><button class=&quot;ghost&quot; id=&quot;lbClose&quot; style=&quot;color:#F2EFE9;border-color:#5C666E&quot;>Close</button></div></div>
 
+<div class=&quot;lb&quot; id=&quot;anDetail&quot; hidden><div class=&quot;lb-in&quot; style=&quot;max-width:760px;text-align:left;background:var(--panel);border-radius:3px;padding:0;max-height:92vh;overflow:auto&quot;>
+  <div style=&quot;display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--panel);z-index:2&quot;><h3 id=&quot;anDetailTitle&quot; style=&quot;margin:0;font-family:var(--disp);text-transform:uppercase;letter-spacing:.04em;font-size:18px&quot;></h3><button class=&quot;ghost&quot; id=&quot;anDetailClose&quot;>Close</button></div>
+  <div id=&quot;anDetailBody&quot; style=&quot;padding:16px 20px&quot;></div>
+</div></div>
+
 <div class=&quot;lb&quot; id=&quot;opModal&quot; hidden><div class=&quot;lb-in&quot; style=&quot;max-width:560px;text-align:left;background:var(--panel);border-radius:3px;padding:22px;max-height:92vh;overflow:auto&quot;>
   <h3 style=&quot;font-family:var(--disp);text-transform:uppercase;letter-spacing:.05em;margin:0 0 4px;color:var(--ink)&quot;>Add inventory — stock opname</h3>
   <div class=&quot;hint&quot; style=&quot;margin-bottom:12px&quot;>Enter measured litres for every tank. Total is the physical stock counted.</div>
@@ -5089,23 +5094,25 @@ function anPie(parts){
   parts.forEach(function(p){ if(p.v<=0) return; var start=acc/total*100; acc+=p.v; var end=acc/total*100; stops+=(stops?',':'')+p.color+' '+start+'% '+end+'%'; });
   return '<div style=&quot;width:120px;height:120px;border-radius:50%;background:conic-gradient('+stops+');border:1px solid var(--rule);flex:none&quot; title=&quot;Received / Used / Transferred&quot;></div>';
 }
+var AN_TANKS=[], AN_RECS={};
 function drawDieselAnalysis(){
   var wrap=$(&quot;anPies&quot;); if(!wrap) return;
   var mode=$(&quot;anPeriod&quot;).value, bucket=$(&quot;anBucket&quot;).value;
   if(!bucket){ wrap.innerHTML='<div class=&quot;hint&quot;>No records yet.</div>'; return; }
-  var agg={}; function ensure(t){ if(!agg[t]) agg[t]={recv:0,use:0,xfer:0}; }
+  var agg={}, recs={}; function ensure(t){ if(!agg[t]){ agg[t]={recv:0,use:0,xfer:0}; recs[t]={recv:[],use:[],xfer:[]}; } }
   entries.forEach(function(e){
     if(anPeriodKey(e.date,mode)!==bucket) return;
-    if(e.kind===&quot;receive&quot;){ var t=canonTank(e.tank); ensure(t); agg[t].recv+=num(e.received); }
-    else if(e.kind===&quot;usage&quot;){ var u=canonTank(e.from); ensure(u); agg[u].use+=num(e.litres); }
-    else if(e.kind===&quot;transfer&quot;){ var a=canonTank(e.from), d=canonTank(e.dest); ensure(a); ensure(d); agg[a].xfer+=num(e.litres); agg[d].xfer+=num(e.litres); }
+    if(e.kind===&quot;receive&quot;){ var t=canonTank(e.tank); ensure(t); agg[t].recv+=num(e.received); recs[t].recv.push(e); }
+    else if(e.kind===&quot;usage&quot;){ var u=canonTank(e.from); ensure(u); agg[u].use+=num(e.litres); recs[u].use.push(e); }
+    else if(e.kind===&quot;transfer&quot;){ var a=canonTank(e.from), d=canonTank(e.dest); ensure(a); ensure(d); agg[a].xfer+=num(e.litres); agg[d].xfer+=num(e.litres); recs[a].xfer.push({e:e,dir:&quot;out&quot;}); recs[d].xfer.push({e:e,dir:&quot;in&quot;}); }
   });
   var order=TANKS.slice(); Object.keys(agg).forEach(function(t){ if(order.indexOf(t)<0) order.push(t); });
-  var cards=order.filter(function(t){ return agg[t] &amp;&amp; (agg[t].recv+agg[t].use+agg[t].xfer)>0; }).map(function(t){
+  AN_RECS=recs; AN_TANKS=order.filter(function(t){ return agg[t] &amp;&amp; (agg[t].recv+agg[t].use+agg[t].xfer)>0; });
+  var cards=AN_TANKS.map(function(t,idx){
     var a=agg[t]; var tot=a.recv+a.use+a.xfer;
     var pie=anPie([{v:a.recv,color:'var(--good)'},{v:a.use,color:'var(--kraft)'},{v:a.xfer,color:'var(--amber)'}]);
     function row(c,label,val){ return '<div style=&quot;display:flex;align-items:center;gap:6px;white-space:nowrap&quot;><span style=&quot;width:10px;height:10px;border-radius:2px;background:'+c+';flex:none&quot;></span><span style=&quot;color:var(--muted)&quot;>'+label+'</span><span style=&quot;margin-left:auto;font-weight:600&quot;>'+litres(val)+' L</span></div>'; }
-    return '<div class=&quot;tank-tile&quot;><div class=&quot;tt-name&quot;>'+esc(t)+'</div>'+
+    return '<div class=&quot;tank-tile&quot; style=&quot;cursor:pointer&quot; title=&quot;Click for details&quot; onclick=&quot;openTankDetail('+idx+')&quot;><div class=&quot;tt-name&quot;>'+esc(t)+' <span style=&quot;color:var(--brand);font-size:9px;letter-spacing:.1em&quot;>▶ DETAILS</span></div>'+
       '<div style=&quot;display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:8px&quot;>'+pie+
         '<div style=&quot;width:100%;font-family:var(--mono);font-size:12px;display:flex;flex-direction:column;gap:6px&quot;>'+
           row('var(--good)','Received',a.recv)+row('var(--kraft)','Used',a.use)+row('var(--amber)','Transferred',a.xfer)+
@@ -5115,6 +5122,31 @@ function drawDieselAnalysis(){
   }).join(&quot;&quot;);
   wrap.innerHTML=cards||'<div class=&quot;hint&quot;>No activity in this period.</div>';
 }
+function anDot(c){ return '<span style=&quot;display:inline-block;width:9px;height:9px;border-radius:2px;background:'+c+';margin-right:6px&quot;></span>'; }
+function openTankDetail(idx){
+  var t=AN_TANKS[idx]; var r=AN_RECS[t]; if(!r) return;
+  var bucket=$(&quot;anBucket&quot;).value;
+  var byDate=function(a,b){ return String((a.e||a).date).localeCompare(String((b.e||b).date)); };
+  function sumR(arr,f){ return arr.reduce(function(s,x){ return s+f(x); },0); }
+  var recvTot=sumR(r.recv,function(e){return num(e.received);});
+  var useTot=sumR(r.use,function(e){return num(e.litres);});
+  var xferTot=sumR(r.xfer,function(x){return num(x.e.litres);});
+  var recvRows=r.recv.slice().sort(byDate).map(function(e){ return '<tr><td>'+esc(fmtDT(e.date))+'</td><td class=&quot;num&quot;>'+litres(num(e.received))+'</td><td>'+esc(e.supplier||&quot;—&quot;)+'</td><td>'+esc(e.doNo||&quot;&quot;)+'</td><td>'+esc(e.note||&quot;&quot;)+'</td></tr>'; }).join(&quot;&quot;)||'<tr><td colspan=&quot;5&quot; class=&quot;hint&quot;>No receiving records.</td></tr>';
+  var useRows=r.use.slice().sort(byDate).map(function(e){ var purpose=e.usageType===&quot;Others&quot;?(&quot;Others: &quot;+(e.usageOther||&quot;&quot;)):(e.usageType||&quot;—&quot;); return '<tr><td>'+esc(fmtDT(e.date))+'</td><td class=&quot;num&quot;>'+litres(num(e.litres))+'</td><td>'+esc(purpose)+'</td><td>'+esc(e.dept||&quot;&quot;)+'</td><td>'+esc(e.by||&quot;&quot;)+'</td></tr>'; }).join(&quot;&quot;)||'<tr><td colspan=&quot;5&quot; class=&quot;hint&quot;>No usage records.</td></tr>';
+  var xferRows=r.xfer.slice().sort(byDate).map(function(x){ var e=x.e; var dir=x.dir===&quot;out&quot;?(&quot;OUT → &quot;+esc(canonTank(e.dest))):(&quot;IN ← &quot;+esc(canonTank(e.from))); return '<tr><td>'+esc(fmtDT(e.date))+'</td><td>'+dir+'</td><td class=&quot;num&quot;>'+litres(num(e.litres))+'</td><td>'+esc(e.by||&quot;&quot;)+'</td><td>'+esc(e.note||&quot;&quot;)+'</td></tr>'; }).join(&quot;&quot;)||'<tr><td colspan=&quot;5&quot; class=&quot;hint&quot;>No transfer records.</td></tr>';
+  var body=''+
+    '<p class=&quot;eyebrow&quot; style=&quot;margin:4px 0 6px&quot;>'+anDot('var(--good)')+'Receiving — '+litres(recvTot)+' L</p>'+
+    '<div class=&quot;scroll&quot;><table style=&quot;min-width:520px&quot;><thead><tr><th>Date</th><th class=&quot;num&quot;>Litres</th><th>Supplier</th><th>DO No</th><th>Note</th></tr></thead><tbody>'+recvRows+'</tbody></table></div>'+
+    '<p class=&quot;eyebrow&quot; style=&quot;margin:14px 0 6px&quot;>'+anDot('var(--kraft)')+'Used — '+litres(useTot)+' L</p>'+
+    '<div class=&quot;scroll&quot;><table style=&quot;min-width:520px&quot;><thead><tr><th>Date</th><th class=&quot;num&quot;>Litres</th><th>Purpose</th><th>Dept</th><th>By</th></tr></thead><tbody>'+useRows+'</tbody></table></div>'+
+    '<p class=&quot;eyebrow&quot; style=&quot;margin:14px 0 6px&quot;>'+anDot('var(--amber)')+'Transferred — '+litres(xferTot)+' L</p>'+
+    '<div class=&quot;scroll&quot;><table style=&quot;min-width:520px&quot;><thead><tr><th>Date</th><th>Direction</th><th class=&quot;num&quot;>Litres</th><th>By</th><th>Note</th></tr></thead><tbody>'+xferRows+'</tbody></table></div>';
+  $(&quot;anDetailTitle&quot;).textContent=t+&quot; · &quot;+bucket;
+  $(&quot;anDetailBody&quot;).innerHTML=body;
+  $(&quot;anDetail&quot;).hidden=false;
+}
+if($(&quot;anDetailClose&quot;)) $(&quot;anDetailClose&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;anDetail&quot;).hidden=true; });
+if($(&quot;anDetail&quot;)) $(&quot;anDetail&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.target===$(&quot;anDetail&quot;)) $(&quot;anDetail&quot;).hidden=true; });
 if($(&quot;anPeriod&quot;)) $(&quot;anPeriod&quot;).addEventListener(&quot;change&quot;,function(){ fillAnBuckets(); drawDieselAnalysis(); });
 if($(&quot;anBucket&quot;)) $(&quot;anBucket&quot;).addEventListener(&quot;change&quot;, drawDieselAnalysis);
 
