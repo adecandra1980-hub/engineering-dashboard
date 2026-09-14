@@ -4610,7 +4610,7 @@ function adminOK(){ var w=credWanted(); var u=prompt(&quot;Administrator usernam
 function canDelete(rec){ if(!adminOK()) return false; return confirm(&quot;Are you sure to delete this entry?&quot;); }
 
 /* ---- canonical tank list (single source of truth) ---- */
-var TANKS=[&quot;Container - ALCO 1000L&quot;,&quot;Tank 01A - ALCO 10K&quot;,&quot;Tank 01B - ALCO 6.5K&quot;,&quot;Tank 01C - ALCO 1.5K&quot;,&quot;Tank 02 - BOL&quot;,&quot;Tank 03 - BOL&quot;,&quot;Tank 04 - Sarana&quot;];
+var TANKS=[&quot;Container - ALCO 1000L&quot;,&quot;Tank 01A - ALCO 10K&quot;,&quot;Tank 01B - ALCO 6.5K&quot;,&quot;Tank 01C - ALCO 1.5K&quot;,&quot;Tank 02 - BOL&quot;,&quot;Tank 03 - BOL&quot;,&quot;Tank 04 - IKG&quot;,&quot;Tank 05 - BOL&quot;,&quot;Tank 06 - BOL&quot;,&quot;Tank 07 - BOL&quot;,&quot;Tank 08 - Sarana&quot;,&quot;Tank 09 - Sarana&quot;,&quot;Tank 10 - Sarana&quot;];
 /* older tank names used before renames — mapped onto the current tanks so earlier entries still count */
 var TANK_ALIAS={
   &quot;Tank 01 - ALCO&quot;:&quot;Container - ALCO 1000L&quot;,
@@ -4619,7 +4619,8 @@ var TANK_ALIAS={
   &quot;Tank 01A - ALCO 20K&quot;:&quot;Tank 01A - ALCO 10K&quot;,
   &quot;BOL — Tank 1&quot;:&quot;Tank 02 - BOL&quot;,
   &quot;BOL — Tank 2&quot;:&quot;Tank 03 - BOL&quot;,
-  &quot;Sarana 12 — Tank 3&quot;:&quot;Tank 04 - Sarana&quot;
+  &quot;Sarana 12 — Tank 3&quot;:&quot;Tank 04 - IKG&quot;,
+  &quot;Tank 04 - Sarana&quot;:&quot;Tank 04 - IKG&quot;
 };
 function canonTank(name){ if(!name) return TANKS[0]; return TANK_ALIAS[name]||name; }
 function fillTankSelect(id, placeholder){
