@@ -4378,7 +4378,21 @@ var CREDS={};
     <button role=&quot;tab&quot; id=&quot;t-use&quot; aria-selected=&quot;false&quot;>Usage</button>
     <button role=&quot;tab&quot; id=&quot;t-xfer&quot; aria-selected=&quot;false&quot;>Transfer</button>
     <button role=&quot;tab&quot; id=&quot;t-book&quot; aria-selected=&quot;false&quot;>Log book</button>
+    <button role=&quot;tab&quot; id=&quot;t-an&quot; aria-selected=&quot;false&quot;>Analysis</button>
   </nav>
+
+  <!-- ============ ANALYSIS ============ -->
+  <section id=&quot;v-an&quot; hidden>
+    <div class=&quot;panel&quot;>
+      <h2 class=&quot;sec&quot;>Analysis</h2>
+      <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;anPeriod&quot;>Period type</label><select id=&quot;anPeriod&quot;><option value=&quot;week&quot;>Weekly</option><option value=&quot;month&quot;>Monthly</option></select></div>
+        <div><label class=&quot;f&quot; for=&quot;anBucket&quot;>Period</label><select id=&quot;anBucket&quot;></select></div>
+      </div>
+      <p class=&quot;hint&quot; style=&quot;margin-top:8px&quot;>One pie per tank — share of Received (green), Used (brown) and Transferred (amber) litres for the selected period. Only tanks with activity are shown.</p>
+      <div id=&quot;anPies&quot; class=&quot;tank-tiles&quot; style=&quot;margin-top:14px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))&quot;></div>
+    </div>
+  </section>
 
   <!-- ============ RECEIVING ============ -->
   <section id=&quot;v-recv&quot; hidden>
@@ -4686,12 +4700,13 @@ async function savePhotos(id, dataMap){
 function allPhotoKeys(rec){ var out=[]; var p=rec.photos||{}; for(var s in p){ (p[s]||[]).forEach(function(k){ out.push(k); }); } return out; }
 
 /* ---- tabs ---- */
-var TABS=[[&quot;t-stock&quot;,&quot;v-stock&quot;],[&quot;t-recv&quot;,&quot;v-recv&quot;],[&quot;t-use&quot;,&quot;v-use&quot;],[&quot;t-xfer&quot;,&quot;v-xfer&quot;],[&quot;t-book&quot;,&quot;v-book&quot;]];
+var TABS=[[&quot;t-stock&quot;,&quot;v-stock&quot;],[&quot;t-recv&quot;,&quot;v-recv&quot;],[&quot;t-use&quot;,&quot;v-use&quot;],[&quot;t-xfer&quot;,&quot;v-xfer&quot;],[&quot;t-book&quot;,&quot;v-book&quot;],[&quot;t-an&quot;,&quot;v-an&quot;]];
 TABS.forEach(function(pair){ $(pair[0]).addEventListener(&quot;click&quot;,function(){
   TABS.forEach(function(p){ var on=p[0]===pair[0]; $(p[0]).setAttribute(&quot;aria-selected&quot;,on?&quot;true&quot;:&quot;false&quot;); $(p[1]).hidden=!on; });
   resetEditState();
   if(pair[0]===&quot;t-book&quot;){ drawBook(); drawTrashD(); }
   if(pair[0]===&quot;t-stock&quot;) drawStock();
+  if(pair[0]===&quot;t-an&quot;){ fillAnBuckets(); drawDieselAnalysis(); }
 }); });
 function resetEditState(){ editingId=null;
   if($(&quot;rSave&quot;)) $(&quot;rSave&quot;).textContent=&quot;Submit receiving&quot;;
@@ -5048,6 +5063,62 @@ function drawStock(){
   var ops=entries.filter(function(e){ return e.kind===&quot;opname&quot;; }).sort(function(a,b){ return (b.ts||b.id)-(a.ts||a.id); });
   if($(&quot;lastOpname&quot;)) $(&quot;lastOpname&quot;).textContent = ops.length ? (&quot;Last stock opname: &quot;+litres(num(ops[0].total))+&quot; L on &quot;+fmtDT(ops[0].date)+&quot; by &quot;+(ops[0].by||&quot;—&quot;)) : &quot;No stock opname recorded yet.&quot;;
 }
+
+/* ---- Analysis: pie per tank (Received / Used / Transferred) by week or month ---- */
+function anPeriodKey(dateStr, mode){
+  var d=new Date(dateStr); if(isNaN(d)) return &quot;&quot;;
+  function p2(n){ return (n<10?&quot;0&quot;:&quot;&quot;)+n; }
+  if(mode===&quot;month&quot;) return d.getFullYear()+&quot;-&quot;+p2(d.getMonth()+1);
+  var t=new Date(d); t.setHours(0,0,0,0); t.setDate(t.getDate()+3-((t.getDay()+6)%7));
+  var w1=new Date(t.getFullYear(),0,4);
+  var wk=1+Math.round(((t-w1)/86400000-3+((w1.getDay()+6)%7))/7);
+  return t.getFullYear()+&quot;-W&quot;+p2(wk);
+}
+function anAllBuckets(mode){ var set={}; entries.forEach(function(e){ if(e.kind!==&quot;receive&quot;&amp;&amp;e.kind!==&quot;usage&quot;&amp;&amp;e.kind!==&quot;transfer&quot;) return; var k=anPeriodKey(e.date,mode); if(k) set[k]=1; }); return Object.keys(set).sort(); }
+function fillAnBuckets(){
+  var sel=$(&quot;anBucket&quot;); if(!sel) return; var mode=$(&quot;anPeriod&quot;).value;
+  var buckets=anAllBuckets(mode); var cur=sel.value;
+  if(!buckets.length){ sel.innerHTML='<option value=&quot;&quot;>No data</option>'; return; }
+  sel.innerHTML=buckets.slice().reverse().map(function(k){ return '<option value=&quot;'+esc(k)+'&quot;>'+esc(k)+'</option>'; }).join(&quot;&quot;);
+  if(cur&amp;&amp;buckets.indexOf(cur)>=0) sel.value=cur; else sel.value=buckets[buckets.length-1];
+}
+function anPie(parts){
+  var total=parts.reduce(function(s,p){ return s+(p.v>0?p.v:0); },0);
+  if(total<=0) return '<div class=&quot;hint&quot; style=&quot;padding:22px 0;text-align:center&quot;>No activity</div>';
+  var r=15.9155, C=100, off=0, segs='';
+  parts.forEach(function(p){ if(p.v<=0) return; var len=p.v/total*C;
+    segs+='<circle r=&quot;'+r+'&quot; cx=&quot;18&quot; cy=&quot;18&quot; fill=&quot;transparent&quot; stroke=&quot;'+p.color+'&quot; stroke-width=&quot;9&quot; stroke-dasharray=&quot;'+len+' '+(C-len)+'&quot; stroke-dashoffset=&quot;'+(-off)+'&quot; transform=&quot;rotate(-90 18 18)&quot;></circle>';
+    off+=len; });
+  return '<svg viewBox=&quot;0 0 36 36&quot; width=&quot;96&quot; height=&quot;96&quot; style=&quot;flex:none&quot;>'+segs+'</svg>';
+}
+function drawDieselAnalysis(){
+  var wrap=$(&quot;anPies&quot;); if(!wrap) return;
+  var mode=$(&quot;anPeriod&quot;).value, bucket=$(&quot;anBucket&quot;).value;
+  if(!bucket){ wrap.innerHTML='<div class=&quot;hint&quot;>No records yet.</div>'; return; }
+  var agg={}; function ensure(t){ if(!agg[t]) agg[t]={recv:0,use:0,xfer:0}; }
+  entries.forEach(function(e){
+    if(anPeriodKey(e.date,mode)!==bucket) return;
+    if(e.kind===&quot;receive&quot;){ var t=canonTank(e.tank); ensure(t); agg[t].recv+=num(e.received); }
+    else if(e.kind===&quot;usage&quot;){ var u=canonTank(e.from); ensure(u); agg[u].use+=num(e.litres); }
+    else if(e.kind===&quot;transfer&quot;){ var a=canonTank(e.from), d=canonTank(e.dest); ensure(a); ensure(d); agg[a].xfer+=num(e.litres); agg[d].xfer+=num(e.litres); }
+  });
+  var order=TANKS.slice(); Object.keys(agg).forEach(function(t){ if(order.indexOf(t)<0) order.push(t); });
+  var cards=order.filter(function(t){ return agg[t] &amp;&amp; (agg[t].recv+agg[t].use+agg[t].xfer)>0; }).map(function(t){
+    var a=agg[t]; var tot=a.recv+a.use+a.xfer;
+    var pie=anPie([{v:a.recv,color:'var(--good)'},{v:a.use,color:'var(--kraft)'},{v:a.xfer,color:'var(--amber)'}]);
+    function row(c,label,val){ return '<div style=&quot;display:flex;align-items:center;gap:6px;white-space:nowrap&quot;><span style=&quot;width:9px;height:9px;border-radius:2px;background:'+c+';flex:none&quot;></span><span style=&quot;color:var(--muted)&quot;>'+label+'</span><span style=&quot;margin-left:auto;font-weight:600&quot;>'+litres(val)+' L</span></div>'; }
+    return '<div class=&quot;tank-tile&quot;><div class=&quot;tt-name&quot;>'+esc(t)+'</div>'+
+      '<div style=&quot;display:flex;gap:12px;align-items:center;margin-top:6px&quot;>'+pie+
+        '<div style=&quot;font-family:var(--mono);font-size:11px;display:flex;flex-direction:column;gap:5px;min-width:130px;flex:1&quot;>'+
+          row('var(--good)','Received',a.recv)+row('var(--kraft)','Used',a.use)+row('var(--amber)','Transferred',a.xfer)+
+          '<div style=&quot;border-top:1px solid var(--rule);margin-top:2px;padding-top:4px;display:flex&quot;><span style=&quot;color:var(--muted)&quot;>Total</span><span style=&quot;margin-left:auto;font-weight:700&quot;>'+litres(tot)+' L</span></div>'+
+        '</div>'+
+      '</div></div>';
+  }).join(&quot;&quot;);
+  wrap.innerHTML=cards||'<div class=&quot;hint&quot;>No activity in this period.</div>';
+}
+if($(&quot;anPeriod&quot;)) $(&quot;anPeriod&quot;).addEventListener(&quot;change&quot;,function(){ fillAnBuckets(); drawDieselAnalysis(); });
+if($(&quot;anBucket&quot;)) $(&quot;anBucket&quot;).addEventListener(&quot;change&quot;, drawDieselAnalysis);
 
 /* ---- stock opname (admin, per-tank count + proof photos) ---- */
 var OPNAME_TANKS=TANKS;
