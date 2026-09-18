@@ -4386,11 +4386,13 @@ var CREDS={};
     <div class=&quot;panel&quot;>
       <h2 class=&quot;sec&quot;>Analysis</h2>
       <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
+        <div><label class=&quot;f&quot; for=&quot;anView&quot;>View</label><select id=&quot;anView&quot;><option value=&quot;all&quot;>All movements (per tank)</option><option value=&quot;usage&quot;>Usage total (by tank)</option></select></div>
         <div><label class=&quot;f&quot; for=&quot;anPeriod&quot;>Period type</label><select id=&quot;anPeriod&quot;><option value=&quot;week&quot;>Weekly</option><option value=&quot;month&quot;>Monthly</option></select></div>
         <div><label class=&quot;f&quot; for=&quot;anBucket&quot;>Period</label><select id=&quot;anBucket&quot;></select></div>
       </div>
-      <p class=&quot;hint&quot; style=&quot;margin-top:8px&quot;>One pie per tank — share of Received (green), Used (brown) and Transferred (amber) litres for the selected period. Only tanks with activity are shown.</p>
+      <p class=&quot;hint&quot; id=&quot;anHint&quot; style=&quot;margin-top:8px&quot;>One pie per tank — share of Received (green), Used (brown) and Transferred (amber) litres for the selected period. Only tanks with activity are shown.</p>
       <div id=&quot;anPies&quot; class=&quot;tank-tiles&quot; style=&quot;margin-top:14px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))&quot;></div>
+      <div id=&quot;anUsage&quot; hidden style=&quot;margin-top:14px&quot;></div>
     </div>
   </section>
 
@@ -4629,7 +4631,7 @@ function adminOK(){ var w=credWanted(); var u=prompt(&quot;Administrator usernam
 function canDelete(rec){ if(!adminOK()) return false; return confirm(&quot;Are you sure to delete this entry?&quot;); }
 
 /* ---- canonical tank list (single source of truth) ---- */
-var TANKS=[&quot;Container - ALCO 1000L&quot;,&quot;Tank 01A - ALCO 10K&quot;,&quot;Tank 01B - ALCO 6.5K&quot;,&quot;Tank 01C - ALCO 1.5K&quot;,&quot;Tank 02 - BOL&quot;,&quot;Tank 03 - BOL&quot;,&quot;Tank 04 - IKG&quot;,&quot;Tank 05 - BOL&quot;,&quot;Tank 06 - BOL&quot;,&quot;Tank 07 - BOL&quot;,&quot;Tank 08 - Sarana&quot;,&quot;Tank 09 - Sarana&quot;,&quot;Tank 10 - Sarana&quot;];
+var TANKS=[&quot;Container - ALCO 1000L&quot;,&quot;Tank 01A - ALCO 10K&quot;,&quot;Tank 01B - ALCO 6.5K&quot;,&quot;Tank 01C - ALCO 1.5K&quot;,&quot;Tank 02 - BOL&quot;,&quot;Tank 03 - BOL&quot;,&quot;Tank 04 - IKG&quot;,&quot;Tank 05 - BOL&quot;,&quot;Tank 06 - BOL&quot;,&quot;Tank 07 - BOL&quot;,&quot;Tank 08 - Sarana&quot;,&quot;Tank 09 - Sarana&quot;,&quot;Tank 10 - Sarana&quot;,&quot;Tank 11 - Sarana&quot;];
 /* older tank names used before renames — mapped onto the current tanks so earlier entries still count */
 var TANK_ALIAS={
   &quot;Tank 01 - ALCO&quot;:&quot;Container - ALCO 1000L&quot;,
@@ -5087,13 +5089,15 @@ function fillAnBuckets(){
   sel.innerHTML=buckets.slice().reverse().map(function(k){ return '<option value=&quot;'+esc(k)+'&quot;>'+esc(k)+'</option>'; }).join(&quot;&quot;);
   if(cur&amp;&amp;buckets.indexOf(cur)>=0) sel.value=cur; else sel.value=buckets[buckets.length-1];
 }
-function anPie(parts){
+function anPie(parts, size){
+  size=size||120;
   var total=parts.reduce(function(s,p){ return s+(p.v>0?p.v:0); },0);
-  if(total<=0) return '<div style=&quot;width:120px;height:120px;border-radius:50%;background:var(--wash);border:1px solid var(--rule);display:grid;place-items:center;color:var(--muted);font-family:var(--mono);font-size:10px;flex:none&quot;>no data</div>';
+  if(total<=0) return '<div style=&quot;width:'+size+'px;height:'+size+'px;border-radius:50%;background:var(--wash);border:1px solid var(--rule);display:grid;place-items:center;color:var(--muted);font-family:var(--mono);font-size:10px;flex:none&quot;>no data</div>';
   var stops='', acc=0;
   parts.forEach(function(p){ if(p.v<=0) return; var start=acc/total*100; acc+=p.v; var end=acc/total*100; stops+=(stops?',':'')+p.color+' '+start+'% '+end+'%'; });
-  return '<div style=&quot;width:120px;height:120px;border-radius:50%;background:conic-gradient('+stops+');border:1px solid var(--rule);flex:none&quot; title=&quot;Received / Used / Transferred&quot;></div>';
+  return '<div style=&quot;width:'+size+'px;height:'+size+'px;border-radius:50%;background:conic-gradient('+stops+');border:1px solid var(--rule);flex:none&quot;></div>';
 }
+var AN_PALETTE=['var(--starch)','var(--kraft)','var(--amber)','var(--good)','var(--bad)','#7A5C99','#3E7CB1','#C56B4C','#6B8E23','#557A95','#9C4A6B','#4A7C59','#A0791F'];
 var AN_TANKS=[], AN_RECS={};
 function drawDieselAnalysis(){
   var wrap=$(&quot;anPies&quot;); if(!wrap) return;
@@ -5107,7 +5111,19 @@ function drawDieselAnalysis(){
     else if(e.kind===&quot;transfer&quot;){ var a=canonTank(e.from), d=canonTank(e.dest); ensure(a); ensure(d); agg[a].xfer+=num(e.litres); agg[d].xfer+=num(e.litres); recs[a].xfer.push({e:e,dir:&quot;out&quot;}); recs[d].xfer.push({e:e,dir:&quot;in&quot;}); }
   });
   var order=TANKS.slice(); Object.keys(agg).forEach(function(t){ if(order.indexOf(t)<0) order.push(t); });
-  AN_RECS=recs; AN_TANKS=order.filter(function(t){ return agg[t] &amp;&amp; (agg[t].recv+agg[t].use+agg[t].xfer)>0; });
+  AN_RECS=recs;
+  var view=$(&quot;anView&quot;)?$(&quot;anView&quot;).value:&quot;all&quot;;
+  var pies=$(&quot;anPies&quot;), uwrap=$(&quot;anUsage&quot;), hint=$(&quot;anHint&quot;);
+  if(view===&quot;usage&quot;){
+    if(pies) pies.style.display=&quot;none&quot;; if(uwrap){ uwrap.hidden=false; uwrap.style.display=&quot;block&quot;; }
+    if(hint) hint.textContent=&quot;Usage total by tank for the selected period — click the pie to see the usage details of each tank.&quot;;
+    AN_USE=order.filter(function(t){ return agg[t] &amp;&amp; agg[t].use>0; }).map(function(t){ return {tank:t, use:agg[t].use}; }).sort(function(a,b){ return b.use-a.use; });
+    drawUsageView();
+    return;
+  }
+  if(pies) pies.style.display=&quot;&quot;; if(uwrap) uwrap.style.display=&quot;none&quot;;
+  if(hint) hint.textContent=&quot;One pie per tank — share of Received (green), Used (brown) and Transferred (amber) litres for the selected period. Only tanks with activity are shown.&quot;;
+  AN_TANKS=order.filter(function(t){ return agg[t] &amp;&amp; (agg[t].recv+agg[t].use+agg[t].xfer)>0; });
   var cards=AN_TANKS.map(function(t,idx){
     var a=agg[t]; var tot=a.recv+a.use+a.xfer;
     var pie=anPie([{v:a.recv,color:'var(--good)'},{v:a.use,color:'var(--kraft)'},{v:a.xfer,color:'var(--amber)'}]);
@@ -5149,6 +5165,40 @@ if($(&quot;anDetailClose&quot;)) $(&quot;anDetailClose&quot;).addEventListener(&
 if($(&quot;anDetail&quot;)) $(&quot;anDetail&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.target===$(&quot;anDetail&quot;)) $(&quot;anDetail&quot;).hidden=true; });
 if($(&quot;anPeriod&quot;)) $(&quot;anPeriod&quot;).addEventListener(&quot;change&quot;,function(){ fillAnBuckets(); drawDieselAnalysis(); });
 if($(&quot;anBucket&quot;)) $(&quot;anBucket&quot;).addEventListener(&quot;change&quot;, drawDieselAnalysis);
+if($(&quot;anView&quot;)) $(&quot;anView&quot;).addEventListener(&quot;change&quot;, drawDieselAnalysis);
+
+/* ---- Usage-total view: one pie of usage by tank ---- */
+var AN_USE=[];
+function drawUsageView(){
+  var wrap=$(&quot;anUsage&quot;); if(!wrap) return;
+  var bucket=$(&quot;anBucket&quot;).value;
+  if(!AN_USE.length){ wrap.innerHTML='<div class=&quot;hint&quot;>No usage recorded in this period.</div>'; return; }
+  var totalUse=AN_USE.reduce(function(s,x){ return s+x.use; },0);
+  var parts=AN_USE.map(function(x,i){ return {v:x.use, color:AN_PALETTE[i%AN_PALETTE.length]}; });
+  var pie=anPie(parts,190);
+  var legend=AN_USE.map(function(x,i){ var c=AN_PALETTE[i%AN_PALETTE.length]; var pctv=totalUse?Math.round(x.use/totalUse*100):0;
+    return '<div style=&quot;display:flex;align-items:center;gap:8px;white-space:nowrap&quot;><span style=&quot;width:11px;height:11px;border-radius:2px;background:'+c+';flex:none&quot;></span><span>'+esc(x.tank)+'</span><span style=&quot;margin-left:auto;font-weight:600&quot;>'+litres(x.use)+' L</span><span style=&quot;color:var(--muted);width:44px;text-align:right&quot;>'+pctv+'%</span></div>'; }).join(&quot;&quot;);
+  wrap.innerHTML='<div class=&quot;tank-tile&quot; style=&quot;cursor:pointer&quot; title=&quot;Click for usage details&quot; onclick=&quot;openUsageDetail()&quot;>'+
+    '<div class=&quot;tt-name&quot;>Usage total by tank · '+esc(bucket)+' <span style=&quot;color:var(--brand);font-size:9px;letter-spacing:.1em&quot;>▶ DETAILS</span></div>'+
+    '<div style=&quot;display:flex;gap:26px;align-items:center;flex-wrap:wrap;margin-top:10px&quot;>'+pie+
+      '<div style=&quot;font-family:var(--mono);font-size:12px;display:flex;flex-direction:column;gap:7px;min-width:260px;flex:1&quot;>'+legend+
+        '<div style=&quot;border-top:1px solid var(--rule);margin-top:2px;padding-top:6px;display:flex&quot;><span style=&quot;color:var(--muted)&quot;>Total used</span><span style=&quot;margin-left:auto;font-weight:700&quot;>'+litres(totalUse)+' L</span></div>'+
+      '</div>'+
+    '</div></div>';
+}
+function openUsageDetail(){
+  var bucket=$(&quot;anBucket&quot;).value;
+  var byDate=function(a,b){ return String(a.date).localeCompare(String(b.date)); };
+  var body=AN_USE.map(function(x,i){
+    var t=x.tank; var recs=(AN_RECS[t]&amp;&amp;AN_RECS[t].use)?AN_RECS[t].use:[];
+    var rows=recs.slice().sort(byDate).map(function(e){ var purpose=e.usageType===&quot;Others&quot;?(&quot;Others: &quot;+(e.usageOther||&quot;&quot;)):(e.usageType||&quot;—&quot;); return '<tr><td>'+esc(fmtDT(e.date))+'</td><td class=&quot;num&quot;>'+litres(num(e.litres))+'</td><td>'+esc(purpose)+'</td><td>'+esc(e.dept||&quot;&quot;)+'</td><td>'+esc(e.by||&quot;&quot;)+'</td></tr>'; }).join(&quot;&quot;)||'<tr><td colspan=&quot;5&quot; class=&quot;hint&quot;>No usage records.</td></tr>';
+    return '<p class=&quot;eyebrow&quot; style=&quot;margin:'+(i?'16':'4')+'px 0 6px&quot;>'+anDot(AN_PALETTE[i%AN_PALETTE.length])+esc(t)+' — '+litres(x.use)+' L</p>'+
+      '<div class=&quot;scroll&quot;><table style=&quot;min-width:520px&quot;><thead><tr><th>Date</th><th class=&quot;num&quot;>Litres</th><th>Purpose</th><th>Dept</th><th>By</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }).join(&quot;&quot;)||'<div class=&quot;hint&quot;>No usage in this period.</div>';
+  $(&quot;anDetailTitle&quot;).textContent=&quot;Usage details · &quot;+bucket;
+  $(&quot;anDetailBody&quot;).innerHTML=body;
+  $(&quot;anDetail&quot;).hidden=false;
+}
 
 /* ---- stock opname (admin, per-tank count + proof photos) ---- */
 var OPNAME_TANKS=TANKS;
