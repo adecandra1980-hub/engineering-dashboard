@@ -4111,8 +4111,9 @@ var CREDS={};
         var rec=recs.filter(function(r){ return r.id===id; })[0];
         if(!canDeleteWO(rec)) return;
         if(rec){ rec.deletedAt=stampNow(); delRecs.unshift(rec); }
+        if(!(await commitDelWO())){ if(rec) delRecs=delRecs.filter(function(x){ return x!==rec; }); return; }
         recs=recs.filter(function(r){ return r.id!==id; });
-        if(!(await commitWO())) return; await commitDelWO();
+        if(!(await commitWO())) return;
         refreshHead(); drawBook(); if(woShowTrash) drawTrashWO();
         toast(&quot;Moved to deleted history.&quot;);
       });
@@ -4203,8 +4204,9 @@ var CREDS={};
     var rec=recs.filter(function(r){ return r.id===detailId; })[0];
     if(!canDeleteWO(rec)) return;
     if(rec){ rec.deletedAt=stampNow(); delRecs.unshift(rec); }
+    if(!(await commitDelWO())){ if(rec) delRecs=delRecs.filter(function(x){ return x!==rec; }); return; }
     recs=recs.filter(function(r){ return r.id!==detailId; });
-    if(!(await commitWO())) return; await commitDelWO();
+    if(!(await commitWO())) return;
     refreshHead(); backToList(); toast(&quot;Moved to deleted history.&quot;);
   });
 
