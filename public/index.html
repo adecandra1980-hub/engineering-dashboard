@@ -320,6 +320,9 @@
         </div>
       </div>
       <div class="spacer"></div>
+      <button class="icon-btn" id="backupBtn" title="Backup all data (download .zip of CSV files)" onclick="downloadBackup()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+      </button>
       <button class="icon-btn" id="authBtn" title="User & password settings" onclick="openAuth()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       </button>
@@ -2937,7 +2940,89 @@ $(&quot;vbSave&quot;).addEventListener(&quot;click&quot;, async function(){
   $(&quot;vbModal&quot;).hidden = true; vbTargetId = null;
   toast(&quot;Verification saved.&quot;);
 });
-$(&quot;csv&quot;).addEventListener(&quot;click&quot;, function(){
+
+  /* ===== data Backup / Restore (CSV) — added ===== */
+  function _bkHeavy(v){ return typeof v===&quot;string&quot; &amp;&amp; (v.length>200 || v.indexOf(&quot;data:&quot;)===0 || /^https?:\/\//.test(v)); }
+  function _bkCell(s){ s=(s==null?&quot;&quot;:String(s)); return /[&quot;,\n]/.test(s)?'&quot;'+s.replace(/&quot;/g,'&quot;&quot;')+'&quot;':s; }
+  function _bkBuild(list){
+    list=list||[]; if(!list.length){ return &quot;&quot;; }
+    var cols=[],seen={};
+    list.forEach(function(r){ if(r&amp;&amp;typeof r===&quot;object&quot;){ for(var k in r){ var v=r[k]; if(v==null||Array.isArray(v)||typeof v===&quot;object&quot;||_bkHeavy(String(v)))continue; if(!seen[k]){seen[k]=1;cols.push(k);} } } });
+    if(cols.indexOf(&quot;id&quot;)<0 &amp;&amp; list[0] &amp;&amp; (&quot;id&quot; in list[0])) cols.unshift(&quot;id&quot;);
+    var out=cols.map(_bkCell).join(&quot;,&quot;)+&quot;\n&quot;;
+    list.forEach(function(r){ out+=cols.map(function(c){ var v=r?r[c]:&quot;&quot;; if(v==null||Array.isArray(v)||typeof v===&quot;object&quot;)v=&quot;&quot;; return _bkCell(v); }).join(&quot;,&quot;)+&quot;\n&quot;; });
+    return out;
+  }
+  function _bkParse(text){
+    text=String(text||&quot;&quot;).replace(/^\ufeff/,&quot;&quot;);
+    var rows=[],i=0,n=text.length,field=&quot;&quot;,row=[],inq=false;
+    function endf(){ row.push(field); field=&quot;&quot;; }
+    function endr(){ endf(); rows.push(row); row=[]; }
+    while(i<n){ var c=text[i];
+      if(inq){ if(c==='&quot;'){ if(text[i+1]==='&quot;'){ field+='&quot;'; i+=2; continue; } inq=false; i++; continue; } field+=c; i++; continue; }
+      if(c==='&quot;'){ inq=true; i++; continue; }
+      if(c===&quot;,&quot;){ endf(); i++; continue; }
+      if(c===&quot;\r&quot;){ i++; continue; }
+      if(c===&quot;\n&quot;){ endr(); i++; continue; }
+      field+=c; i++;
+    }
+    if(field.length||row.length){ endr(); }
+    if(!rows.length) return [];
+    var head=rows.shift();
+    return rows.filter(function(r){ return r.length &amp;&amp; r.join(&quot;&quot;).trim()!==&quot;&quot;; }).map(function(r){ var o={}; head.forEach(function(h,idx){ o[h]=(r[idx]!=null?r[idx]:&quot;&quot;); }); return o; });
+  }
+  function _bkDL(name,text){
+    var blob=new Blob([text],{type:&quot;text/csv&quot;}),url=URL.createObjectURL(blob),a=document.createElement(&quot;a&quot;);
+    if(typeof a.download===&quot;undefined&quot;){ window.open(url,&quot;_blank&quot;); toast(&quot;Use Share to save the file.&quot;); return; }
+    a.href=url; a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(url);},3000);
+  }
+  function _bkStamp(){ var d=new Date(),z=function(n){return(n<10?&quot;0&quot;:&quot;&quot;)+n;}; return d.getFullYear()+z(d.getMonth()+1)+z(d.getDate()); }
+  function _bkRead(file){ return file.text? file.text() : new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsText(file); }); }
+  function _bkDate(r){ if(!r) return &quot;&quot;; var f=[&quot;date&quot;,&quot;dateReq&quot;,&quot;reported&quot;,&quot;start&quot;,&quot;when&quot;,&quot;day&quot;,&quot;saved&quot;,&quot;deletedAt&quot;]; for(var i=0;i<f.length;i++){ var v=r[f[i]]; if(v!=null&amp;&amp;v!==&quot;&quot;){ v=String(v); return v.length>=10?v.slice(0,10):v; } } var t=r.ts; if(t){ var d=new Date(Number(t)||t); if(!isNaN(d)) return d.toISOString().slice(0,10); } return &quot;&quot;; }
+  async function _bkFetch(key){
+    try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
+    try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
+  }
+  function bkExport(){ var c=_bkBuild(evts); if(!c){ toast(&quot;Nothing to back up yet.&quot;); return; } _bkDL(&quot;downtime_backup_&quot;+_bkStamp()+&quot;.csv&quot;, c); }
+  async function bkRestore(file){
+    if(typeof adminOK===&quot;function&quot; &amp;&amp; !adminOK()){ toast(&quot;Admin authorization required to restore.&quot;); return; }
+    var rows;
+    try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
+    if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
+    var _bf=document.getElementById(&quot;bkFrom&quot;), _bt=document.getElementById(&quot;bkTo&quot;);
+    var _from=_bf&amp;&amp;_bf.value?_bf.value:&quot;&quot;, _to=_bt&amp;&amp;_bt.value?_bt.value:&quot;&quot;, _outdate=0;
+    if(_from||_to){ rows=rows.filter(function(row){ var d=_bkDate(row); if(!d){ return true; } if(_from&amp;&amp;d<_from){ _outdate++; return false; } if(_to&amp;&amp;d>_to){ _outdate++; return false; } return true; }); }
+    if(!rows.length){ toast(&quot;No records in that date range&quot;+(_outdate?&quot; (&quot;+_outdate+&quot; outside range)&quot;:&quot;&quot;)+&quot;.&quot;); return; }
+    var res=await _bkFetch(EVT_KEY);
+    if(!res.ok){ toast(&quot;Can't reach the database — restore cancelled.&quot;); return; }
+    var cur=Array.isArray(res.value)?res.value.slice():(Array.isArray(evts)?evts.slice():[]);
+    var have={}; cur.forEach(function(r){ if(r&amp;&amp;r.id!=null) have[r.id]=1; });
+    var add=0,dup=0;
+    rows.forEach(function(row){ var id=row.id; if(id!=null&amp;&amp;id!==&quot;&quot;&amp;&amp;have[id]){dup++;return;} if(id!=null&amp;&amp;id!==&quot;&quot;)have[id]=1; cur.push(row); add++; });
+    if(!add){ toast(&quot;All &quot;+rows.length+&quot; record(s) already present — nothing to add.&quot;); return; }
+    evts=cur;
+    await save(EVT_KEY, evts);
+    drawBook();
+    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present&quot;+(_outdate?(&quot;, &quot;+_outdate+&quot; outside date range&quot;):&quot;&quot;)+&quot;.&quot;);
+  }
+  (function(){ try{
+    var _an=document.getElementById(&quot;csv&quot;);
+    if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_csv&quot;)){
+      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
+      var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
+      var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_csv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
+      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
+      _lb.appendChild(_fi);
+      var _df=document.createElement(&quot;input&quot;); _df.type=&quot;date&quot;; _df.id=&quot;bkFrom&quot;; _df.title=&quot;Restore: from date (optional)&quot;; _df.style.marginLeft=&quot;8px&quot;;
+      var _dt=document.createElement(&quot;input&quot;); _dt.type=&quot;date&quot;; _dt.id=&quot;bkTo&quot;; _dt.title=&quot;Restore: to date (optional)&quot;; _dt.style.marginLeft=&quot;4px&quot;;
+      _an.parentNode.insertBefore(_df, _an.nextSibling);
+      _df.parentNode.insertBefore(_dt, _df.nextSibling);
+      _dt.parentNode.insertBefore(_bb, _dt.nextSibling);
+      _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
+    }
+  }catch(e){} })();
+  
+  $(&quot;csv&quot;).addEventListener(&quot;click&quot;, function(){
   if(!evts.length){ toast(&quot;No stops to download.&quot;); return; }
   var head = [&quot;date&quot;,&quot;shift&quot;,&quot;machine&quot;,&quot;line&quot;,&quot;reported_by&quot;,&quot;called&quot;,&quot;started&quot;,&quot;running_again&quot;,&quot;extra_days&quot;,
     &quot;response_min&quot;,&quot;repair_min&quot;,&quot;total_min&quot;,&quot;machine_stopages&quot;,&quot;machine_unit&quot;,&quot;downtime_type&quot;,&quot;problem&quot;,&quot;root_cause&quot;,&quot;action&quot;,&quot;counter_measure&quot;,
@@ -3718,6 +3803,40 @@ function reconcileCfg(base){ var changed=false; base.categories=base.categories|
   }
   var WO_KEY=&quot;alco:workorders&quot;, WO_DEL_KEY=&quot;alco:workorders:deleted&quot;;
   var recs=[], delRecs=[], woShowTrash=false;
+  /* ---- crash-safe persistence (added): a stale or empty list can no longer overwrite the database ---- */
+  async function fetchKV(key){
+    if(has()){ try{ var r=await window.storage.get(key); if(r &amp;&amp; r.value!=null){ try{ return {ok:true, value:JSON.parse(r.value)}; }catch(e){ return {ok:true, value:undefined}; } } }catch(e){} }
+    try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j || j.value==null) return {ok:true, value:undefined}; try{ return {ok:true, value:JSON.parse(j.value)}; }catch(e){ return {ok:true, value:undefined}; } }
+    catch(e){ var L=ls(); if(L){ try{ var v=L.getItem(key); if(v!==null){ try{ return {ok:true, value:JSON.parse(v)}; }catch(e2){} } }catch(e3){} } return {ok:false}; }
+  }
+  var woLoadOK=false, woDelLoadOK=false;
+  function woById(list){ var m={}; (list||[]).forEach(function(r){ if(r &amp;&amp; r.id!=null) m[r.id]=r; }); return m; }
+  async function commitWO(){
+    var res=await fetchKV(WO_KEY);
+    if(!res.ok){ toast(&quot;Not saved — can't reach the database. Check the connection and try again.&quot;); return false; }
+    var stored=Array.isArray(res.value)?res.value:[];
+    var localById=woById(recs), delById=woById(delRecs), out=[], seen={};
+    stored.forEach(function(s){ if(!s || s.id==null){ out.push(s); return; } if(delById[s.id]) return; if(localById[s.id]){ out.push(localById[s.id]); } else { out.push(s); } seen[s.id]=1; });
+    recs.forEach(function(r){ if(r &amp;&amp; r.id!=null &amp;&amp; !seen[r.id]){ out.push(r); seen[r.id]=1; } });
+    recs=out; woLoadOK=true;
+    return await save(WO_KEY,recs);
+  }
+  async function commitDelWO(removeIds){
+    var res=await fetchKV(WO_DEL_KEY);
+    if(!res.ok){ toast(&quot;Not saved — can't reach the database. Check the connection and try again.&quot;); return false; }
+    var stored=Array.isArray(res.value)?res.value:[];
+    var rm={}; (removeIds||[]).forEach(function(id){ rm[id]=1; });
+    var localById=woById(delRecs), out=[], seen={};
+    stored.forEach(function(s){ if(!s || s.id==null){ out.push(s); return; } if(rm[s.id]) return; if(localById[s.id]){ out.push(localById[s.id]); } else { out.push(s); } seen[s.id]=1; });
+    delRecs.forEach(function(r){ if(r &amp;&amp; r.id!=null &amp;&amp; !seen[r.id] &amp;&amp; !rm[r.id]){ out.push(r); seen[r.id]=1; } });
+    delRecs=out; woDelLoadOK=true;
+    return await save(WO_DEL_KEY,delRecs);
+  }
+  async function emptyDelWO(){
+    var res=await fetchKV(WO_DEL_KEY);
+    if(!res.ok){ toast(&quot;Not emptied — can't reach the database. Try again.&quot;); return false; }
+    delRecs=[]; return await save(WO_DEL_KEY,delRecs);
+  }
   /* delete permissions: submitter's device, else administrator (admin / Engineering) */
   var DEVICE_ID=(function(){ try{ var k=&quot;tdl:deviceId&quot;; var v=localStorage.getItem(k);
     if(!v){ v=&quot;dev-&quot;+Date.now().toString(36)+&quot;-&quot;+Math.random().toString(36).slice(2,8); localStorage.setItem(k,v); }
@@ -3792,11 +3911,11 @@ var CREDS={};
     if(!r.types.length){ toast(&quot;Tick at least one request type.&quot;); return; }
     if(!r.desc){ toast(&quot;Describe the problem / work requested.&quot;); $(&quot;dDesc&quot;).focus(); return; }
     if(!r.attachments.length){ toast(&quot;Attach at least one photo before submitting.&quot;); $(&quot;btnCam&quot;).focus(); return; }
-    r.id = r.wo + &quot;-&quot; + recs.length;
+    r.id = r.wo + &quot;-&quot; + Date.now().toString(36) + &quot;-&quot; + Math.random().toString(36).slice(2,6);
     r.saved = now.getFullYear()+&quot;-&quot;+mm+&quot;-&quot;+dd;
     r.deviceId = DEVICE_ID;
     recs.push(r);
-    await save(WO_KEY, recs);
+    if(!(await commitWO())){ recs=recs.filter(function(x){ return x.id!==r.id; }); return; }
     toast(&quot;Work order &quot;+r.wo+&quot; saved to log.&quot;);
     showSuccess(&quot;Work order &quot;+r.wo+&quot; saved to database.&quot;);
     resetForm();
@@ -3842,16 +3961,16 @@ var CREDS={};
     box.querySelectorAll(&quot;[data-restore]&quot;).forEach(function(b){ b.addEventListener(&quot;click&quot;, async function(){
       var id=b.getAttribute(&quot;data-restore&quot;); var rec=delRecs.filter(function(r){ return r.id===id; })[0]; if(!rec) return;
       delete rec.deletedAt; recs.push(rec); delRecs=delRecs.filter(function(r){ return r.id!==id; });
-      await save(WO_KEY,recs); await save(WO_DEL_KEY,delRecs); refreshHead(); drawBook(); drawTrashWO(); toast(&quot;Work order restored.&quot;);
+      if(!(await commitWO())) return; await commitDelWO([id]); refreshHead(); drawBook(); drawTrashWO(); toast(&quot;Work order restored.&quot;);
     }); });
     box.querySelectorAll(&quot;[data-purge]&quot;).forEach(function(b){ b.addEventListener(&quot;click&quot;, async function(){
       var id=b.getAttribute(&quot;data-purge&quot;); var rec=delRecs.filter(function(r){ return r.id===id; })[0];
       if(!canDeleteWO(rec)) return;
-      delRecs=delRecs.filter(function(r){ return r.id!==id; }); await save(WO_DEL_KEY,delRecs); drawTrashWO(); toast(&quot;Deleted permanently.&quot;);
+      delRecs=delRecs.filter(function(r){ return r.id!==id; }); if(!(await commitDelWO([id]))) return; drawTrashWO(); toast(&quot;Deleted permanently.&quot;);
     }); });
     var et=box.querySelector(&quot;#emptyTrashWO&quot;); if(et) et.addEventListener(&quot;click&quot;, async function(){
       if(!adminOK()) return; if(!confirm(&quot;Permanently delete all &quot;+delRecs.length+&quot; work orders in history? This cannot be undone.&quot;)) return;
-      delRecs=[]; await save(WO_DEL_KEY,delRecs); drawTrashWO(); toast(&quot;History emptied.&quot;);
+      if(!(await emptyDelWO())) return; drawTrashWO(); toast(&quot;History emptied.&quot;);
     });
   }
 
@@ -3888,7 +4007,7 @@ var CREDS={};
     if(!rec){ $(&quot;vbModalWO&quot;).hidden=true; return; }
     rec.verify=rec.verify||{};
     rec.verify.sup={ decision:$(&quot;vbDecisionWO&quot;).value, by:by, note:$(&quot;vbNoteWO&quot;).value.trim(), ts:stampNow() };
-    await save(WO_KEY,recs); drawBook(); $(&quot;vbModalWO&quot;).hidden=true; vbTargetWO=null;
+    if(!(await commitWO())) return; drawBook(); $(&quot;vbModalWO&quot;).hidden=true; vbTargetWO=null;
     toast(&quot;Verification saved.&quot;);
   });
 
@@ -4000,7 +4119,7 @@ var CREDS={};
         if(!canDeleteWO(rec)) return;
         if(rec){ rec.deletedAt=stampNow(); delRecs.unshift(rec); }
         recs=recs.filter(function(r){ return r.id!==id; });
-        await save(WO_KEY,recs); await save(WO_DEL_KEY,delRecs);
+        if(!(await commitWO())) return; await commitDelWO();
         refreshHead(); drawBook(); if(woShowTrash) drawTrashWO();
         toast(&quot;Moved to deleted history.&quot;);
       });
@@ -4060,7 +4179,7 @@ var CREDS={};
     var r=recs.filter(function(x){ return x.id===detailId; })[0]; if(!r) return;
     persistOffice(r);
     if(!r.verifiedAt) r.status=$(&quot;oStatus&quot;).value||&quot;Open&quot;;   // supervisor-verified jobs stay Completed
-    await save(WO_KEY,recs);
+    if(!(await commitWO())) return;
     toast(&quot;Work details saved for &quot;+r.wo+&quot;.&quot;);
     backToList();
   });
@@ -4073,7 +4192,7 @@ var CREDS={};
     r.verifiedBy=sv; r.verifiedAt=now.getFullYear()+&quot;-&quot;+mm+&quot;-&quot;+dd;
     r.status=&quot;Completed&quot;;
     if(!r.completed) r.completed=r.verifiedAt;
-    await save(WO_KEY,recs);
+    if(!(await commitWO())) return;
     toast(&quot;Job &quot;+r.wo+&quot; verified and closed by &quot;+sv+&quot;.&quot;);
     backToList();
   });
@@ -4082,7 +4201,7 @@ var CREDS={};
     if(!confirm(&quot;Reopen this job? It will no longer count as closed.&quot;)) return;
     persistOffice(r);
     r.verifiedBy=&quot;&quot;; r.verifiedAt=&quot;&quot;; r.status=&quot;In progress&quot;;
-    await save(WO_KEY,recs);
+    if(!(await commitWO())) return;
     toast(&quot;Job &quot;+r.wo+&quot; reopened.&quot;);
     backToList();
   });
@@ -4092,7 +4211,7 @@ var CREDS={};
     if(!canDeleteWO(rec)) return;
     if(rec){ rec.deletedAt=stampNow(); delRecs.unshift(rec); }
     recs=recs.filter(function(r){ return r.id!==detailId; });
-    await save(WO_KEY,recs); await save(WO_DEL_KEY,delRecs);
+    if(!(await commitWO())) return; await commitDelWO();
     refreshHead(); backToList(); toast(&quot;Moved to deleted history.&quot;);
   });
 
@@ -4169,6 +4288,88 @@ var CREDS={};
   [&quot;aDept&quot;,&quot;aPeriod&quot;].forEach(function(id){ $(id).addEventListener(&quot;input&quot;, drawAnalysis); });
 
   /* ---- CSV ---- */
+  
+  /* ===== data Backup / Restore (CSV) — added ===== */
+  function _bkHeavy(v){ return typeof v===&quot;string&quot; &amp;&amp; (v.length>200 || v.indexOf(&quot;data:&quot;)===0 || /^https?:\/\//.test(v)); }
+  function _bkCell(s){ s=(s==null?&quot;&quot;:String(s)); return /[&quot;,\n]/.test(s)?'&quot;'+s.replace(/&quot;/g,'&quot;&quot;')+'&quot;':s; }
+  function _bkBuild(list){
+    list=list||[]; if(!list.length){ return &quot;&quot;; }
+    var cols=[],seen={};
+    list.forEach(function(r){ if(r&amp;&amp;typeof r===&quot;object&quot;){ for(var k in r){ var v=r[k]; if(v==null||Array.isArray(v)||typeof v===&quot;object&quot;||_bkHeavy(String(v)))continue; if(!seen[k]){seen[k]=1;cols.push(k);} } } });
+    if(cols.indexOf(&quot;id&quot;)<0 &amp;&amp; list[0] &amp;&amp; (&quot;id&quot; in list[0])) cols.unshift(&quot;id&quot;);
+    var out=cols.map(_bkCell).join(&quot;,&quot;)+&quot;\n&quot;;
+    list.forEach(function(r){ out+=cols.map(function(c){ var v=r?r[c]:&quot;&quot;; if(v==null||Array.isArray(v)||typeof v===&quot;object&quot;)v=&quot;&quot;; return _bkCell(v); }).join(&quot;,&quot;)+&quot;\n&quot;; });
+    return out;
+  }
+  function _bkParse(text){
+    text=String(text||&quot;&quot;).replace(/^\ufeff/,&quot;&quot;);
+    var rows=[],i=0,n=text.length,field=&quot;&quot;,row=[],inq=false;
+    function endf(){ row.push(field); field=&quot;&quot;; }
+    function endr(){ endf(); rows.push(row); row=[]; }
+    while(i<n){ var c=text[i];
+      if(inq){ if(c==='&quot;'){ if(text[i+1]==='&quot;'){ field+='&quot;'; i+=2; continue; } inq=false; i++; continue; } field+=c; i++; continue; }
+      if(c==='&quot;'){ inq=true; i++; continue; }
+      if(c===&quot;,&quot;){ endf(); i++; continue; }
+      if(c===&quot;\r&quot;){ i++; continue; }
+      if(c===&quot;\n&quot;){ endr(); i++; continue; }
+      field+=c; i++;
+    }
+    if(field.length||row.length){ endr(); }
+    if(!rows.length) return [];
+    var head=rows.shift();
+    return rows.filter(function(r){ return r.length &amp;&amp; r.join(&quot;&quot;).trim()!==&quot;&quot;; }).map(function(r){ var o={}; head.forEach(function(h,idx){ o[h]=(r[idx]!=null?r[idx]:&quot;&quot;); }); return o; });
+  }
+  function _bkDL(name,text){
+    var blob=new Blob([text],{type:&quot;text/csv&quot;}),url=URL.createObjectURL(blob),a=document.createElement(&quot;a&quot;);
+    if(typeof a.download===&quot;undefined&quot;){ window.open(url,&quot;_blank&quot;); toast(&quot;Use Share to save the file.&quot;); return; }
+    a.href=url; a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(url);},3000);
+  }
+  function _bkStamp(){ var d=new Date(),z=function(n){return(n<10?&quot;0&quot;:&quot;&quot;)+n;}; return d.getFullYear()+z(d.getMonth()+1)+z(d.getDate()); }
+  function _bkRead(file){ return file.text? file.text() : new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsText(file); }); }
+  function _bkDate(r){ if(!r) return &quot;&quot;; var f=[&quot;date&quot;,&quot;dateReq&quot;,&quot;reported&quot;,&quot;start&quot;,&quot;when&quot;,&quot;day&quot;,&quot;saved&quot;,&quot;deletedAt&quot;]; for(var i=0;i<f.length;i++){ var v=r[f[i]]; if(v!=null&amp;&amp;v!==&quot;&quot;){ v=String(v); return v.length>=10?v.slice(0,10):v; } } var t=r.ts; if(t){ var d=new Date(Number(t)||t); if(!isNaN(d)) return d.toISOString().slice(0,10); } return &quot;&quot;; }
+  async function _bkFetch(key){
+    try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
+    try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
+  }
+  function bkExport(){ var c=_bkBuild(recs); if(!c){ toast(&quot;Nothing to back up yet.&quot;); return; } _bkDL(&quot;workorder_backup_&quot;+_bkStamp()+&quot;.csv&quot;, c); }
+  async function bkRestore(file){
+    if(typeof adminOK===&quot;function&quot; &amp;&amp; !adminOK()){ toast(&quot;Admin authorization required to restore.&quot;); return; }
+    var rows;
+    try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
+    if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
+    var _bf=document.getElementById(&quot;bkFrom&quot;), _bt=document.getElementById(&quot;bkTo&quot;);
+    var _from=_bf&amp;&amp;_bf.value?_bf.value:&quot;&quot;, _to=_bt&amp;&amp;_bt.value?_bt.value:&quot;&quot;, _outdate=0;
+    if(_from||_to){ rows=rows.filter(function(row){ var d=_bkDate(row); if(!d){ return true; } if(_from&amp;&amp;d<_from){ _outdate++; return false; } if(_to&amp;&amp;d>_to){ _outdate++; return false; } return true; }); }
+    if(!rows.length){ toast(&quot;No records in that date range&quot;+(_outdate?&quot; (&quot;+_outdate+&quot; outside range)&quot;:&quot;&quot;)+&quot;.&quot;); return; }
+    var res=await _bkFetch(WO_KEY);
+    if(!res.ok){ toast(&quot;Can't reach the database — restore cancelled.&quot;); return; }
+    var cur=Array.isArray(res.value)?res.value.slice():(Array.isArray(recs)?recs.slice():[]);
+    var have={}; cur.forEach(function(r){ if(r&amp;&amp;r.id!=null) have[r.id]=1; });
+    var add=0,dup=0;
+    rows.forEach(function(row){ var id=row.id; if(id!=null&amp;&amp;id!==&quot;&quot;&amp;&amp;have[id]){dup++;return;} if(id!=null&amp;&amp;id!==&quot;&quot;)have[id]=1; cur.push(row); add++; });
+    if(!add){ toast(&quot;All &quot;+rows.length+&quot; record(s) already present — nothing to add.&quot;); return; }
+    recs=cur;
+    if(!(await commitWO())) return;
+    refreshHead(); drawBook();
+    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present&quot;+(_outdate?(&quot;, &quot;+_outdate+&quot; outside date range&quot;):&quot;&quot;)+&quot;.&quot;);
+  }
+  (function(){ try{
+    var _an=document.getElementById(&quot;csv&quot;);
+    if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_csv&quot;)){
+      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
+      var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
+      var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_csv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
+      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
+      _lb.appendChild(_fi);
+      var _df=document.createElement(&quot;input&quot;); _df.type=&quot;date&quot;; _df.id=&quot;bkFrom&quot;; _df.title=&quot;Restore: from date (optional)&quot;; _df.style.marginLeft=&quot;8px&quot;;
+      var _dt=document.createElement(&quot;input&quot;); _dt.type=&quot;date&quot;; _dt.id=&quot;bkTo&quot;; _dt.title=&quot;Restore: to date (optional)&quot;; _dt.style.marginLeft=&quot;4px&quot;;
+      _an.parentNode.insertBefore(_df, _an.nextSibling);
+      _df.parentNode.insertBefore(_dt, _df.nextSibling);
+      _dt.parentNode.insertBefore(_bb, _dt.nextSibling);
+      _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
+    }
+  }catch(e){} })();
+  
   $(&quot;csv&quot;).addEventListener(&quot;click&quot;, function(){
     if(!recs.length){ toast(&quot;No work orders to download.&quot;); return; }
     var cols=[[&quot;wo&quot;,&quot;WO No&quot;],[&quot;date&quot;,&quot;Date raised&quot;],[&quot;requester&quot;,&quot;Requested by&quot;],[&quot;contact&quot;,&quot;Contact&quot;],[&quot;dept&quot;,&quot;Department&quot;],
@@ -4204,15 +4405,15 @@ var CREDS={};
     WO_ENT=ent; loadCreds();
     WO_KEY     = ent===&quot;ALCO&quot; ? &quot;alco:workorders&quot;         : &quot;alco:workorders:&quot;+ent;
     WO_DEL_KEY = ent===&quot;ALCO&quot; ? &quot;alco:workorders:deleted&quot; : &quot;alco:workorders:deleted:&quot;+ent;
-    recs = await load(WO_KEY, []); if(!Array.isArray(recs)) recs=[];
-    delRecs = await load(WO_DEL_KEY, []); if(!Array.isArray(delRecs)) delRecs=[];
+    var _wr=await fetchKV(WO_KEY); woLoadOK=_wr.ok; recs=Array.isArray(_wr.value)?_wr.value:[];
+    var _wd=await fetchKV(WO_DEL_KEY); woDelLoadOK=_wd.ok; delRecs=Array.isArray(_wd.value)?_wd.value:[];
+    if(!woLoadOK) toast(&quot;⚠ Couldn't load existing records — check your connection before adding new ones.&quot;);
     setWoNumber(); refreshHead(); drawBook(); if(woShowTrash) drawTrashWO();
   };
   (async function(){
-    recs = await load(WO_KEY, []);
-    if(!Array.isArray(recs)) recs=[];
-    delRecs = await load(WO_DEL_KEY, []);
-    if(!Array.isArray(delRecs)) delRecs=[];
+    var _wr=await fetchKV(WO_KEY); woLoadOK=_wr.ok; recs=Array.isArray(_wr.value)?_wr.value:[];
+    var _wd=await fetchKV(WO_DEL_KEY); woDelLoadOK=_wd.ok; delRecs=Array.isArray(_wd.value)?_wd.value:[];
+    if(!woLoadOK) toast(&quot;⚠ Couldn't load existing records — check your connection before adding new ones.&quot;);
     setWoNumber(); refreshHead();
   })();
 })();
@@ -4993,7 +5194,89 @@ $(&quot;okModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.targ
 $(&quot;bKind&quot;).addEventListener(&quot;change&quot;,drawBook);
 if($(&quot;bTank&quot;)) $(&quot;bTank&quot;).addEventListener(&quot;change&quot;,drawBook);
 $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
-$(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
+
+  /* ===== data Backup / Restore (CSV) — added ===== */
+  function _bkHeavy(v){ return typeof v===&quot;string&quot; &amp;&amp; (v.length>200 || v.indexOf(&quot;data:&quot;)===0 || /^https?:\/\//.test(v)); }
+  function _bkCell(s){ s=(s==null?&quot;&quot;:String(s)); return /[&quot;,\n]/.test(s)?'&quot;'+s.replace(/&quot;/g,'&quot;&quot;')+'&quot;':s; }
+  function _bkBuild(list){
+    list=list||[]; if(!list.length){ return &quot;&quot;; }
+    var cols=[],seen={};
+    list.forEach(function(r){ if(r&amp;&amp;typeof r===&quot;object&quot;){ for(var k in r){ var v=r[k]; if(v==null||Array.isArray(v)||typeof v===&quot;object&quot;||_bkHeavy(String(v)))continue; if(!seen[k]){seen[k]=1;cols.push(k);} } } });
+    if(cols.indexOf(&quot;id&quot;)<0 &amp;&amp; list[0] &amp;&amp; (&quot;id&quot; in list[0])) cols.unshift(&quot;id&quot;);
+    var out=cols.map(_bkCell).join(&quot;,&quot;)+&quot;\n&quot;;
+    list.forEach(function(r){ out+=cols.map(function(c){ var v=r?r[c]:&quot;&quot;; if(v==null||Array.isArray(v)||typeof v===&quot;object&quot;)v=&quot;&quot;; return _bkCell(v); }).join(&quot;,&quot;)+&quot;\n&quot;; });
+    return out;
+  }
+  function _bkParse(text){
+    text=String(text||&quot;&quot;).replace(/^\ufeff/,&quot;&quot;);
+    var rows=[],i=0,n=text.length,field=&quot;&quot;,row=[],inq=false;
+    function endf(){ row.push(field); field=&quot;&quot;; }
+    function endr(){ endf(); rows.push(row); row=[]; }
+    while(i<n){ var c=text[i];
+      if(inq){ if(c==='&quot;'){ if(text[i+1]==='&quot;'){ field+='&quot;'; i+=2; continue; } inq=false; i++; continue; } field+=c; i++; continue; }
+      if(c==='&quot;'){ inq=true; i++; continue; }
+      if(c===&quot;,&quot;){ endf(); i++; continue; }
+      if(c===&quot;\r&quot;){ i++; continue; }
+      if(c===&quot;\n&quot;){ endr(); i++; continue; }
+      field+=c; i++;
+    }
+    if(field.length||row.length){ endr(); }
+    if(!rows.length) return [];
+    var head=rows.shift();
+    return rows.filter(function(r){ return r.length &amp;&amp; r.join(&quot;&quot;).trim()!==&quot;&quot;; }).map(function(r){ var o={}; head.forEach(function(h,idx){ o[h]=(r[idx]!=null?r[idx]:&quot;&quot;); }); return o; });
+  }
+  function _bkDL(name,text){
+    var blob=new Blob([text],{type:&quot;text/csv&quot;}),url=URL.createObjectURL(blob),a=document.createElement(&quot;a&quot;);
+    if(typeof a.download===&quot;undefined&quot;){ window.open(url,&quot;_blank&quot;); toast(&quot;Use Share to save the file.&quot;); return; }
+    a.href=url; a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(url);},3000);
+  }
+  function _bkStamp(){ var d=new Date(),z=function(n){return(n<10?&quot;0&quot;:&quot;&quot;)+n;}; return d.getFullYear()+z(d.getMonth()+1)+z(d.getDate()); }
+  function _bkRead(file){ return file.text? file.text() : new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsText(file); }); }
+  function _bkDate(r){ if(!r) return &quot;&quot;; var f=[&quot;date&quot;,&quot;dateReq&quot;,&quot;reported&quot;,&quot;start&quot;,&quot;when&quot;,&quot;day&quot;,&quot;saved&quot;,&quot;deletedAt&quot;]; for(var i=0;i<f.length;i++){ var v=r[f[i]]; if(v!=null&amp;&amp;v!==&quot;&quot;){ v=String(v); return v.length>=10?v.slice(0,10):v; } } var t=r.ts; if(t){ var d=new Date(Number(t)||t); if(!isNaN(d)) return d.toISOString().slice(0,10); } return &quot;&quot;; }
+  async function _bkFetch(key){
+    try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
+    try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
+  }
+  function bkExport(){ var c=_bkBuild(entries); if(!c){ toast(&quot;Nothing to back up yet.&quot;); return; } _bkDL(&quot;diesel_backup_&quot;+_bkStamp()+&quot;.csv&quot;, c); }
+  async function bkRestore(file){
+    if(typeof adminOK===&quot;function&quot; &amp;&amp; !adminOK()){ toast(&quot;Admin authorization required to restore.&quot;); return; }
+    var rows;
+    try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
+    if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
+    var _bf=document.getElementById(&quot;bkFrom&quot;), _bt=document.getElementById(&quot;bkTo&quot;);
+    var _from=_bf&amp;&amp;_bf.value?_bf.value:&quot;&quot;, _to=_bt&amp;&amp;_bt.value?_bt.value:&quot;&quot;, _outdate=0;
+    if(_from||_to){ rows=rows.filter(function(row){ var d=_bkDate(row); if(!d){ return true; } if(_from&amp;&amp;d<_from){ _outdate++; return false; } if(_to&amp;&amp;d>_to){ _outdate++; return false; } return true; }); }
+    if(!rows.length){ toast(&quot;No records in that date range&quot;+(_outdate?&quot; (&quot;+_outdate+&quot; outside range)&quot;:&quot;&quot;)+&quot;.&quot;); return; }
+    var res=await _bkFetch(ENTRY_KEY);
+    if(!res.ok){ toast(&quot;Can't reach the database — restore cancelled.&quot;); return; }
+    var cur=Array.isArray(res.value)?res.value.slice():(Array.isArray(entries)?entries.slice():[]);
+    var have={}; cur.forEach(function(r){ if(r&amp;&amp;r.id!=null) have[r.id]=1; });
+    var add=0,dup=0;
+    rows.forEach(function(row){ var id=row.id; if(id!=null&amp;&amp;id!==&quot;&quot;&amp;&amp;have[id]){dup++;return;} if(id!=null&amp;&amp;id!==&quot;&quot;)have[id]=1; cur.push(row); add++; });
+    if(!add){ toast(&quot;All &quot;+rows.length+&quot; record(s) already present — nothing to add.&quot;); return; }
+    entries=cur;
+    await save(ENTRY_KEY, entries);
+    drawBook(); if(typeof drawStock===&quot;function&quot;) drawStock();
+    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present&quot;+(_outdate?(&quot;, &quot;+_outdate+&quot; outside date range&quot;):&quot;&quot;)+&quot;.&quot;);
+  }
+  (function(){ try{
+    var _an=document.getElementById(&quot;bCsv&quot;);
+    if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_bCsv&quot;)){
+      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
+      var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
+      var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
+      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
+      _lb.appendChild(_fi);
+      var _df=document.createElement(&quot;input&quot;); _df.type=&quot;date&quot;; _df.id=&quot;bkFrom&quot;; _df.title=&quot;Restore: from date (optional)&quot;; _df.style.marginLeft=&quot;8px&quot;;
+      var _dt=document.createElement(&quot;input&quot;); _dt.type=&quot;date&quot;; _dt.id=&quot;bkTo&quot;; _dt.title=&quot;Restore: to date (optional)&quot;; _dt.style.marginLeft=&quot;4px&quot;;
+      _an.parentNode.insertBefore(_df, _an.nextSibling);
+      _df.parentNode.insertBefore(_dt, _df.nextSibling);
+      _dt.parentNode.insertBefore(_bb, _dt.nextSibling);
+      _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
+    }
+  }catch(e){} })();
+  
+  $(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
   var head=[&quot;datetime&quot;,&quot;type&quot;,&quot;tank_in&quot;,&quot;tank_out&quot;,&quot;detail&quot;,&quot;in_litres&quot;,&quot;out_litres&quot;,&quot;meter_before&quot;,&quot;meter_after&quot;,&quot;tank_level&quot;,&quot;do_no&quot;,&quot;by&quot;,&quot;note&quot;];
   function tankIn(e){ if(e.kind===&quot;receive&quot;) return canonTank(e.tank); if(e.kind===&quot;transfer&quot;) return canonTank(e.dest); return &quot;&quot;; }
   function tankOut(e){ if(e.kind===&quot;usage&quot;) return canonTank(e.from); if(e.kind===&quot;transfer&quot;) return canonTank(e.from); return &quot;&quot;; }
@@ -5875,7 +6158,89 @@ function drawBook(){
 }
 $(&quot;bFlow&quot;).addEventListener(&quot;change&quot;,drawBook);
 $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
-$(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
+
+  /* ===== data Backup / Restore (CSV) — added ===== */
+  function _bkHeavy(v){ return typeof v===&quot;string&quot; &amp;&amp; (v.length>200 || v.indexOf(&quot;data:&quot;)===0 || /^https?:\/\//.test(v)); }
+  function _bkCell(s){ s=(s==null?&quot;&quot;:String(s)); return /[&quot;,\n]/.test(s)?'&quot;'+s.replace(/&quot;/g,'&quot;&quot;')+'&quot;':s; }
+  function _bkBuild(list){
+    list=list||[]; if(!list.length){ return &quot;&quot;; }
+    var cols=[],seen={};
+    list.forEach(function(r){ if(r&amp;&amp;typeof r===&quot;object&quot;){ for(var k in r){ var v=r[k]; if(v==null||Array.isArray(v)||typeof v===&quot;object&quot;||_bkHeavy(String(v)))continue; if(!seen[k]){seen[k]=1;cols.push(k);} } } });
+    if(cols.indexOf(&quot;id&quot;)<0 &amp;&amp; list[0] &amp;&amp; (&quot;id&quot; in list[0])) cols.unshift(&quot;id&quot;);
+    var out=cols.map(_bkCell).join(&quot;,&quot;)+&quot;\n&quot;;
+    list.forEach(function(r){ out+=cols.map(function(c){ var v=r?r[c]:&quot;&quot;; if(v==null||Array.isArray(v)||typeof v===&quot;object&quot;)v=&quot;&quot;; return _bkCell(v); }).join(&quot;,&quot;)+&quot;\n&quot;; });
+    return out;
+  }
+  function _bkParse(text){
+    text=String(text||&quot;&quot;).replace(/^\ufeff/,&quot;&quot;);
+    var rows=[],i=0,n=text.length,field=&quot;&quot;,row=[],inq=false;
+    function endf(){ row.push(field); field=&quot;&quot;; }
+    function endr(){ endf(); rows.push(row); row=[]; }
+    while(i<n){ var c=text[i];
+      if(inq){ if(c==='&quot;'){ if(text[i+1]==='&quot;'){ field+='&quot;'; i+=2; continue; } inq=false; i++; continue; } field+=c; i++; continue; }
+      if(c==='&quot;'){ inq=true; i++; continue; }
+      if(c===&quot;,&quot;){ endf(); i++; continue; }
+      if(c===&quot;\r&quot;){ i++; continue; }
+      if(c===&quot;\n&quot;){ endr(); i++; continue; }
+      field+=c; i++;
+    }
+    if(field.length||row.length){ endr(); }
+    if(!rows.length) return [];
+    var head=rows.shift();
+    return rows.filter(function(r){ return r.length &amp;&amp; r.join(&quot;&quot;).trim()!==&quot;&quot;; }).map(function(r){ var o={}; head.forEach(function(h,idx){ o[h]=(r[idx]!=null?r[idx]:&quot;&quot;); }); return o; });
+  }
+  function _bkDL(name,text){
+    var blob=new Blob([text],{type:&quot;text/csv&quot;}),url=URL.createObjectURL(blob),a=document.createElement(&quot;a&quot;);
+    if(typeof a.download===&quot;undefined&quot;){ window.open(url,&quot;_blank&quot;); toast(&quot;Use Share to save the file.&quot;); return; }
+    a.href=url; a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(url);},3000);
+  }
+  function _bkStamp(){ var d=new Date(),z=function(n){return(n<10?&quot;0&quot;:&quot;&quot;)+n;}; return d.getFullYear()+z(d.getMonth()+1)+z(d.getDate()); }
+  function _bkRead(file){ return file.text? file.text() : new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsText(file); }); }
+  function _bkDate(r){ if(!r) return &quot;&quot;; var f=[&quot;date&quot;,&quot;dateReq&quot;,&quot;reported&quot;,&quot;start&quot;,&quot;when&quot;,&quot;day&quot;,&quot;saved&quot;,&quot;deletedAt&quot;]; for(var i=0;i<f.length;i++){ var v=r[f[i]]; if(v!=null&amp;&amp;v!==&quot;&quot;){ v=String(v); return v.length>=10?v.slice(0,10):v; } } var t=r.ts; if(t){ var d=new Date(Number(t)||t); if(!isNaN(d)) return d.toISOString().slice(0,10); } return &quot;&quot;; }
+  async function _bkFetch(key){
+    try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
+    try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
+  }
+  function bkExport(){ var c=_bkBuild(entries); if(!c){ toast(&quot;Nothing to back up yet.&quot;); return; } _bkDL(&quot;waste-material_backup_&quot;+_bkStamp()+&quot;.csv&quot;, c); }
+  async function bkRestore(file){
+    if(typeof adminOK===&quot;function&quot; &amp;&amp; !adminOK()){ toast(&quot;Admin authorization required to restore.&quot;); return; }
+    var rows;
+    try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
+    if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
+    var _bf=document.getElementById(&quot;bkFrom&quot;), _bt=document.getElementById(&quot;bkTo&quot;);
+    var _from=_bf&amp;&amp;_bf.value?_bf.value:&quot;&quot;, _to=_bt&amp;&amp;_bt.value?_bt.value:&quot;&quot;, _outdate=0;
+    if(_from||_to){ rows=rows.filter(function(row){ var d=_bkDate(row); if(!d){ return true; } if(_from&amp;&amp;d<_from){ _outdate++; return false; } if(_to&amp;&amp;d>_to){ _outdate++; return false; } return true; }); }
+    if(!rows.length){ toast(&quot;No records in that date range&quot;+(_outdate?&quot; (&quot;+_outdate+&quot; outside range)&quot;:&quot;&quot;)+&quot;.&quot;); return; }
+    var res=await _bkFetch(ENTRY_KEY);
+    if(!res.ok){ toast(&quot;Can't reach the database — restore cancelled.&quot;); return; }
+    var cur=Array.isArray(res.value)?res.value.slice():(Array.isArray(entries)?entries.slice():[]);
+    var have={}; cur.forEach(function(r){ if(r&amp;&amp;r.id!=null) have[r.id]=1; });
+    var add=0,dup=0;
+    rows.forEach(function(row){ var id=row.id; if(id!=null&amp;&amp;id!==&quot;&quot;&amp;&amp;have[id]){dup++;return;} if(id!=null&amp;&amp;id!==&quot;&quot;)have[id]=1; cur.push(row); add++; });
+    if(!add){ toast(&quot;All &quot;+rows.length+&quot; record(s) already present — nothing to add.&quot;); return; }
+    entries=cur;
+    await save(ENTRY_KEY, entries);
+    drawBook();
+    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present&quot;+(_outdate?(&quot;, &quot;+_outdate+&quot; outside date range&quot;):&quot;&quot;)+&quot;.&quot;);
+  }
+  (function(){ try{
+    var _an=document.getElementById(&quot;bCsv&quot;);
+    if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_bCsv&quot;)){
+      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
+      var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
+      var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
+      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
+      _lb.appendChild(_fi);
+      var _df=document.createElement(&quot;input&quot;); _df.type=&quot;date&quot;; _df.id=&quot;bkFrom&quot;; _df.title=&quot;Restore: from date (optional)&quot;; _df.style.marginLeft=&quot;8px&quot;;
+      var _dt=document.createElement(&quot;input&quot;); _dt.type=&quot;date&quot;; _dt.id=&quot;bkTo&quot;; _dt.title=&quot;Restore: to date (optional)&quot;; _dt.style.marginLeft=&quot;4px&quot;;
+      _an.parentNode.insertBefore(_df, _an.nextSibling);
+      _df.parentNode.insertBefore(_dt, _df.nextSibling);
+      _dt.parentNode.insertBefore(_bb, _dt.nextSibling);
+      _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
+    }
+  }catch(e){} })();
+  
+  $(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
   var head=[&quot;datetime&quot;,&quot;flow&quot;,&quot;truck&quot;,&quot;material&quot;,&quot;driver&quot;,&quot;reported_by&quot;,&quot;empty_kg&quot;,&quot;loaded_kg&quot;,&quot;net_kg&quot;,&quot;note&quot;];
   var rows=entries.slice().sort(function(a,b){ return (a.ts||a.id)-(b.ts||b.id); }).map(function(e){
     return [fmtDT(e.date), e.kind, e.truck||&quot;&quot;, matLabel(e), e.driver||&quot;&quot;, e.by||&quot;&quot;,
@@ -7312,7 +7677,89 @@ $(&quot;okClose&quot;).addEventListener(&quot;click&quot;,hideSuccess);
 $(&quot;okModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.target===$(&quot;okModal&quot;)) hideSuccess(); });
 
 /* ---- CSV ---- */
-$(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
+
+  /* ===== data Backup / Restore (CSV) — added ===== */
+  function _bkHeavy(v){ return typeof v===&quot;string&quot; &amp;&amp; (v.length>200 || v.indexOf(&quot;data:&quot;)===0 || /^https?:\/\//.test(v)); }
+  function _bkCell(s){ s=(s==null?&quot;&quot;:String(s)); return /[&quot;,\n]/.test(s)?'&quot;'+s.replace(/&quot;/g,'&quot;&quot;')+'&quot;':s; }
+  function _bkBuild(list){
+    list=list||[]; if(!list.length){ return &quot;&quot;; }
+    var cols=[],seen={};
+    list.forEach(function(r){ if(r&amp;&amp;typeof r===&quot;object&quot;){ for(var k in r){ var v=r[k]; if(v==null||Array.isArray(v)||typeof v===&quot;object&quot;||_bkHeavy(String(v)))continue; if(!seen[k]){seen[k]=1;cols.push(k);} } } });
+    if(cols.indexOf(&quot;id&quot;)<0 &amp;&amp; list[0] &amp;&amp; (&quot;id&quot; in list[0])) cols.unshift(&quot;id&quot;);
+    var out=cols.map(_bkCell).join(&quot;,&quot;)+&quot;\n&quot;;
+    list.forEach(function(r){ out+=cols.map(function(c){ var v=r?r[c]:&quot;&quot;; if(v==null||Array.isArray(v)||typeof v===&quot;object&quot;)v=&quot;&quot;; return _bkCell(v); }).join(&quot;,&quot;)+&quot;\n&quot;; });
+    return out;
+  }
+  function _bkParse(text){
+    text=String(text||&quot;&quot;).replace(/^\ufeff/,&quot;&quot;);
+    var rows=[],i=0,n=text.length,field=&quot;&quot;,row=[],inq=false;
+    function endf(){ row.push(field); field=&quot;&quot;; }
+    function endr(){ endf(); rows.push(row); row=[]; }
+    while(i<n){ var c=text[i];
+      if(inq){ if(c==='&quot;'){ if(text[i+1]==='&quot;'){ field+='&quot;'; i+=2; continue; } inq=false; i++; continue; } field+=c; i++; continue; }
+      if(c==='&quot;'){ inq=true; i++; continue; }
+      if(c===&quot;,&quot;){ endf(); i++; continue; }
+      if(c===&quot;\r&quot;){ i++; continue; }
+      if(c===&quot;\n&quot;){ endr(); i++; continue; }
+      field+=c; i++;
+    }
+    if(field.length||row.length){ endr(); }
+    if(!rows.length) return [];
+    var head=rows.shift();
+    return rows.filter(function(r){ return r.length &amp;&amp; r.join(&quot;&quot;).trim()!==&quot;&quot;; }).map(function(r){ var o={}; head.forEach(function(h,idx){ o[h]=(r[idx]!=null?r[idx]:&quot;&quot;); }); return o; });
+  }
+  function _bkDL(name,text){
+    var blob=new Blob([text],{type:&quot;text/csv&quot;}),url=URL.createObjectURL(blob),a=document.createElement(&quot;a&quot;);
+    if(typeof a.download===&quot;undefined&quot;){ window.open(url,&quot;_blank&quot;); toast(&quot;Use Share to save the file.&quot;); return; }
+    a.href=url; a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(url);},3000);
+  }
+  function _bkStamp(){ var d=new Date(),z=function(n){return(n<10?&quot;0&quot;:&quot;&quot;)+n;}; return d.getFullYear()+z(d.getMonth()+1)+z(d.getDate()); }
+  function _bkRead(file){ return file.text? file.text() : new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsText(file); }); }
+  function _bkDate(r){ if(!r) return &quot;&quot;; var f=[&quot;date&quot;,&quot;dateReq&quot;,&quot;reported&quot;,&quot;start&quot;,&quot;when&quot;,&quot;day&quot;,&quot;saved&quot;,&quot;deletedAt&quot;]; for(var i=0;i<f.length;i++){ var v=r[f[i]]; if(v!=null&amp;&amp;v!==&quot;&quot;){ v=String(v); return v.length>=10?v.slice(0,10):v; } } var t=r.ts; if(t){ var d=new Date(Number(t)||t); if(!isNaN(d)) return d.toISOString().slice(0,10); } return &quot;&quot;; }
+  async function _bkFetch(key){
+    try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
+    try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
+  }
+  function bkExport(){ var c=_bkBuild(forms); if(!c){ toast(&quot;Nothing to back up yet.&quot;); return; } _bkDL(&quot;spareparts_backup_&quot;+_bkStamp()+&quot;.csv&quot;, c); }
+  async function bkRestore(file){
+    if(typeof adminOK===&quot;function&quot; &amp;&amp; !adminOK()){ toast(&quot;Admin authorization required to restore.&quot;); return; }
+    var rows;
+    try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
+    if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
+    var _bf=document.getElementById(&quot;bkFrom&quot;), _bt=document.getElementById(&quot;bkTo&quot;);
+    var _from=_bf&amp;&amp;_bf.value?_bf.value:&quot;&quot;, _to=_bt&amp;&amp;_bt.value?_bt.value:&quot;&quot;, _outdate=0;
+    if(_from||_to){ rows=rows.filter(function(row){ var d=_bkDate(row); if(!d){ return true; } if(_from&amp;&amp;d<_from){ _outdate++; return false; } if(_to&amp;&amp;d>_to){ _outdate++; return false; } return true; }); }
+    if(!rows.length){ toast(&quot;No records in that date range&quot;+(_outdate?&quot; (&quot;+_outdate+&quot; outside range)&quot;:&quot;&quot;)+&quot;.&quot;); return; }
+    var res=await _bkFetch(ENTRY_KEY);
+    if(!res.ok){ toast(&quot;Can't reach the database — restore cancelled.&quot;); return; }
+    var cur=Array.isArray(res.value)?res.value.slice():(Array.isArray(forms)?forms.slice():[]);
+    var have={}; cur.forEach(function(r){ if(r&amp;&amp;r.id!=null) have[r.id]=1; });
+    var add=0,dup=0;
+    rows.forEach(function(row){ var id=row.id; if(id!=null&amp;&amp;id!==&quot;&quot;&amp;&amp;have[id]){dup++;return;} if(id!=null&amp;&amp;id!==&quot;&quot;)have[id]=1; cur.push(row); add++; });
+    if(!add){ toast(&quot;All &quot;+rows.length+&quot; record(s) already present — nothing to add.&quot;); return; }
+    forms=cur;
+    await save(ENTRY_KEY, forms);
+    drawLog();
+    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present&quot;+(_outdate?(&quot;, &quot;+_outdate+&quot; outside date range&quot;):&quot;&quot;)+&quot;.&quot;);
+  }
+  (function(){ try{
+    var _an=document.getElementById(&quot;bCsv&quot;);
+    if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_bCsv&quot;)){
+      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
+      var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
+      var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
+      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
+      _lb.appendChild(_fi);
+      var _df=document.createElement(&quot;input&quot;); _df.type=&quot;date&quot;; _df.id=&quot;bkFrom&quot;; _df.title=&quot;Restore: from date (optional)&quot;; _df.style.marginLeft=&quot;8px&quot;;
+      var _dt=document.createElement(&quot;input&quot;); _dt.type=&quot;date&quot;; _dt.id=&quot;bkTo&quot;; _dt.title=&quot;Restore: to date (optional)&quot;; _dt.style.marginLeft=&quot;4px&quot;;
+      _an.parentNode.insertBefore(_df, _an.nextSibling);
+      _df.parentNode.insertBefore(_dt, _df.nextSibling);
+      _dt.parentNode.insertBefore(_bb, _dt.nextSibling);
+      _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
+    }
+  }catch(e){} })();
+  
+  $(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
   var head=[&quot;serial&quot;,&quot;date&quot;,&quot;time&quot;,&quot;shift&quot;,&quot;machine&quot;,&quot;machine_hours&quot;,&quot;department&quot;,&quot;order_type&quot;,&quot;pm_type&quot;,&quot;status&quot;,&quot;item_no&quot;,&quot;part_no&quot;,&quot;nav_code&quot;,&quot;nav_desc&quot;,&quot;sparepart_category&quot;,&quot;section&quot;,&quot;qty_req&quot;,&quot;used_part_ret_qty&quot;,&quot;decision&quot;];
   var rows=[];
   forms.slice().sort(function(a,b){ return (a.ts||a.id)-(b.ts||b.id); }).forEach(function(f){
@@ -8039,7 +8486,89 @@ function drawLog1(){ logPage=1; drawLog(); }
 $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawLog1);
 $(&quot;bClear&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;bMeter&quot;).value=&quot;&quot;; $(&quot;bType&quot;).value=&quot;&quot;; $(&quot;bFrom&quot;).value=&quot;&quot;; $(&quot;bTo&quot;).value=&quot;&quot;; $(&quot;bSearch&quot;).value=&quot;&quot;; drawLog1(); });
 $(&quot;bTrashToggle&quot;).addEventListener(&quot;click&quot;,function(){ var w=$(&quot;bTrashWrap&quot;); w.hidden=!w.hidden; if(!w.hidden) drawTrash(); });
-$(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
+
+  /* ===== data Backup / Restore (CSV) — added ===== */
+  function _bkHeavy(v){ return typeof v===&quot;string&quot; &amp;&amp; (v.length>200 || v.indexOf(&quot;data:&quot;)===0 || /^https?:\/\//.test(v)); }
+  function _bkCell(s){ s=(s==null?&quot;&quot;:String(s)); return /[&quot;,\n]/.test(s)?'&quot;'+s.replace(/&quot;/g,'&quot;&quot;')+'&quot;':s; }
+  function _bkBuild(list){
+    list=list||[]; if(!list.length){ return &quot;&quot;; }
+    var cols=[],seen={};
+    list.forEach(function(r){ if(r&amp;&amp;typeof r===&quot;object&quot;){ for(var k in r){ var v=r[k]; if(v==null||Array.isArray(v)||typeof v===&quot;object&quot;||_bkHeavy(String(v)))continue; if(!seen[k]){seen[k]=1;cols.push(k);} } } });
+    if(cols.indexOf(&quot;id&quot;)<0 &amp;&amp; list[0] &amp;&amp; (&quot;id&quot; in list[0])) cols.unshift(&quot;id&quot;);
+    var out=cols.map(_bkCell).join(&quot;,&quot;)+&quot;\n&quot;;
+    list.forEach(function(r){ out+=cols.map(function(c){ var v=r?r[c]:&quot;&quot;; if(v==null||Array.isArray(v)||typeof v===&quot;object&quot;)v=&quot;&quot;; return _bkCell(v); }).join(&quot;,&quot;)+&quot;\n&quot;; });
+    return out;
+  }
+  function _bkParse(text){
+    text=String(text||&quot;&quot;).replace(/^\ufeff/,&quot;&quot;);
+    var rows=[],i=0,n=text.length,field=&quot;&quot;,row=[],inq=false;
+    function endf(){ row.push(field); field=&quot;&quot;; }
+    function endr(){ endf(); rows.push(row); row=[]; }
+    while(i<n){ var c=text[i];
+      if(inq){ if(c==='&quot;'){ if(text[i+1]==='&quot;'){ field+='&quot;'; i+=2; continue; } inq=false; i++; continue; } field+=c; i++; continue; }
+      if(c==='&quot;'){ inq=true; i++; continue; }
+      if(c===&quot;,&quot;){ endf(); i++; continue; }
+      if(c===&quot;\r&quot;){ i++; continue; }
+      if(c===&quot;\n&quot;){ endr(); i++; continue; }
+      field+=c; i++;
+    }
+    if(field.length||row.length){ endr(); }
+    if(!rows.length) return [];
+    var head=rows.shift();
+    return rows.filter(function(r){ return r.length &amp;&amp; r.join(&quot;&quot;).trim()!==&quot;&quot;; }).map(function(r){ var o={}; head.forEach(function(h,idx){ o[h]=(r[idx]!=null?r[idx]:&quot;&quot;); }); return o; });
+  }
+  function _bkDL(name,text){
+    var blob=new Blob([text],{type:&quot;text/csv&quot;}),url=URL.createObjectURL(blob),a=document.createElement(&quot;a&quot;);
+    if(typeof a.download===&quot;undefined&quot;){ window.open(url,&quot;_blank&quot;); toast(&quot;Use Share to save the file.&quot;); return; }
+    a.href=url; a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(url);},3000);
+  }
+  function _bkStamp(){ var d=new Date(),z=function(n){return(n<10?&quot;0&quot;:&quot;&quot;)+n;}; return d.getFullYear()+z(d.getMonth()+1)+z(d.getDate()); }
+  function _bkRead(file){ return file.text? file.text() : new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsText(file); }); }
+  function _bkDate(r){ if(!r) return &quot;&quot;; var f=[&quot;date&quot;,&quot;dateReq&quot;,&quot;reported&quot;,&quot;start&quot;,&quot;when&quot;,&quot;day&quot;,&quot;saved&quot;,&quot;deletedAt&quot;]; for(var i=0;i<f.length;i++){ var v=r[f[i]]; if(v!=null&amp;&amp;v!==&quot;&quot;){ v=String(v); return v.length>=10?v.slice(0,10):v; } } var t=r.ts; if(t){ var d=new Date(Number(t)||t); if(!isNaN(d)) return d.toISOString().slice(0,10); } return &quot;&quot;; }
+  async function _bkFetch(key){
+    try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
+    try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
+  }
+  function bkExport(){ var c=_bkBuild(readings); if(!c){ toast(&quot;Nothing to back up yet.&quot;); return; } _bkDL(&quot;utility_backup_&quot;+_bkStamp()+&quot;.csv&quot;, c); }
+  async function bkRestore(file){
+    if(typeof adminOK===&quot;function&quot; &amp;&amp; !adminOK()){ toast(&quot;Admin authorization required to restore.&quot;); return; }
+    var rows;
+    try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
+    if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
+    var _bf=document.getElementById(&quot;bkFrom&quot;), _bt=document.getElementById(&quot;bkTo&quot;);
+    var _from=_bf&amp;&amp;_bf.value?_bf.value:&quot;&quot;, _to=_bt&amp;&amp;_bt.value?_bt.value:&quot;&quot;, _outdate=0;
+    if(_from||_to){ rows=rows.filter(function(row){ var d=_bkDate(row); if(!d){ return true; } if(_from&amp;&amp;d<_from){ _outdate++; return false; } if(_to&amp;&amp;d>_to){ _outdate++; return false; } return true; }); }
+    if(!rows.length){ toast(&quot;No records in that date range&quot;+(_outdate?&quot; (&quot;+_outdate+&quot; outside range)&quot;:&quot;&quot;)+&quot;.&quot;); return; }
+    var res=await _bkFetch(RKEY);
+    if(!res.ok){ toast(&quot;Can't reach the database — restore cancelled.&quot;); return; }
+    var cur=Array.isArray(res.value)?res.value.slice():(Array.isArray(readings)?readings.slice():[]);
+    var have={}; cur.forEach(function(r){ if(r&amp;&amp;r.id!=null) have[r.id]=1; });
+    var add=0,dup=0;
+    rows.forEach(function(row){ var id=row.id; if(id!=null&amp;&amp;id!==&quot;&quot;&amp;&amp;have[id]){dup++;return;} if(id!=null&amp;&amp;id!==&quot;&quot;)have[id]=1; cur.push(row); add++; });
+    if(!add){ toast(&quot;All &quot;+rows.length+&quot; record(s) already present — nothing to add.&quot;); return; }
+    readings=cur;
+    await save(RKEY, readings);
+    drawLog();
+    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present&quot;+(_outdate?(&quot;, &quot;+_outdate+&quot; outside date range&quot;):&quot;&quot;)+&quot;.&quot;);
+  }
+  (function(){ try{
+    var _an=document.getElementById(&quot;bCsv&quot;);
+    if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_bCsv&quot;)){
+      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
+      var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
+      var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
+      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
+      _lb.appendChild(_fi);
+      var _df=document.createElement(&quot;input&quot;); _df.type=&quot;date&quot;; _df.id=&quot;bkFrom&quot;; _df.title=&quot;Restore: from date (optional)&quot;; _df.style.marginLeft=&quot;8px&quot;;
+      var _dt=document.createElement(&quot;input&quot;); _dt.type=&quot;date&quot;; _dt.id=&quot;bkTo&quot;; _dt.title=&quot;Restore: to date (optional)&quot;; _dt.style.marginLeft=&quot;4px&quot;;
+      _an.parentNode.insertBefore(_df, _an.nextSibling);
+      _df.parentNode.insertBefore(_dt, _df.nextSibling);
+      _dt.parentNode.insertBefore(_bb, _dt.nextSibling);
+      _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
+    }
+  }catch(e){} })();
+  
+  $(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
   var head=[&quot;date&quot;,&quot;time&quot;,&quot;shift&quot;,&quot;meter&quot;,&quot;utility&quot;,&quot;reading&quot;,&quot;unit&quot;,&quot;consumption&quot;,&quot;tariff&quot;,&quot;cost&quot;,&quot;cost_usd&quot;,&quot;by&quot;,&quot;note&quot;];
   var rows=logFilter().slice().sort(function(a,b){return a.ts-b.ts;}).map(function(r){ var cons=consumptionOf(r); var rate=(r.type===&quot;WATER&quot;?TAR.water:TAR.elec); var cost=(cons!=null)?cons*rate:&quot;&quot;;
     return [r.date,r.time,r.shift,r.meterName,typeLabel(r.type),r.reading,unitOf(r.type),(cons!=null?cons:&quot;&quot;),rate,cost,(cost!==&quot;&quot;?usd(cost).toFixed(2):&quot;&quot;),r.by,r.note]; });
@@ -8983,6 +9512,108 @@ window.addEventListener('resize', function(){ autoFitActive(); });
 EMBED_FRAMES.forEach(observeFrame);
 /* re-fit whenever a page is shown */
 (function(){ var _nav=window.nav; if(typeof _nav==='function'){ window.nav=function(p){ _nav(p); [60,250,600].forEach(function(ms){ setTimeout(autoFitActive, ms); }); }; } })();
+
+/* ============================================================
+   DATA BACKUP — one click, all modules, all entities.
+   Fetches every KV key from /api/kv (same origin as this page),
+   strips heavy photo/base64 fields, writes one CSV per dataset,
+   and downloads them bundled in a single .zip (store-only).
+   ============================================================ */
+var BK_ENTS = (typeof ENTITIES!=="undefined" && ENTITIES.length) ? ENTITIES.slice() : ["ALCO","SAAT","BOL","IKG"];
+var BK_PER_ENTITY = [
+  "tdl:events","tdl:deleted","tdl:config",
+  "alco:workorders","alco:workorders:deleted",
+  "diesel:entries","diesel:entries:deleted",
+  "material:entries","material:entries:deleted","material:pricing",
+  "spare:forms","spare:forms:deleted",
+  "util:readings","util:readings:deleted","util:meters","util:tariff"
+];
+var BK_GLOBAL = ["spare:parts","spare:parts:deleted","spare:hm","spare:pmtypes","spare:fx"];
+
+function bkKeyList(){
+  var out=[];
+  BK_GLOBAL.forEach(function(k){ out.push({key:k,name:k.replace(/:/g,"_")}); });
+  BK_PER_ENTITY.forEach(function(base){
+    BK_ENTS.forEach(function(ent){
+      var key = (ent==="ALCO") ? base : base+":"+ent;
+      out.push({key:key,name:base.replace(/:/g,"_")+"__"+ent});
+    });
+  });
+  return out;
+}
+function bkGet(key){
+  return fetch("/api/kv?key="+encodeURIComponent(key),{cache:"no-store"})
+    .then(function(r){ return r.ok? r.json(): null; })
+    .then(function(j){ if(j&&j.value!=null){ try{ return JSON.parse(j.value); }catch(e){ return j.value; } } return null; })
+    .catch(function(){ return null; });
+}
+var BK_HEAVY = function(v){ return typeof v==="string" && (v.length>200 || v.indexOf("data:")===0 || /^https?:\/\//.test(v)); };
+function bkCell(s){ s=(s==null?"":String(s)); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"' : s; }
+function bkToCsv(val){
+  var arr = Array.isArray(val) ? val : [val];
+  if(!arr.length) return "";
+  if(typeof arr[0]!=="object" || arr[0]==null){
+    return "value\n"+arr.map(function(x){ return bkCell(x); }).join("\n")+"\n";
+  }
+  var cols=[], seen={};
+  arr.forEach(function(r){ if(r&&typeof r==="object"){ for(var k in r){ var v=r[k];
+    if(v==null||Array.isArray(v)||typeof v==="object"||BK_HEAVY(String(v))) continue;
+    if(!seen[k]){ seen[k]=1; cols.push(k); } } } });
+  if(!cols.length) cols=["value"];
+  var out=cols.join(",")+"\n";
+  arr.forEach(function(r){ out += cols.map(function(c){ return bkCell(r&&typeof r==="object"? r[c] : (c==="value"? r : "")); }).join(",")+"\n"; });
+  return out;
+}
+/* minimal store-only ZIP writer with CRC32 */
+var BK_CRCT=(function(){ var t=[],c,n,k; for(n=0;n<256;n++){ c=n; for(k=0;k<8;k++){ c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); } t[n]=c>>>0; } return t; })();
+function bkCrc32(b){ var c=0xFFFFFFFF; for(var i=0;i<b.length;i++){ c=BK_CRCT[(c^b[i])&0xFF]^(c>>>8); } return (c^0xFFFFFFFF)>>>0; }
+function bkBytes(s){ return new TextEncoder().encode(s); }
+function bkZip(files){
+  var chunks=[], central=[], offset=0;
+  function u16(n){ return [n&0xFF,(n>>8)&0xFF]; }
+  function u32(n){ return [n&0xFF,(n>>8)&0xFF,(n>>16)&0xFF,(n>>24)&0xFF]; }
+  files.forEach(function(f){
+    var nameB=bkBytes(f.name), data=f.bytes, crc=bkCrc32(data);
+    var local=[].concat(u32(0x04034b50),u16(20),u16(0),u16(0),u16(0),u16(0),u32(crc),u32(data.length),u32(data.length),u16(nameB.length),u16(0));
+    chunks.push(new Uint8Array(local),nameB,data);
+    var cen=[].concat(u32(0x02014b50),u16(20),u16(20),u16(0),u16(0),u16(0),u16(0),u32(crc),u32(data.length),u32(data.length),u16(nameB.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset));
+    central.push({head:new Uint8Array(cen),name:nameB});
+    offset += local.length+nameB.length+data.length;
+  });
+  var cenStart=offset, cenSize=0;
+  central.forEach(function(c){ chunks.push(c.head,c.name); cenSize+=c.head.length+c.name.length; });
+  var end=[].concat(u32(0x06054b50),u16(0),u16(0),u16(files.length),u16(files.length),u32(cenSize),u32(cenStart),u16(0));
+  chunks.push(new Uint8Array(end));
+  var total=0; chunks.forEach(function(c){ total+=c.length; });
+  var outb=new Uint8Array(total), p=0; chunks.forEach(function(c){ outb.set(c,p); p+=c.length; });
+  return outb;
+}
+function bkStamp(){ var d=new Date(),z=function(n){return(n<10?"0":"")+n;}; return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())+"_"+z(d.getHours())+z(d.getMinutes()); }
+async function downloadBackup(){
+  var btn=$("#backupBtn"); if(btn){ btn.disabled=true; btn.style.opacity=".5"; }
+  try{
+    toast("Backing up all data…");
+    var list=bkKeyList(), files=[], manifest=[["dataset","key","records"]];
+    for(var i=0;i<list.length;i++){
+      var val=await bkGet(list[i].key);
+      if(val==null) continue;
+      if(Array.isArray(val) && val.length===0) continue;
+      var csv=bkToCsv(val); if(!csv) continue;
+      files.push({name:list[i].name+".csv", bytes:bkBytes(csv)});
+      manifest.push([list[i].name, list[i].key, String(Array.isArray(val)?val.length:1)]);
+    }
+    if(!files.length){ toast("No data found to back up."); return; }
+    var mcsv=manifest.map(function(row){ return row.map(bkCell).join(","); }).join("\n")+"\n";
+    files.unshift({name:"_manifest.csv", bytes:bkBytes(mcsv)});
+    var blob=new Blob([bkZip(files)],{type:"application/zip"});
+    var url=URL.createObjectURL(blob), a=document.createElement("a");
+    a.href=url; a.download="engineering-dashboard-backup_"+bkStamp()+".zip";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); },4000);
+    toast((files.length-1)+" datasets backed up ✓");
+  }catch(e){ toast("Backup failed: "+((e&&e.message)||e)); }
+  finally{ if(btn){ btn.disabled=false; btn.style.opacity=""; } }
+}
 
 /* ---------- boot ---------- */
 initEntities();
