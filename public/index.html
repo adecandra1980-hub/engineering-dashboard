@@ -2940,7 +2940,7 @@ $(&quot;vbSave&quot;).addEventListener(&quot;click&quot;, async function(){
   $(&quot;vbModal&quot;).hidden = true; vbTargetId = null;
   toast(&quot;Verification saved.&quot;);
 });
-
+  
   /* ===== data Backup / Restore (CSV) — added ===== */
   function _bkHeavy(v){ return typeof v===&quot;string&quot; &amp;&amp; (v.length>200 || v.indexOf(&quot;data:&quot;)===0 || /^https?:\/\//.test(v)); }
   function _bkCell(s){ s=(s==null?&quot;&quot;:String(s)); return /[&quot;,\n]/.test(s)?'&quot;'+s.replace(/&quot;/g,'&quot;&quot;')+'&quot;':s; }
@@ -2978,7 +2978,6 @@ $(&quot;vbSave&quot;).addEventListener(&quot;click&quot;, async function(){
   }
   function _bkStamp(){ var d=new Date(),z=function(n){return(n<10?&quot;0&quot;:&quot;&quot;)+n;}; return d.getFullYear()+z(d.getMonth()+1)+z(d.getDate()); }
   function _bkRead(file){ return file.text? file.text() : new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsText(file); }); }
-  function _bkDate(r){ if(!r) return &quot;&quot;; var f=[&quot;date&quot;,&quot;dateReq&quot;,&quot;reported&quot;,&quot;start&quot;,&quot;when&quot;,&quot;day&quot;,&quot;saved&quot;,&quot;deletedAt&quot;]; for(var i=0;i<f.length;i++){ var v=r[f[i]]; if(v!=null&amp;&amp;v!==&quot;&quot;){ v=String(v); return v.length>=10?v.slice(0,10):v; } } var t=r.ts; if(t){ var d=new Date(Number(t)||t); if(!isNaN(d)) return d.toISOString().slice(0,10); } return &quot;&quot;; }
   async function _bkFetch(key){
     try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
     try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
@@ -2989,10 +2988,6 @@ $(&quot;vbSave&quot;).addEventListener(&quot;click&quot;, async function(){
     var rows;
     try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
     if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
-    var _bf=document.getElementById(&quot;bkFrom&quot;), _bt=document.getElementById(&quot;bkTo&quot;);
-    var _from=_bf&amp;&amp;_bf.value?_bf.value:&quot;&quot;, _to=_bt&amp;&amp;_bt.value?_bt.value:&quot;&quot;, _outdate=0;
-    if(_from||_to){ rows=rows.filter(function(row){ var d=_bkDate(row); if(!d){ return true; } if(_from&amp;&amp;d<_from){ _outdate++; return false; } if(_to&amp;&amp;d>_to){ _outdate++; return false; } return true; }); }
-    if(!rows.length){ toast(&quot;No records in that date range&quot;+(_outdate?&quot; (&quot;+_outdate+&quot; outside range)&quot;:&quot;&quot;)+&quot;.&quot;); return; }
     var res=await _bkFetch(EVT_KEY);
     if(!res.ok){ toast(&quot;Can't reach the database — restore cancelled.&quot;); return; }
     var cur=Array.isArray(res.value)?res.value.slice():(Array.isArray(evts)?evts.slice():[]);
@@ -3003,21 +2998,18 @@ $(&quot;vbSave&quot;).addEventListener(&quot;click&quot;, async function(){
     evts=cur;
     await save(EVT_KEY, evts);
     drawBook();
-    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present&quot;+(_outdate?(&quot;, &quot;+_outdate+&quot; outside date range&quot;):&quot;&quot;)+&quot;.&quot;);
+    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present.&quot;);
   }
   (function(){ try{
     var _an=document.getElementById(&quot;csv&quot;);
     if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_csv&quot;)){
+      try{ _an.style.display=&quot;none&quot;; }catch(e){}
       var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
       var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_csv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
       _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
       _lb.appendChild(_fi);
-      var _df=document.createElement(&quot;input&quot;); _df.type=&quot;date&quot;; _df.id=&quot;bkFrom&quot;; _df.title=&quot;Restore: from date (optional)&quot;; _df.style.marginLeft=&quot;8px&quot;;
-      var _dt=document.createElement(&quot;input&quot;); _dt.type=&quot;date&quot;; _dt.id=&quot;bkTo&quot;; _dt.title=&quot;Restore: to date (optional)&quot;; _dt.style.marginLeft=&quot;4px&quot;;
-      _an.parentNode.insertBefore(_df, _an.nextSibling);
-      _df.parentNode.insertBefore(_dt, _df.nextSibling);
-      _dt.parentNode.insertBefore(_bb, _dt.nextSibling);
+      _an.parentNode.insertBefore(_bb, _an.nextSibling);
       _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
     }
   }catch(e){} })();
@@ -4326,7 +4318,6 @@ var CREDS={};
   }
   function _bkStamp(){ var d=new Date(),z=function(n){return(n<10?&quot;0&quot;:&quot;&quot;)+n;}; return d.getFullYear()+z(d.getMonth()+1)+z(d.getDate()); }
   function _bkRead(file){ return file.text? file.text() : new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsText(file); }); }
-  function _bkDate(r){ if(!r) return &quot;&quot;; var f=[&quot;date&quot;,&quot;dateReq&quot;,&quot;reported&quot;,&quot;start&quot;,&quot;when&quot;,&quot;day&quot;,&quot;saved&quot;,&quot;deletedAt&quot;]; for(var i=0;i<f.length;i++){ var v=r[f[i]]; if(v!=null&amp;&amp;v!==&quot;&quot;){ v=String(v); return v.length>=10?v.slice(0,10):v; } } var t=r.ts; if(t){ var d=new Date(Number(t)||t); if(!isNaN(d)) return d.toISOString().slice(0,10); } return &quot;&quot;; }
   async function _bkFetch(key){
     try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
     try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
@@ -4337,10 +4328,6 @@ var CREDS={};
     var rows;
     try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
     if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
-    var _bf=document.getElementById(&quot;bkFrom&quot;), _bt=document.getElementById(&quot;bkTo&quot;);
-    var _from=_bf&amp;&amp;_bf.value?_bf.value:&quot;&quot;, _to=_bt&amp;&amp;_bt.value?_bt.value:&quot;&quot;, _outdate=0;
-    if(_from||_to){ rows=rows.filter(function(row){ var d=_bkDate(row); if(!d){ return true; } if(_from&amp;&amp;d<_from){ _outdate++; return false; } if(_to&amp;&amp;d>_to){ _outdate++; return false; } return true; }); }
-    if(!rows.length){ toast(&quot;No records in that date range&quot;+(_outdate?&quot; (&quot;+_outdate+&quot; outside range)&quot;:&quot;&quot;)+&quot;.&quot;); return; }
     var res=await _bkFetch(WO_KEY);
     if(!res.ok){ toast(&quot;Can't reach the database — restore cancelled.&quot;); return; }
     var cur=Array.isArray(res.value)?res.value.slice():(Array.isArray(recs)?recs.slice():[]);
@@ -4351,21 +4338,18 @@ var CREDS={};
     recs=cur;
     if(!(await commitWO())) return;
     refreshHead(); drawBook();
-    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present&quot;+(_outdate?(&quot;, &quot;+_outdate+&quot; outside date range&quot;):&quot;&quot;)+&quot;.&quot;);
+    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present.&quot;);
   }
   (function(){ try{
     var _an=document.getElementById(&quot;csv&quot;);
     if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_csv&quot;)){
+      try{ _an.style.display=&quot;none&quot;; }catch(e){}
       var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
       var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_csv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
       _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
       _lb.appendChild(_fi);
-      var _df=document.createElement(&quot;input&quot;); _df.type=&quot;date&quot;; _df.id=&quot;bkFrom&quot;; _df.title=&quot;Restore: from date (optional)&quot;; _df.style.marginLeft=&quot;8px&quot;;
-      var _dt=document.createElement(&quot;input&quot;); _dt.type=&quot;date&quot;; _dt.id=&quot;bkTo&quot;; _dt.title=&quot;Restore: to date (optional)&quot;; _dt.style.marginLeft=&quot;4px&quot;;
-      _an.parentNode.insertBefore(_df, _an.nextSibling);
-      _df.parentNode.insertBefore(_dt, _df.nextSibling);
-      _dt.parentNode.insertBefore(_bb, _dt.nextSibling);
+      _an.parentNode.insertBefore(_bb, _an.nextSibling);
       _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
     }
   }catch(e){} })();
@@ -5194,7 +5178,7 @@ $(&quot;okModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.targ
 $(&quot;bKind&quot;).addEventListener(&quot;change&quot;,drawBook);
 if($(&quot;bTank&quot;)) $(&quot;bTank&quot;).addEventListener(&quot;change&quot;,drawBook);
 $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
-
+  
   /* ===== data Backup / Restore (CSV) — added ===== */
   function _bkHeavy(v){ return typeof v===&quot;string&quot; &amp;&amp; (v.length>200 || v.indexOf(&quot;data:&quot;)===0 || /^https?:\/\//.test(v)); }
   function _bkCell(s){ s=(s==null?&quot;&quot;:String(s)); return /[&quot;,\n]/.test(s)?'&quot;'+s.replace(/&quot;/g,'&quot;&quot;')+'&quot;':s; }
@@ -5232,7 +5216,6 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
   }
   function _bkStamp(){ var d=new Date(),z=function(n){return(n<10?&quot;0&quot;:&quot;&quot;)+n;}; return d.getFullYear()+z(d.getMonth()+1)+z(d.getDate()); }
   function _bkRead(file){ return file.text? file.text() : new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsText(file); }); }
-  function _bkDate(r){ if(!r) return &quot;&quot;; var f=[&quot;date&quot;,&quot;dateReq&quot;,&quot;reported&quot;,&quot;start&quot;,&quot;when&quot;,&quot;day&quot;,&quot;saved&quot;,&quot;deletedAt&quot;]; for(var i=0;i<f.length;i++){ var v=r[f[i]]; if(v!=null&amp;&amp;v!==&quot;&quot;){ v=String(v); return v.length>=10?v.slice(0,10):v; } } var t=r.ts; if(t){ var d=new Date(Number(t)||t); if(!isNaN(d)) return d.toISOString().slice(0,10); } return &quot;&quot;; }
   async function _bkFetch(key){
     try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
     try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
@@ -5243,10 +5226,6 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
     var rows;
     try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
     if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
-    var _bf=document.getElementById(&quot;bkFrom&quot;), _bt=document.getElementById(&quot;bkTo&quot;);
-    var _from=_bf&amp;&amp;_bf.value?_bf.value:&quot;&quot;, _to=_bt&amp;&amp;_bt.value?_bt.value:&quot;&quot;, _outdate=0;
-    if(_from||_to){ rows=rows.filter(function(row){ var d=_bkDate(row); if(!d){ return true; } if(_from&amp;&amp;d<_from){ _outdate++; return false; } if(_to&amp;&amp;d>_to){ _outdate++; return false; } return true; }); }
-    if(!rows.length){ toast(&quot;No records in that date range&quot;+(_outdate?&quot; (&quot;+_outdate+&quot; outside range)&quot;:&quot;&quot;)+&quot;.&quot;); return; }
     var res=await _bkFetch(ENTRY_KEY);
     if(!res.ok){ toast(&quot;Can't reach the database — restore cancelled.&quot;); return; }
     var cur=Array.isArray(res.value)?res.value.slice():(Array.isArray(entries)?entries.slice():[]);
@@ -5257,21 +5236,18 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
     entries=cur;
     await save(ENTRY_KEY, entries);
     drawBook(); if(typeof drawStock===&quot;function&quot;) drawStock();
-    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present&quot;+(_outdate?(&quot;, &quot;+_outdate+&quot; outside date range&quot;):&quot;&quot;)+&quot;.&quot;);
+    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present.&quot;);
   }
   (function(){ try{
     var _an=document.getElementById(&quot;bCsv&quot;);
     if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_bCsv&quot;)){
+      try{ _an.style.display=&quot;none&quot;; }catch(e){}
       var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
       var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
       _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
       _lb.appendChild(_fi);
-      var _df=document.createElement(&quot;input&quot;); _df.type=&quot;date&quot;; _df.id=&quot;bkFrom&quot;; _df.title=&quot;Restore: from date (optional)&quot;; _df.style.marginLeft=&quot;8px&quot;;
-      var _dt=document.createElement(&quot;input&quot;); _dt.type=&quot;date&quot;; _dt.id=&quot;bkTo&quot;; _dt.title=&quot;Restore: to date (optional)&quot;; _dt.style.marginLeft=&quot;4px&quot;;
-      _an.parentNode.insertBefore(_df, _an.nextSibling);
-      _df.parentNode.insertBefore(_dt, _df.nextSibling);
-      _dt.parentNode.insertBefore(_bb, _dt.nextSibling);
+      _an.parentNode.insertBefore(_bb, _an.nextSibling);
       _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
     }
   }catch(e){} })();
@@ -6158,7 +6134,7 @@ function drawBook(){
 }
 $(&quot;bFlow&quot;).addEventListener(&quot;change&quot;,drawBook);
 $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
-
+  
   /* ===== data Backup / Restore (CSV) — added ===== */
   function _bkHeavy(v){ return typeof v===&quot;string&quot; &amp;&amp; (v.length>200 || v.indexOf(&quot;data:&quot;)===0 || /^https?:\/\//.test(v)); }
   function _bkCell(s){ s=(s==null?&quot;&quot;:String(s)); return /[&quot;,\n]/.test(s)?'&quot;'+s.replace(/&quot;/g,'&quot;&quot;')+'&quot;':s; }
@@ -6196,7 +6172,6 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
   }
   function _bkStamp(){ var d=new Date(),z=function(n){return(n<10?&quot;0&quot;:&quot;&quot;)+n;}; return d.getFullYear()+z(d.getMonth()+1)+z(d.getDate()); }
   function _bkRead(file){ return file.text? file.text() : new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsText(file); }); }
-  function _bkDate(r){ if(!r) return &quot;&quot;; var f=[&quot;date&quot;,&quot;dateReq&quot;,&quot;reported&quot;,&quot;start&quot;,&quot;when&quot;,&quot;day&quot;,&quot;saved&quot;,&quot;deletedAt&quot;]; for(var i=0;i<f.length;i++){ var v=r[f[i]]; if(v!=null&amp;&amp;v!==&quot;&quot;){ v=String(v); return v.length>=10?v.slice(0,10):v; } } var t=r.ts; if(t){ var d=new Date(Number(t)||t); if(!isNaN(d)) return d.toISOString().slice(0,10); } return &quot;&quot;; }
   async function _bkFetch(key){
     try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
     try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
@@ -6207,10 +6182,6 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
     var rows;
     try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
     if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
-    var _bf=document.getElementById(&quot;bkFrom&quot;), _bt=document.getElementById(&quot;bkTo&quot;);
-    var _from=_bf&amp;&amp;_bf.value?_bf.value:&quot;&quot;, _to=_bt&amp;&amp;_bt.value?_bt.value:&quot;&quot;, _outdate=0;
-    if(_from||_to){ rows=rows.filter(function(row){ var d=_bkDate(row); if(!d){ return true; } if(_from&amp;&amp;d<_from){ _outdate++; return false; } if(_to&amp;&amp;d>_to){ _outdate++; return false; } return true; }); }
-    if(!rows.length){ toast(&quot;No records in that date range&quot;+(_outdate?&quot; (&quot;+_outdate+&quot; outside range)&quot;:&quot;&quot;)+&quot;.&quot;); return; }
     var res=await _bkFetch(ENTRY_KEY);
     if(!res.ok){ toast(&quot;Can't reach the database — restore cancelled.&quot;); return; }
     var cur=Array.isArray(res.value)?res.value.slice():(Array.isArray(entries)?entries.slice():[]);
@@ -6221,21 +6192,18 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
     entries=cur;
     await save(ENTRY_KEY, entries);
     drawBook();
-    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present&quot;+(_outdate?(&quot;, &quot;+_outdate+&quot; outside date range&quot;):&quot;&quot;)+&quot;.&quot;);
+    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present.&quot;);
   }
   (function(){ try{
     var _an=document.getElementById(&quot;bCsv&quot;);
     if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_bCsv&quot;)){
+      try{ _an.style.display=&quot;none&quot;; }catch(e){}
       var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
       var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
       _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
       _lb.appendChild(_fi);
-      var _df=document.createElement(&quot;input&quot;); _df.type=&quot;date&quot;; _df.id=&quot;bkFrom&quot;; _df.title=&quot;Restore: from date (optional)&quot;; _df.style.marginLeft=&quot;8px&quot;;
-      var _dt=document.createElement(&quot;input&quot;); _dt.type=&quot;date&quot;; _dt.id=&quot;bkTo&quot;; _dt.title=&quot;Restore: to date (optional)&quot;; _dt.style.marginLeft=&quot;4px&quot;;
-      _an.parentNode.insertBefore(_df, _an.nextSibling);
-      _df.parentNode.insertBefore(_dt, _df.nextSibling);
-      _dt.parentNode.insertBefore(_bb, _dt.nextSibling);
+      _an.parentNode.insertBefore(_bb, _an.nextSibling);
       _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
     }
   }catch(e){} })();
@@ -7677,7 +7645,7 @@ $(&quot;okClose&quot;).addEventListener(&quot;click&quot;,hideSuccess);
 $(&quot;okModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.target===$(&quot;okModal&quot;)) hideSuccess(); });
 
 /* ---- CSV ---- */
-
+  
   /* ===== data Backup / Restore (CSV) — added ===== */
   function _bkHeavy(v){ return typeof v===&quot;string&quot; &amp;&amp; (v.length>200 || v.indexOf(&quot;data:&quot;)===0 || /^https?:\/\//.test(v)); }
   function _bkCell(s){ s=(s==null?&quot;&quot;:String(s)); return /[&quot;,\n]/.test(s)?'&quot;'+s.replace(/&quot;/g,'&quot;&quot;')+'&quot;':s; }
@@ -7715,7 +7683,6 @@ $(&quot;okModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.targ
   }
   function _bkStamp(){ var d=new Date(),z=function(n){return(n<10?&quot;0&quot;:&quot;&quot;)+n;}; return d.getFullYear()+z(d.getMonth()+1)+z(d.getDate()); }
   function _bkRead(file){ return file.text? file.text() : new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsText(file); }); }
-  function _bkDate(r){ if(!r) return &quot;&quot;; var f=[&quot;date&quot;,&quot;dateReq&quot;,&quot;reported&quot;,&quot;start&quot;,&quot;when&quot;,&quot;day&quot;,&quot;saved&quot;,&quot;deletedAt&quot;]; for(var i=0;i<f.length;i++){ var v=r[f[i]]; if(v!=null&amp;&amp;v!==&quot;&quot;){ v=String(v); return v.length>=10?v.slice(0,10):v; } } var t=r.ts; if(t){ var d=new Date(Number(t)||t); if(!isNaN(d)) return d.toISOString().slice(0,10); } return &quot;&quot;; }
   async function _bkFetch(key){
     try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
     try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
@@ -7726,10 +7693,6 @@ $(&quot;okModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.targ
     var rows;
     try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
     if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
-    var _bf=document.getElementById(&quot;bkFrom&quot;), _bt=document.getElementById(&quot;bkTo&quot;);
-    var _from=_bf&amp;&amp;_bf.value?_bf.value:&quot;&quot;, _to=_bt&amp;&amp;_bt.value?_bt.value:&quot;&quot;, _outdate=0;
-    if(_from||_to){ rows=rows.filter(function(row){ var d=_bkDate(row); if(!d){ return true; } if(_from&amp;&amp;d<_from){ _outdate++; return false; } if(_to&amp;&amp;d>_to){ _outdate++; return false; } return true; }); }
-    if(!rows.length){ toast(&quot;No records in that date range&quot;+(_outdate?&quot; (&quot;+_outdate+&quot; outside range)&quot;:&quot;&quot;)+&quot;.&quot;); return; }
     var res=await _bkFetch(ENTRY_KEY);
     if(!res.ok){ toast(&quot;Can't reach the database — restore cancelled.&quot;); return; }
     var cur=Array.isArray(res.value)?res.value.slice():(Array.isArray(forms)?forms.slice():[]);
@@ -7740,21 +7703,18 @@ $(&quot;okModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.targ
     forms=cur;
     await save(ENTRY_KEY, forms);
     drawLog();
-    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present&quot;+(_outdate?(&quot;, &quot;+_outdate+&quot; outside date range&quot;):&quot;&quot;)+&quot;.&quot;);
+    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present.&quot;);
   }
   (function(){ try{
     var _an=document.getElementById(&quot;bCsv&quot;);
     if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_bCsv&quot;)){
+      try{ _an.style.display=&quot;none&quot;; }catch(e){}
       var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
       var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
       _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
       _lb.appendChild(_fi);
-      var _df=document.createElement(&quot;input&quot;); _df.type=&quot;date&quot;; _df.id=&quot;bkFrom&quot;; _df.title=&quot;Restore: from date (optional)&quot;; _df.style.marginLeft=&quot;8px&quot;;
-      var _dt=document.createElement(&quot;input&quot;); _dt.type=&quot;date&quot;; _dt.id=&quot;bkTo&quot;; _dt.title=&quot;Restore: to date (optional)&quot;; _dt.style.marginLeft=&quot;4px&quot;;
-      _an.parentNode.insertBefore(_df, _an.nextSibling);
-      _df.parentNode.insertBefore(_dt, _df.nextSibling);
-      _dt.parentNode.insertBefore(_bb, _dt.nextSibling);
+      _an.parentNode.insertBefore(_bb, _an.nextSibling);
       _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
     }
   }catch(e){} })();
@@ -8486,7 +8446,7 @@ function drawLog1(){ logPage=1; drawLog(); }
 $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawLog1);
 $(&quot;bClear&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;bMeter&quot;).value=&quot;&quot;; $(&quot;bType&quot;).value=&quot;&quot;; $(&quot;bFrom&quot;).value=&quot;&quot;; $(&quot;bTo&quot;).value=&quot;&quot;; $(&quot;bSearch&quot;).value=&quot;&quot;; drawLog1(); });
 $(&quot;bTrashToggle&quot;).addEventListener(&quot;click&quot;,function(){ var w=$(&quot;bTrashWrap&quot;); w.hidden=!w.hidden; if(!w.hidden) drawTrash(); });
-
+  
   /* ===== data Backup / Restore (CSV) — added ===== */
   function _bkHeavy(v){ return typeof v===&quot;string&quot; &amp;&amp; (v.length>200 || v.indexOf(&quot;data:&quot;)===0 || /^https?:\/\//.test(v)); }
   function _bkCell(s){ s=(s==null?&quot;&quot;:String(s)); return /[&quot;,\n]/.test(s)?'&quot;'+s.replace(/&quot;/g,'&quot;&quot;')+'&quot;':s; }
@@ -8524,7 +8484,6 @@ $(&quot;bTrashToggle&quot;).addEventListener(&quot;click&quot;,function(){ var w
   }
   function _bkStamp(){ var d=new Date(),z=function(n){return(n<10?&quot;0&quot;:&quot;&quot;)+n;}; return d.getFullYear()+z(d.getMonth()+1)+z(d.getDate()); }
   function _bkRead(file){ return file.text? file.text() : new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsText(file); }); }
-  function _bkDate(r){ if(!r) return &quot;&quot;; var f=[&quot;date&quot;,&quot;dateReq&quot;,&quot;reported&quot;,&quot;start&quot;,&quot;when&quot;,&quot;day&quot;,&quot;saved&quot;,&quot;deletedAt&quot;]; for(var i=0;i<f.length;i++){ var v=r[f[i]]; if(v!=null&amp;&amp;v!==&quot;&quot;){ v=String(v); return v.length>=10?v.slice(0,10):v; } } var t=r.ts; if(t){ var d=new Date(Number(t)||t); if(!isNaN(d)) return d.toISOString().slice(0,10); } return &quot;&quot;; }
   async function _bkFetch(key){
     try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
     try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
@@ -8535,10 +8494,6 @@ $(&quot;bTrashToggle&quot;).addEventListener(&quot;click&quot;,function(){ var w
     var rows;
     try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
     if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
-    var _bf=document.getElementById(&quot;bkFrom&quot;), _bt=document.getElementById(&quot;bkTo&quot;);
-    var _from=_bf&amp;&amp;_bf.value?_bf.value:&quot;&quot;, _to=_bt&amp;&amp;_bt.value?_bt.value:&quot;&quot;, _outdate=0;
-    if(_from||_to){ rows=rows.filter(function(row){ var d=_bkDate(row); if(!d){ return true; } if(_from&amp;&amp;d<_from){ _outdate++; return false; } if(_to&amp;&amp;d>_to){ _outdate++; return false; } return true; }); }
-    if(!rows.length){ toast(&quot;No records in that date range&quot;+(_outdate?&quot; (&quot;+_outdate+&quot; outside range)&quot;:&quot;&quot;)+&quot;.&quot;); return; }
     var res=await _bkFetch(RKEY);
     if(!res.ok){ toast(&quot;Can't reach the database — restore cancelled.&quot;); return; }
     var cur=Array.isArray(res.value)?res.value.slice():(Array.isArray(readings)?readings.slice():[]);
@@ -8549,21 +8504,18 @@ $(&quot;bTrashToggle&quot;).addEventListener(&quot;click&quot;,function(){ var w
     readings=cur;
     await save(RKEY, readings);
     drawLog();
-    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present&quot;+(_outdate?(&quot;, &quot;+_outdate+&quot; outside date range&quot;):&quot;&quot;)+&quot;.&quot;);
+    toast(add+&quot; record(s) restored, &quot;+dup+&quot; already present.&quot;);
   }
   (function(){ try{
     var _an=document.getElementById(&quot;bCsv&quot;);
     if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_bCsv&quot;)){
+      try{ _an.style.display=&quot;none&quot;; }catch(e){}
       var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
       var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
       _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
       _lb.appendChild(_fi);
-      var _df=document.createElement(&quot;input&quot;); _df.type=&quot;date&quot;; _df.id=&quot;bkFrom&quot;; _df.title=&quot;Restore: from date (optional)&quot;; _df.style.marginLeft=&quot;8px&quot;;
-      var _dt=document.createElement(&quot;input&quot;); _dt.type=&quot;date&quot;; _dt.id=&quot;bkTo&quot;; _dt.title=&quot;Restore: to date (optional)&quot;; _dt.style.marginLeft=&quot;4px&quot;;
-      _an.parentNode.insertBefore(_df, _an.nextSibling);
-      _df.parentNode.insertBefore(_dt, _df.nextSibling);
-      _dt.parentNode.insertBefore(_bb, _dt.nextSibling);
+      _an.parentNode.insertBefore(_bb, _an.nextSibling);
       _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
     }
   }catch(e){} })();
