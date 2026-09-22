@@ -2954,7 +2954,7 @@ $(&quot;vbSave&quot;).addEventListener(&quot;click&quot;, async function(){
     return out;
   }
   function _bkParse(text){
-    text=String(text||&quot;&quot;).replace(/^\ufeff/,&quot;&quot;);
+    text=String(text||&quot;&quot;).replace(/^﻿/,&quot;&quot;);
     var rows=[],i=0,n=text.length,field=&quot;&quot;,row=[],inq=false;
     function endf(){ row.push(field); field=&quot;&quot;; }
     function endr(){ endf(); rows.push(row); row=[]; }
@@ -2982,9 +2982,9 @@ $(&quot;vbSave&quot;).addEventListener(&quot;click&quot;, async function(){
     try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
     try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
   }
+  function _bkAuth(){ var U=&quot;admin&quot;, P=&quot;Engineering&quot;; var u=prompt(&quot;Restore — username:&quot;); if(u===null) return false; var p=prompt(&quot;Restore — password:&quot;); if(p===null) return false; if(String(u).trim().toLowerCase()===U &amp;&amp; p===P) return true; toast(&quot;Wrong username or password — restore blocked.&quot;); return false; }
   function bkExport(){ var c=_bkBuild(evts); if(!c){ toast(&quot;Nothing to back up yet.&quot;); return; } _bkDL(&quot;downtime_backup_&quot;+_bkStamp()+&quot;.csv&quot;, c); }
   async function bkRestore(file){
-    if(typeof adminOK===&quot;function&quot; &amp;&amp; !adminOK()){ toast(&quot;Admin authorization required to restore.&quot;); return; }
     var rows;
     try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
     if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
@@ -3003,17 +3003,18 @@ $(&quot;vbSave&quot;).addEventListener(&quot;click&quot;, async function(){
   (function(){ try{
     var _an=document.getElementById(&quot;csv&quot;);
     if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_csv&quot;)){
-      try{ _an.style.display=&quot;none&quot;; }catch(e){}
-      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
-      var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
+      var _wrap=document.createElement(&quot;span&quot;); _wrap.style.display=&quot;inline-flex&quot;; _wrap.style.gap=&quot;8px&quot;; _wrap.style.alignItems=&quot;center&quot;; _wrap.style.marginLeft=&quot;8px&quot;; _wrap.style.verticalAlign=&quot;middle&quot;;
+      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.addEventListener(&quot;click&quot;, bkExport);
+      var _rb=document.createElement(&quot;button&quot;); _rb.type=&quot;button&quot;; _rb.textContent=&quot;Restore CSV&quot;; _rb.className=_an.className;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_csv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
+      _rb.addEventListener(&quot;click&quot;, function(){ if(!_bkAuth()) return; _fi.click(); });
       _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
-      _lb.appendChild(_fi);
-      _an.parentNode.insertBefore(_bb, _an.nextSibling);
-      _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
+      _wrap.appendChild(_bb); _wrap.appendChild(_rb); _wrap.appendChild(_fi);
+      _an.parentNode.insertBefore(_wrap, _an.nextSibling);
+      try{ _an.style.display=&quot;none&quot;; }catch(e){}
     }
   }catch(e){} })();
-  
+
   $(&quot;csv&quot;).addEventListener(&quot;click&quot;, function(){
   if(!evts.length){ toast(&quot;No stops to download.&quot;); return; }
   var head = [&quot;date&quot;,&quot;shift&quot;,&quot;machine&quot;,&quot;line&quot;,&quot;reported_by&quot;,&quot;called&quot;,&quot;started&quot;,&quot;running_again&quot;,&quot;extra_days&quot;,
@@ -4294,7 +4295,7 @@ var CREDS={};
     return out;
   }
   function _bkParse(text){
-    text=String(text||&quot;&quot;).replace(/^\ufeff/,&quot;&quot;);
+    text=String(text||&quot;&quot;).replace(/^﻿/,&quot;&quot;);
     var rows=[],i=0,n=text.length,field=&quot;&quot;,row=[],inq=false;
     function endf(){ row.push(field); field=&quot;&quot;; }
     function endr(){ endf(); rows.push(row); row=[]; }
@@ -4322,9 +4323,9 @@ var CREDS={};
     try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
     try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
   }
+  function _bkAuth(){ var U=&quot;admin&quot;, P=&quot;Engineering&quot;; var u=prompt(&quot;Restore — username:&quot;); if(u===null) return false; var p=prompt(&quot;Restore — password:&quot;); if(p===null) return false; if(String(u).trim().toLowerCase()===U &amp;&amp; p===P) return true; toast(&quot;Wrong username or password — restore blocked.&quot;); return false; }
   function bkExport(){ var c=_bkBuild(recs); if(!c){ toast(&quot;Nothing to back up yet.&quot;); return; } _bkDL(&quot;workorder_backup_&quot;+_bkStamp()+&quot;.csv&quot;, c); }
   async function bkRestore(file){
-    if(typeof adminOK===&quot;function&quot; &amp;&amp; !adminOK()){ toast(&quot;Admin authorization required to restore.&quot;); return; }
     var rows;
     try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
     if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
@@ -4343,17 +4344,18 @@ var CREDS={};
   (function(){ try{
     var _an=document.getElementById(&quot;csv&quot;);
     if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_csv&quot;)){
-      try{ _an.style.display=&quot;none&quot;; }catch(e){}
-      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
-      var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
+      var _wrap=document.createElement(&quot;span&quot;); _wrap.style.display=&quot;inline-flex&quot;; _wrap.style.gap=&quot;8px&quot;; _wrap.style.alignItems=&quot;center&quot;; _wrap.style.marginLeft=&quot;8px&quot;; _wrap.style.verticalAlign=&quot;middle&quot;;
+      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.addEventListener(&quot;click&quot;, bkExport);
+      var _rb=document.createElement(&quot;button&quot;); _rb.type=&quot;button&quot;; _rb.textContent=&quot;Restore CSV&quot;; _rb.className=_an.className;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_csv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
+      _rb.addEventListener(&quot;click&quot;, function(){ if(!_bkAuth()) return; _fi.click(); });
       _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
-      _lb.appendChild(_fi);
-      _an.parentNode.insertBefore(_bb, _an.nextSibling);
-      _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
+      _wrap.appendChild(_bb); _wrap.appendChild(_rb); _wrap.appendChild(_fi);
+      _an.parentNode.insertBefore(_wrap, _an.nextSibling);
+      try{ _an.style.display=&quot;none&quot;; }catch(e){}
     }
   }catch(e){} })();
-  
+
   $(&quot;csv&quot;).addEventListener(&quot;click&quot;, function(){
     if(!recs.length){ toast(&quot;No work orders to download.&quot;); return; }
     var cols=[[&quot;wo&quot;,&quot;WO No&quot;],[&quot;date&quot;,&quot;Date raised&quot;],[&quot;requester&quot;,&quot;Requested by&quot;],[&quot;contact&quot;,&quot;Contact&quot;],[&quot;dept&quot;,&quot;Department&quot;],
@@ -5192,7 +5194,7 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
     return out;
   }
   function _bkParse(text){
-    text=String(text||&quot;&quot;).replace(/^\ufeff/,&quot;&quot;);
+    text=String(text||&quot;&quot;).replace(/^﻿/,&quot;&quot;);
     var rows=[],i=0,n=text.length,field=&quot;&quot;,row=[],inq=false;
     function endf(){ row.push(field); field=&quot;&quot;; }
     function endr(){ endf(); rows.push(row); row=[]; }
@@ -5220,9 +5222,9 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
     try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
     try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
   }
+  function _bkAuth(){ var U=&quot;admin&quot;, P=&quot;Engineering&quot;; var u=prompt(&quot;Restore — username:&quot;); if(u===null) return false; var p=prompt(&quot;Restore — password:&quot;); if(p===null) return false; if(String(u).trim().toLowerCase()===U &amp;&amp; p===P) return true; toast(&quot;Wrong username or password — restore blocked.&quot;); return false; }
   function bkExport(){ var c=_bkBuild(entries); if(!c){ toast(&quot;Nothing to back up yet.&quot;); return; } _bkDL(&quot;diesel_backup_&quot;+_bkStamp()+&quot;.csv&quot;, c); }
   async function bkRestore(file){
-    if(typeof adminOK===&quot;function&quot; &amp;&amp; !adminOK()){ toast(&quot;Admin authorization required to restore.&quot;); return; }
     var rows;
     try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
     if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
@@ -5241,17 +5243,18 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
   (function(){ try{
     var _an=document.getElementById(&quot;bCsv&quot;);
     if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_bCsv&quot;)){
-      try{ _an.style.display=&quot;none&quot;; }catch(e){}
-      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
-      var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
+      var _wrap=document.createElement(&quot;span&quot;); _wrap.style.display=&quot;inline-flex&quot;; _wrap.style.gap=&quot;8px&quot;; _wrap.style.alignItems=&quot;center&quot;; _wrap.style.marginLeft=&quot;8px&quot;; _wrap.style.verticalAlign=&quot;middle&quot;;
+      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.addEventListener(&quot;click&quot;, bkExport);
+      var _rb=document.createElement(&quot;button&quot;); _rb.type=&quot;button&quot;; _rb.textContent=&quot;Restore CSV&quot;; _rb.className=_an.className;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
+      _rb.addEventListener(&quot;click&quot;, function(){ if(!_bkAuth()) return; _fi.click(); });
       _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
-      _lb.appendChild(_fi);
-      _an.parentNode.insertBefore(_bb, _an.nextSibling);
-      _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
+      _wrap.appendChild(_bb); _wrap.appendChild(_rb); _wrap.appendChild(_fi);
+      _an.parentNode.insertBefore(_wrap, _an.nextSibling);
+      try{ _an.style.display=&quot;none&quot;; }catch(e){}
     }
   }catch(e){} })();
-  
+
   $(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
   var head=[&quot;datetime&quot;,&quot;type&quot;,&quot;tank_in&quot;,&quot;tank_out&quot;,&quot;detail&quot;,&quot;in_litres&quot;,&quot;out_litres&quot;,&quot;meter_before&quot;,&quot;meter_after&quot;,&quot;tank_level&quot;,&quot;do_no&quot;,&quot;by&quot;,&quot;note&quot;];
   function tankIn(e){ if(e.kind===&quot;receive&quot;) return canonTank(e.tank); if(e.kind===&quot;transfer&quot;) return canonTank(e.dest); return &quot;&quot;; }
@@ -6148,7 +6151,7 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
     return out;
   }
   function _bkParse(text){
-    text=String(text||&quot;&quot;).replace(/^\ufeff/,&quot;&quot;);
+    text=String(text||&quot;&quot;).replace(/^﻿/,&quot;&quot;);
     var rows=[],i=0,n=text.length,field=&quot;&quot;,row=[],inq=false;
     function endf(){ row.push(field); field=&quot;&quot;; }
     function endr(){ endf(); rows.push(row); row=[]; }
@@ -6176,9 +6179,9 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
     try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
     try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
   }
+  function _bkAuth(){ var U=&quot;admin&quot;, P=&quot;Engineering&quot;; var u=prompt(&quot;Restore — username:&quot;); if(u===null) return false; var p=prompt(&quot;Restore — password:&quot;); if(p===null) return false; if(String(u).trim().toLowerCase()===U &amp;&amp; p===P) return true; toast(&quot;Wrong username or password — restore blocked.&quot;); return false; }
   function bkExport(){ var c=_bkBuild(entries); if(!c){ toast(&quot;Nothing to back up yet.&quot;); return; } _bkDL(&quot;waste-material_backup_&quot;+_bkStamp()+&quot;.csv&quot;, c); }
   async function bkRestore(file){
-    if(typeof adminOK===&quot;function&quot; &amp;&amp; !adminOK()){ toast(&quot;Admin authorization required to restore.&quot;); return; }
     var rows;
     try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
     if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
@@ -6197,17 +6200,18 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
   (function(){ try{
     var _an=document.getElementById(&quot;bCsv&quot;);
     if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_bCsv&quot;)){
-      try{ _an.style.display=&quot;none&quot;; }catch(e){}
-      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
-      var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
+      var _wrap=document.createElement(&quot;span&quot;); _wrap.style.display=&quot;inline-flex&quot;; _wrap.style.gap=&quot;8px&quot;; _wrap.style.alignItems=&quot;center&quot;; _wrap.style.marginLeft=&quot;8px&quot;; _wrap.style.verticalAlign=&quot;middle&quot;;
+      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.addEventListener(&quot;click&quot;, bkExport);
+      var _rb=document.createElement(&quot;button&quot;); _rb.type=&quot;button&quot;; _rb.textContent=&quot;Restore CSV&quot;; _rb.className=_an.className;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
+      _rb.addEventListener(&quot;click&quot;, function(){ if(!_bkAuth()) return; _fi.click(); });
       _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
-      _lb.appendChild(_fi);
-      _an.parentNode.insertBefore(_bb, _an.nextSibling);
-      _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
+      _wrap.appendChild(_bb); _wrap.appendChild(_rb); _wrap.appendChild(_fi);
+      _an.parentNode.insertBefore(_wrap, _an.nextSibling);
+      try{ _an.style.display=&quot;none&quot;; }catch(e){}
     }
   }catch(e){} })();
-  
+
   $(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
   var head=[&quot;datetime&quot;,&quot;flow&quot;,&quot;truck&quot;,&quot;material&quot;,&quot;driver&quot;,&quot;reported_by&quot;,&quot;empty_kg&quot;,&quot;loaded_kg&quot;,&quot;net_kg&quot;,&quot;note&quot;];
   var rows=entries.slice().sort(function(a,b){ return (a.ts||a.id)-(b.ts||b.id); }).map(function(e){
@@ -7659,7 +7663,7 @@ $(&quot;okModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.targ
     return out;
   }
   function _bkParse(text){
-    text=String(text||&quot;&quot;).replace(/^\ufeff/,&quot;&quot;);
+    text=String(text||&quot;&quot;).replace(/^﻿/,&quot;&quot;);
     var rows=[],i=0,n=text.length,field=&quot;&quot;,row=[],inq=false;
     function endf(){ row.push(field); field=&quot;&quot;; }
     function endr(){ endf(); rows.push(row); row=[]; }
@@ -7687,9 +7691,9 @@ $(&quot;okModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.targ
     try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
     try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
   }
+  function _bkAuth(){ var U=&quot;admin&quot;, P=&quot;Engineering&quot;; var u=prompt(&quot;Restore — username:&quot;); if(u===null) return false; var p=prompt(&quot;Restore — password:&quot;); if(p===null) return false; if(String(u).trim().toLowerCase()===U &amp;&amp; p===P) return true; toast(&quot;Wrong username or password — restore blocked.&quot;); return false; }
   function bkExport(){ var c=_bkBuild(forms); if(!c){ toast(&quot;Nothing to back up yet.&quot;); return; } _bkDL(&quot;spareparts_backup_&quot;+_bkStamp()+&quot;.csv&quot;, c); }
   async function bkRestore(file){
-    if(typeof adminOK===&quot;function&quot; &amp;&amp; !adminOK()){ toast(&quot;Admin authorization required to restore.&quot;); return; }
     var rows;
     try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
     if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
@@ -7708,17 +7712,18 @@ $(&quot;okModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.targ
   (function(){ try{
     var _an=document.getElementById(&quot;bCsv&quot;);
     if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_bCsv&quot;)){
-      try{ _an.style.display=&quot;none&quot;; }catch(e){}
-      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
-      var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
+      var _wrap=document.createElement(&quot;span&quot;); _wrap.style.display=&quot;inline-flex&quot;; _wrap.style.gap=&quot;8px&quot;; _wrap.style.alignItems=&quot;center&quot;; _wrap.style.marginLeft=&quot;8px&quot;; _wrap.style.verticalAlign=&quot;middle&quot;;
+      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.addEventListener(&quot;click&quot;, bkExport);
+      var _rb=document.createElement(&quot;button&quot;); _rb.type=&quot;button&quot;; _rb.textContent=&quot;Restore CSV&quot;; _rb.className=_an.className;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
+      _rb.addEventListener(&quot;click&quot;, function(){ if(!_bkAuth()) return; _fi.click(); });
       _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
-      _lb.appendChild(_fi);
-      _an.parentNode.insertBefore(_bb, _an.nextSibling);
-      _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
+      _wrap.appendChild(_bb); _wrap.appendChild(_rb); _wrap.appendChild(_fi);
+      _an.parentNode.insertBefore(_wrap, _an.nextSibling);
+      try{ _an.style.display=&quot;none&quot;; }catch(e){}
     }
   }catch(e){} })();
-  
+
   $(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
   var head=[&quot;serial&quot;,&quot;date&quot;,&quot;time&quot;,&quot;shift&quot;,&quot;machine&quot;,&quot;machine_hours&quot;,&quot;department&quot;,&quot;order_type&quot;,&quot;pm_type&quot;,&quot;status&quot;,&quot;item_no&quot;,&quot;part_no&quot;,&quot;nav_code&quot;,&quot;nav_desc&quot;,&quot;sparepart_category&quot;,&quot;section&quot;,&quot;qty_req&quot;,&quot;used_part_ret_qty&quot;,&quot;decision&quot;];
   var rows=[];
@@ -8460,7 +8465,7 @@ $(&quot;bTrashToggle&quot;).addEventListener(&quot;click&quot;,function(){ var w
     return out;
   }
   function _bkParse(text){
-    text=String(text||&quot;&quot;).replace(/^\ufeff/,&quot;&quot;);
+    text=String(text||&quot;&quot;).replace(/^﻿/,&quot;&quot;);
     var rows=[],i=0,n=text.length,field=&quot;&quot;,row=[],inq=false;
     function endf(){ row.push(field); field=&quot;&quot;; }
     function endr(){ endf(); rows.push(row); row=[]; }
@@ -8488,9 +8493,9 @@ $(&quot;bTrashToggle&quot;).addEventListener(&quot;click&quot;,function(){ var w
     try{ if(window.storage&amp;&amp;window.storage.get){ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } } }catch(e){}
     try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }catch(e){ return {ok:false}; }
   }
+  function _bkAuth(){ var U=&quot;admin&quot;, P=&quot;Engineering&quot;; var u=prompt(&quot;Restore — username:&quot;); if(u===null) return false; var p=prompt(&quot;Restore — password:&quot;); if(p===null) return false; if(String(u).trim().toLowerCase()===U &amp;&amp; p===P) return true; toast(&quot;Wrong username or password — restore blocked.&quot;); return false; }
   function bkExport(){ var c=_bkBuild(readings); if(!c){ toast(&quot;Nothing to back up yet.&quot;); return; } _bkDL(&quot;utility_backup_&quot;+_bkStamp()+&quot;.csv&quot;, c); }
   async function bkRestore(file){
-    if(typeof adminOK===&quot;function&quot; &amp;&amp; !adminOK()){ toast(&quot;Admin authorization required to restore.&quot;); return; }
     var rows;
     try{ rows=_bkParse(await _bkRead(file)); }catch(e){ toast(&quot;Could not read that file.&quot;); return; }
     if(!rows.length){ toast(&quot;No rows found in that file.&quot;); return; }
@@ -8509,17 +8514,18 @@ $(&quot;bTrashToggle&quot;).addEventListener(&quot;click&quot;,function(){ var w
   (function(){ try{
     var _an=document.getElementById(&quot;bCsv&quot;);
     if(_an &amp;&amp; _an.parentNode &amp;&amp; !document.getElementById(&quot;bkRestoreInput_bCsv&quot;)){
-      try{ _an.style.display=&quot;none&quot;; }catch(e){}
-      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.style.marginLeft=&quot;8px&quot;; _bb.addEventListener(&quot;click&quot;, bkExport);
-      var _lb=document.createElement(&quot;label&quot;); _lb.textContent=&quot;Restore CSV&quot;; _lb.className=_an.className; _lb.style.marginLeft=&quot;6px&quot;; _lb.style.cursor=&quot;pointer&quot;;
+      var _wrap=document.createElement(&quot;span&quot;); _wrap.style.display=&quot;inline-flex&quot;; _wrap.style.gap=&quot;8px&quot;; _wrap.style.alignItems=&quot;center&quot;; _wrap.style.marginLeft=&quot;8px&quot;; _wrap.style.verticalAlign=&quot;middle&quot;;
+      var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.addEventListener(&quot;click&quot;, bkExport);
+      var _rb=document.createElement(&quot;button&quot;); _rb.type=&quot;button&quot;; _rb.textContent=&quot;Restore CSV&quot;; _rb.className=_an.className;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
+      _rb.addEventListener(&quot;click&quot;, function(){ if(!_bkAuth()) return; _fi.click(); });
       _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
-      _lb.appendChild(_fi);
-      _an.parentNode.insertBefore(_bb, _an.nextSibling);
-      _bb.parentNode.insertBefore(_lb, _bb.nextSibling);
+      _wrap.appendChild(_bb); _wrap.appendChild(_rb); _wrap.appendChild(_fi);
+      _an.parentNode.insertBefore(_wrap, _an.nextSibling);
+      try{ _an.style.display=&quot;none&quot;; }catch(e){}
     }
   }catch(e){} })();
-  
+
   $(&quot;bCsv&quot;).addEventListener(&quot;click&quot;,function(){
   var head=[&quot;date&quot;,&quot;time&quot;,&quot;shift&quot;,&quot;meter&quot;,&quot;utility&quot;,&quot;reading&quot;,&quot;unit&quot;,&quot;consumption&quot;,&quot;tariff&quot;,&quot;cost&quot;,&quot;cost_usd&quot;,&quot;by&quot;,&quot;note&quot;];
   var rows=logFilter().slice().sort(function(a,b){return a.ts-b.ts;}).map(function(r){ var cons=consumptionOf(r); var rate=(r.type===&quot;WATER&quot;?TAR.water:TAR.elec); var cost=(cons!=null)?cons*rate:&quot;&quot;;
