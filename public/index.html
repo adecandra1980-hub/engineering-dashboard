@@ -2744,11 +2744,17 @@ function vCell(e){
   var v = e.verify || {};
   return vBadge(&quot;Lead&quot;, v.lead) + '<br>' + vBadge(&quot;SPV&quot;, v.sup);
 }
+var colF={}, colFocus=null, colCaret=null;
+var DT_COLS=[[&quot;date&quot;,&quot;Date&quot;],[&quot;sh&quot;,&quot;Sh&quot;],[&quot;line&quot;,&quot;Line&quot;],[&quot;tech&quot;,&quot;Tech&quot;],[&quot;stop&quot;,&quot;Stop&quot;],[&quot;type&quot;,&quot;Type&quot;],[&quot;resp&quot;,&quot;Resp&quot;],[&quot;rep&quot;,&quot;Rep&quot;],[&quot;down&quot;,&quot;Down&quot;],[&quot;prob&quot;,&quot;Problem&quot;],[&quot;cause&quot;,&quot;Cause&quot;],[&quot;act&quot;,&quot;Action&quot;],[&quot;counter&quot;,&quot;Counter&quot;],[&quot;parts&quot;,&quot;Parts&quot;],[&quot;order&quot;,&quot;Order&quot;],[null,&quot;&quot;],[&quot;status&quot;,&quot;Status&quot;],[null,&quot;&quot;],[null,&quot;&quot;]];
+function colVal(e,c){ var m={date:e.date,sh:String(e.shift||&quot;&quot;),line:e.line,tech:(e.tech||&quot;&quot;)+&quot; &quot;+(e.tech2||&quot;&quot;),stop:e.stopCat,type:e.type,resp:Math.round(e.resp||0),rep:Math.round(e.rep||0),down:Math.round(e.total||0),prob:e.problem,cause:e.cause,act:(e.action||&quot;&quot;)+&quot; &quot;+(e.follow||&quot;&quot;),counter:e.counter,parts:e.parts,order:e.order,status:e.status}; return (m[c]!=null?String(m[c]):&quot;&quot;); }
+function matchCol(e){ for(var k in colF){ var v=colF[k]; if(!v) continue; if(colVal(e,k).toLowerCase().indexOf(String(v).toLowerCase())<0) return false; } return true; }
+function colFilterRow(){ return '<tr class=&quot;cf&quot;>'+DT_COLS.map(function(c){ if(!c[0]) return '<th></th>'; var v=colF[c[0]]||&quot;&quot;; return '<th style=&quot;padding:2px 3px;background:var(--wash,#F4F1EA)&quot;><input class=&quot;colf&quot; data-col=&quot;'+c[0]+'&quot; value=&quot;'+esc(v)+'&quot; placeholder=&quot;filter&quot; style=&quot;width:100%;min-width:50px;box-sizing:border-box;font-size:11px;padding:3px 4px;font-family:var(--mono)&quot;></th>'; }).join(&quot;&quot;)+'</tr>'; }
 function drawBook(){
   if(!evts.length){ $(&quot;book&quot;).innerHTML = '<div class=&quot;empty&quot;><b>No stops yet</b>Your first breakdown report lands here.</div>'; return; }
   var st = $(&quot;bStatus&quot;).value, q = $(&quot;bSearch&quot;).value.trim().toLowerCase();
   var list = sorted().reverse().filter(function(e){
     if(st &amp;&amp; e.status !== st) return false;
+    if(!matchCol(e)) return false;
     if(q){
       var blob = [e.line,e.category,e.stopCat,e.unit,e.type,e.problem,e.cause,e.action,e.counter,e.parts,e.order,e.tech,e.tech2,e.follow,e.reportedBy].join(&quot; &quot;).toLowerCase();
       if(blob.indexOf(q) < 0) return false;
@@ -2758,7 +2764,7 @@ function drawBook(){
   if(!list.length){ $(&quot;book&quot;).innerHTML = '<div class=&quot;empty&quot;><b>No match</b>Change the status filter or clear the search.</div>'; return; }
   var h = '<table><thead><tr><th>Date</th><th>Sh</th><th>Line</th><th class=&quot;tech-col&quot;>Tech</th><th>Stopages</th><th>Type</th>' +
     '<th class=&quot;num&quot;>Resp</th><th class=&quot;num&quot;>Repair</th><th class=&quot;num&quot;>Down</th><th class=&quot;pa-col&quot;>Problem</th><th class=&quot;pa-col&quot;>Root cause</th><th class=&quot;pa-col&quot;>Action</th><th class=&quot;pa-col&quot;>Counter measure</th>' +
-    '<th>Parts used</th><th>To order</th><th>Photos</th><th>Status</th><th>Verification</th><th></th></tr></thead><tbody>';
+    '<th>Parts used</th><th>To order</th><th>Photos</th><th>Status</th><th>Verification</th><th></th></tr>' + colFilterRow() + '</thead><tbody>';
   list.forEach(function(e){
     var probCell = esc(e.problem || &quot;—&quot;);
     var causeCell = esc(e.cause || &quot;—&quot;);
@@ -2792,6 +2798,8 @@ function drawBook(){
         '<button class=&quot;tiny warn&quot; data-del=&quot;'+e.id+'&quot;>Delete</button></td></tr>';
   });
   $(&quot;book&quot;).innerHTML = h + '</tbody></table>';
+  $(&quot;book&quot;).querySelectorAll(&quot;.colf&quot;).forEach(function(inp){ inp.addEventListener(&quot;input&quot;, function(){ colF[this.getAttribute(&quot;data-col&quot;)]=this.value; colFocus=this.getAttribute(&quot;data-col&quot;); colCaret=this.selectionStart; drawBook(); }); });
+  if(colFocus){ var _cf=$(&quot;book&quot;).querySelector('.colf[data-col=&quot;'+colFocus+'&quot;]'); if(_cf){ _cf.focus(); try{ _cf.setSelectionRange(colCaret,colCaret); }catch(e){} } }
   var bindPh = function(attr, which){
     var els = $(&quot;book&quot;).querySelectorAll(&quot;[data-&quot;+attr+&quot;]&quot;);
     for(var i=0;i<els.length;i++){
