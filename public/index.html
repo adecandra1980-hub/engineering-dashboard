@@ -3812,7 +3812,7 @@ function reconcileCfg(base){ var changed=false; base.categories=base.categories|
     stored.forEach(function(s){ if(!s || s.id==null){ out.push(s); return; } if(delById[s.id]) return; if(localById[s.id]){ out.push(localById[s.id]); } else { out.push(s); } seen[s.id]=1; });
     recs.forEach(function(r){ if(r &amp;&amp; r.id!=null &amp;&amp; !seen[r.id]){ out.push(r); seen[r.id]=1; } });
     recs=out; woLoadOK=true;
-    return await save(WO_KEY,recs);
+    await save(WO_KEY,recs); return true;
   }
   async function commitDelWO(removeIds){
     var res=await fetchKV(WO_DEL_KEY);
@@ -3823,12 +3823,12 @@ function reconcileCfg(base){ var changed=false; base.categories=base.categories|
     stored.forEach(function(s){ if(!s || s.id==null){ out.push(s); return; } if(rm[s.id]) return; if(localById[s.id]){ out.push(localById[s.id]); } else { out.push(s); } seen[s.id]=1; });
     delRecs.forEach(function(r){ if(r &amp;&amp; r.id!=null &amp;&amp; !seen[r.id] &amp;&amp; !rm[r.id]){ out.push(r); seen[r.id]=1; } });
     delRecs=out; woDelLoadOK=true;
-    return await save(WO_DEL_KEY,delRecs);
+    await save(WO_DEL_KEY,delRecs); return true;
   }
   async function emptyDelWO(){
     var res=await fetchKV(WO_DEL_KEY);
     if(!res.ok){ toast(&quot;Not emptied — can't reach the database. Try again.&quot;); return false; }
-    delRecs=[]; return await save(WO_DEL_KEY,delRecs);
+    delRecs=[]; await save(WO_DEL_KEY,delRecs); return true;
   }
   /* delete permissions: submitter's device, else administrator (admin / Engineering) */
   var DEVICE_ID=(function(){ try{ var k=&quot;tdl:deviceId&quot;; var v=localStorage.getItem(k);
