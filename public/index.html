@@ -5262,7 +5262,24 @@ function fillControls(keepSel){
 function S(v){ return v==null?&quot;&quot;:String(v).trim(); }
 function P(v){ var n=parseFloat(v); return isNaN(n)?null:Math.round(n*1000)/10; }
 function N(v){ var n=parseFloat(v); return isNaN(n)?null:Math.round(n); }
-function fmtD(v){ var MON=[&quot;Jan&quot;,&quot;Feb&quot;,&quot;Mar&quot;,&quot;Apr&quot;,&quot;May&quot;,&quot;Jun&quot;,&quot;Jul&quot;,&quot;Aug&quot;,&quot;Sep&quot;,&quot;Oct&quot;,&quot;Nov&quot;,&quot;Dec&quot;]; if(v instanceof Date) return v.getUTCDate()+&quot; &quot;+MON[v.getUTCMonth()]; var n=parseFloat(v); if(!isNaN(n)&amp;&amp;n>20000&amp;&amp;n<80000){ var d=new Date(Math.round((n-25569)*86400000)); return d.getUTCDate()+&quot; &quot;+MON[d.getUTCMonth()]; } return S(v); }
+/* robust date reader: accepts a real Date, an Excel serial number, or a text date
+   (ISO, day/month/year, &quot;1 Oct 2026&quot;, etc.) so rows typed as text (common for new
+   October entries) are still counted. Returns a UTC Date or null. */
+function _toDate(v){
+  if(v instanceof Date) return isNaN(v.getTime())?null:v;
+  if(typeof v===&quot;number&quot;){ if(v>20000&amp;&amp;v<80000) return new Date(Math.round((v-25569)*86400000)); return null; }
+  if(typeof v===&quot;string&quot;){ var s=v.trim(); if(!s) return null; var m;
+    if((m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))) return new Date(Date.UTC(+m[1],+m[2]-1,+m[3]));
+    if((m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/))){ var y=+m[3]; if(y<100)y+=2000; var dd=+m[1],mm=+m[2]; if(mm>12&amp;&amp;dd<=12){ var t=dd;dd=mm;mm=t; } return new Date(Date.UTC(y,mm-1,dd)); }
+    var MON3=[&quot;jan&quot;,&quot;feb&quot;,&quot;mar&quot;,&quot;apr&quot;,&quot;may&quot;,&quot;jun&quot;,&quot;jul&quot;,&quot;aug&quot;,&quot;sep&quot;,&quot;oct&quot;,&quot;nov&quot;,&quot;dec&quot;];
+    if((m=s.match(/^(\d{1,2})[-\s]([A-Za-z]{3,})[-\s,]*(\d{2,4})/))){ var mo=MON3.indexOf(m[2].slice(0,3).toLowerCase()); if(mo>=0){ var yy=+m[3]; if(yy<100)yy+=2000; return new Date(Date.UTC(yy,mo,+m[1])); } }
+    var tp=Date.parse(s); if(!isNaN(tp)) return new Date(tp);
+  }
+  return null;
+}
+/* ISO week number (1-53) for a Date — used when a row has no WEEK column value */
+function _isoWk(d){ var dt=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())); var day=(dt.getUTCDay()+6)%7; dt.setUTCDate(dt.getUTCDate()-day+3); var jan4=new Date(Date.UTC(dt.getUTCFullYear(),0,4)); return 1+Math.round(((dt-jan4)/86400000-3+((jan4.getUTCDay()+6)%7))/7); }
+function fmtD(v){ var MON=[&quot;Jan&quot;,&quot;Feb&quot;,&quot;Mar&quot;,&quot;Apr&quot;,&quot;May&quot;,&quot;Jun&quot;,&quot;Jul&quot;,&quot;Aug&quot;,&quot;Sep&quot;,&quot;Oct&quot;,&quot;Nov&quot;,&quot;Dec&quot;]; var d=_toDate(v); if(d) return d.getUTCDate()+&quot; &quot;+MON[d.getUTCMonth()]; return S(v); }
 function rowsOf(wb,name){ var ws=wb.Sheets[name]; if(!ws) return []; return XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null}); }
 function mBlock(rows,label,conv){ for(var i=0;i<rows.length;i++){ if(S(rows[i]&amp;&amp;rows[i][0])===label){ var data={},ytd={},order=[]; for(var j=i+1;j<i+11&amp;&amp;j<rows.length;j++){ var r=rows[j]; if(!r||S(r[0])===&quot;&quot;) break; var nm=S(r[0]),key=nm===&quot;ALL MACHINE&quot;?&quot;ALL&quot;:nm; var a=[]; for(var c=1;c<=12;c++) a.push(conv(r[c])); data[key]=a; ytd[key]=conv(r[13]); if(nm!==&quot;ALL MACHINE&quot;) order.push(nm); if(nm===&quot;ALL MACHINE&quot;) break; } data.__order=order; return [data,ytd]; } } return [{__order:[]},{}]; }
 function wBlock(rows,label,conv){ for(var i=0;i<rows.length;i++){ if(S(rows[i]&amp;&amp;rows[i][0])===label){ var hdr=rows[i],cols=[]; for(var c=1;c<hdr.length;c++){ var raw=hdr[c]; var w=parseInt(raw,10); if(!isNaN(w)&amp;&amp;String(raw).indexOf(&quot;.&quot;)<0&amp;&amp;String(raw).length<=2) cols.push([c,w]); } var data={}; for(var j=i+1;j<i+11&amp;&amp;j<rows.length;j++){ var r=rows[j]; if(!r||S(r[0])===&quot;&quot;) break; var nm=S(r[0]),key=nm===&quot;ALL MACHINE&quot;?&quot;ALL&quot;:nm; data[key]=cols.map(function(cc){return conv(r[cc[0]]);}); if(nm===&quot;ALL MACHINE&quot;) break; } return [cols.map(function(cc){return cc[1];}),data]; } } return [[],{}]; }
@@ -5274,14 +5291,14 @@ function _normDTname(nm){ var s=S(nm).toUpperCase().replace(/\s+/g,&quot;&quot;)
   for(var i=0;i<map.length;i++) if(map[i][0].test(s)) return map[i][1]; return null; }
 function _shiftBuckets(wb,nd){
   var g=nd.groups||{}; var packers=g[&quot;Cigarette Packing Line&quot;]||[], makers=g[&quot;Cigarette Making Line&quot;]||[], filters=g[&quot;Filter Making Line&quot;]||[];
-  var machines=nd.machines||[]; var dlabels=nd.days7||[]; var weeks=[]; for(var w=1;w<=39;w++)weeks.push(w);
+  var machines=nd.machines||[]; var dlabels=nd.days7||[]; var weeks=[]; for(var w=1;w<=53;w++)weeks.push(w);
   var MONn=[&quot;Jan&quot;,&quot;Feb&quot;,&quot;Mar&quot;,&quot;Apr&quot;,&quot;May&quot;,&quot;Jun&quot;,&quot;Jul&quot;,&quot;Aug&quot;,&quot;Sep&quot;,&quot;Oct&quot;,&quot;Nov&quot;,&quot;Dec&quot;]; var r1=function(x){return Math.round(x*10)/10;};
   var f=function(v){var n=parseFloat(v);return isNaN(n)?0:n;};
   function labd(d){ return d.getUTCDate()+&quot; &quot;+MONn[d.getUTCMonth()]; }
   function aggOEE(sheet,shift){ var A=rowsOf(wb,sheet); if(!A.length) return null; var cm=_rawCM(A[0]); if(cm.oee<0) return null;
     var day={},mon={},wk={};
-    for(var r=1;r<A.length;r++){ var row=A[r]; var m=S(row[0]); var d=row[1]; if(!m||!(d instanceof Date))continue; if(cm.sh>=0 &amp;&amp; S(row[cm.sh])!==shift)continue;
-      var dl=labd(d), mi=MONn.indexOf(S(row[cm.mo])), wkn=parseInt(row[cm.wk],10);
+    for(var r=1;r<A.length;r++){ var row=A[r]; var m=S(row[0]); var d=_toDate(row[1]); if(!m||!d)continue; if(cm.sh>=0 &amp;&amp; S(row[cm.sh])!==shift)continue;
+      var dl=labd(d), mi=MONn.indexOf(S(row[cm.mo])); if(mi<0) mi=d.getUTCMonth(); var wkn=parseInt(row[cm.wk],10); if(isNaN(wkn)) wkn=_isoWk(d);
       var push=function(bag,k){ bag[m]=bag[m]||{}; var o=bag[m][k]=bag[m][k]||{oee:0,a:0,p:0,q:0,out:0,n:0}; o.oee+=f(row[cm.oee]);o.a+=f(row[cm.a]);o.p+=f(row[cm.p]);o.q+=f(row[cm.q]);o.out+=f(row[cm.out]);o.n++; };
       push(day,dl); if(mi>=0)push(mon,mi); if(!isNaN(wkn))push(wk,wkn);
     } return {day:day,mon:mon,wk:wk};
@@ -5289,16 +5306,16 @@ function _shiftBuckets(wb,nd){
   function aggWaste(sheet,tests,shift){ var A=rowsOf(wb,sheet); if(!A.length) return null; var hdrRow=-1,wc=-1,sh=-1;
     for(var r=0;r<Math.min(5,A.length);r++){ for(var c=0;c<(A[r]||[]).length;c++){ var h=S(A[r][c]).toUpperCase().replace(/\s+/g,&quot; &quot;).trim(); for(var t=0;t<tests.length;t++) if(h.indexOf(tests[t])>=0){hdrRow=r;wc=c;} if(h===&quot;SHIFT&quot;)sh=c; } if(wc>=0)break; }
     if(wc<0) return null; var day={},mon={},wk={};
-    for(var i=hdrRow+1;i<A.length;i++){ var row=A[i]; var m=S(row[0]); var d=row[2]; if(!m||!(d instanceof Date))continue; if(sh>=0 &amp;&amp; S(row[sh])!==shift)continue;
-      var dl=labd(d), mi=MONn.indexOf(S(row[5])), wkn=parseInt(row[4],10), val=f(row[wc])*100;
+    for(var i=hdrRow+1;i<A.length;i++){ var row=A[i]; var m=S(row[0]); var d=_toDate(row[2]); if(!m||!d)continue; if(sh>=0 &amp;&amp; S(row[sh])!==shift)continue;
+      var dl=labd(d), mi=MONn.indexOf(S(row[5])); if(mi<0) mi=d.getUTCMonth(); var wkn=parseInt(row[4],10); if(isNaN(wkn)) wkn=_isoWk(d); var val=f(row[wc])*100;
       var push=function(bag,k){ bag[m]=bag[m]||{}; var o=bag[m][k]=bag[m][k]||{s:0,n:0}; o.s+=val;o.n++; };
       push(day,dl); if(mi>=0)push(mon,mi); if(!isNaN(wkn))push(wk,wkn);
     } return {day:day,mon:mon,wk:wk};
   }
   function aggDT(shift){ var A=rowsOf(wb,&quot;Downtime&quot;); if(!A.length) return null; var hdr=A[0]||[]; function fc(t){for(var c=0;c<hdr.length;c++){var h=S(hdr[c]).toUpperCase(); for(var k=0;k<t.length;k++) if(h.indexOf(t[k])>=0)return c;}return -1;}
     var cD=fc([&quot;DATE&quot;]),cW=fc([&quot;WEEK&quot;]),cDur=fc([&quot;DURATION&quot;]),cSh=fc([&quot;SHIFT&quot;]); if(cDur<0)return null; var day={},mon={},wk={};
-    for(var i=1;i<A.length;i++){ var row=A[i]; var m=_normDTname(row[0]); var d=row[cD]; if(!m||!(d instanceof Date))continue; if(cSh>=0 &amp;&amp; S(row[cSh])!==shift)continue;
-      var dl=labd(d), mi=d.getUTCMonth(), wkn=parseInt(row[cW],10), dur=f(row[cDur]);
+    for(var i=1;i<A.length;i++){ var row=A[i]; var m=_normDTname(row[0]); var d=_toDate(row[cD]); if(!m||!d)continue; if(cSh>=0 &amp;&amp; S(row[cSh])!==shift)continue;
+      var dl=labd(d), mi=d.getUTCMonth(), wkn=parseInt(row[cW],10); if(isNaN(wkn)) wkn=_isoWk(d); var dur=f(row[cDur]);
       var add=function(bag,k){ bag[m]=bag[m]||{}; bag[m][k]=(bag[m][k]||0)+dur; };
       add(day,dl); add(mon,mi); if(!isNaN(wkn))add(wk,wkn);
     } return {day:day,mon:mon,wk:wk};
@@ -5351,8 +5368,8 @@ function _rawCM(hdr){ var idx={}; for(var c=0;c<hdr.length;c++){ var h=S(hdr[c])
 function _aggRaw(rows){ if(!rows.length) return null; var cm=_rawCM(rows[0]); if(cm.oee<0) return null;
   var day={},mon={},wk={},order=[],seen={}; var MONn=[&quot;Jan&quot;,&quot;Feb&quot;,&quot;Mar&quot;,&quot;Apr&quot;,&quot;May&quot;,&quot;Jun&quot;,&quot;Jul&quot;,&quot;Aug&quot;,&quot;Sep&quot;,&quot;Oct&quot;,&quot;Nov&quot;,&quot;Dec&quot;];
   var f=function(v){var n=parseFloat(v);return isNaN(n)?0:n;};
-  for(var r=1;r<rows.length;r++){ var row=rows[r]; var m=S(row[cm.mac]); var d=row[cm.date]; if(!m||!(d instanceof Date)) continue;
-    if(!seen[m]){seen[m]=1;order.push(m);} var ds=d.toISOString().slice(0,10); var mi=MONn.indexOf(S(row[cm.mo])); var wkn=parseInt(row[cm.wk],10);
+  for(var r=1;r<rows.length;r++){ var row=rows[r]; var m=S(row[cm.mac]); var d=_toDate(row[cm.date]); if(!m||!d) continue;
+    if(!seen[m]){seen[m]=1;order.push(m);} var ds=d.toISOString().slice(0,10); var mi=MONn.indexOf(S(row[cm.mo])); if(mi<0) mi=d.getUTCMonth(); var wkn=parseInt(row[cm.wk],10); if(isNaN(wkn)) wkn=_isoWk(d);
     var push=function(bag,key){ bag[m]=bag[m]||{}; var o=bag[m][key]=bag[m][key]||{oee:0,a:0,p:0,q:0,out:0,n:0}; o.oee+=f(row[cm.oee]);o.a+=f(row[cm.a]);o.p+=f(row[cm.p]);o.q+=f(row[cm.q]);o.out+=f(row[cm.out]);o.n++; };
     push(day,ds); if(mi>=0) push(mon,mi); if(!isNaN(wkn)) push(wk,wkn);
   }
@@ -5371,7 +5388,7 @@ function buildDailyFromRaw(wb){
   if(P) fillD(P.day,packers); if(M) fillD(M.day,makers); if(Fl) fillD(Fl.day,filters);
   var oa=[],aa=[],pa=[],qa=[],ou=[]; days.forEach(function(ds,di){ var so=[],sa=[],sp=[],sq=[],o=0; packers.forEach(function(m){ var v=oee7[m][di]; if(v>0){so.push(v);sa.push(avail7[m][di]);sp.push(perf7[m][di]);sq.push(qual7[m][di]);} o+=output7[m][di]; }); var avg=function(x){return x.length?r1(x.reduce(function(a,b){return a+b;},0)/x.length):0;}; oa.push(avg(so));aa.push(avg(sa));pa.push(avg(sp));qa.push(avg(sq));ou.push(o); });
   oee7.ALL=oa;avail7.ALL=aa;perf7.ALL=pa;qual7.ALL=qa;output7.ALL=ou;
-  var weeks=[]; for(var w=1;w<=39;w++)weeks.push(w);
+  var weeks=[]; for(var w=1;w<=53;w++)weeks.push(w);
   var mk_month={},mk_week={},mk_ytd={}; var av=function(arr){arr=arr.filter(function(v){return v>0;});return arr.length?r1(arr.reduce(function(a,b){return a+b;},0)/arr.length):0;};
   function mkM(bag,m){ var oee=[],a=[],p=[],q=[],out=[]; for(var mi=0;mi<12;mi++){ var o=(bag.mon[m]||{})[mi]; if(o&amp;&amp;o.n){oee.push(r1(o.oee/o.n*100));a.push(r1(o.a/o.n*100));p.push(r1(o.p/o.n*100));q.push(r1(o.q/o.n*100));out.push(Math.round(o.out));}else{oee.push(0);a.push(0);p.push(0);q.push(0);out.push(0);} } return {oee:oee,a:a,p:p,q:q,out:out}; }
   function mkW(bag,m){ var oee=[],a=[],p=[],q=[]; weeks.forEach(function(w){ var o=(bag.wk[m]||{})[w]; if(o&amp;&amp;o.n){oee.push(r1(o.oee/o.n*100));a.push(r1(o.a/o.n*100));p.push(r1(o.p/o.n*100));q.push(r1(o.q/o.n*100));}else{oee.push(0);a.push(0);p.push(0);q.push(0);} }); return {oee:oee,a:a,p:p,q:q}; }
@@ -5383,8 +5400,8 @@ function buildDailyFromRaw(wb){
     for(var r=0;r<Math.min(5,A.length);r++){ var c=_wcol(A[r]||[],tests); if(c>=0){ hdrRow=r; wc=c; break; } }
     if(wc<0) return null;
     var day={},mon={},wk={}; var f=function(v){var n=parseFloat(v);return isNaN(n)?0:n;};
-    for(var i=hdrRow+1;i<A.length;i++){ var row=A[i]; var m=S(row[0]); var d=row[2]; if(!m||!(d instanceof Date)) continue;
-      var ds=d.toISOString().slice(0,10); var mi=MONn.indexOf(S(row[5])); var wkn=parseInt(row[4],10); var val=f(row[wc])*100;
+    for(var i=hdrRow+1;i<A.length;i++){ var row=A[i]; var m=S(row[0]); var d=_toDate(row[2]); if(!m||!d) continue;
+      var ds=d.toISOString().slice(0,10); var mi=MONn.indexOf(S(row[5])); if(mi<0) mi=d.getUTCMonth(); var wkn=parseInt(row[4],10); if(isNaN(wkn)) wkn=_isoWk(d); var val=f(row[wc])*100;
       var push=function(bag,key){ bag[m]=bag[m]||{}; var o=bag[m][key]=bag[m][key]||{s:0,n:0}; o.s+=val; o.n++; };
       push(day,ds); if(mi>=0) push(mon,mi); if(!isNaN(wkn)) push(wk,wkn);
     }
@@ -5405,8 +5422,8 @@ function buildDailyFromRaw(wb){
     function fc(tests){ for(var c=0;c<hdr.length;c++){ var h=S(hdr[c]).toUpperCase(); for(var t=0;t<tests.length;t++) if(h.indexOf(tests[t])>=0) return c; } return -1; }
     var cM=0, cD=fc([&quot;DATE&quot;]), cW=fc([&quot;WEEK&quot;]), cDur=fc([&quot;DURATION&quot;]);
     if(cDur<0) return; var day={},mon={},wk={}; var f=function(v){var n=parseFloat(v);return isNaN(n)?0:n;};
-    for(var i=1;i<DT.length;i++){ var row=DT[i]; var nm=_normDT(row[cM]); var d=row[cD]; if(!nm||!(d instanceof Date))continue;
-      var dl=fmtD(d), mi=d.getUTCMonth(), wkn=parseInt(row[cW],10), dur=f(row[cDur]);
+    for(var i=1;i<DT.length;i++){ var row=DT[i]; var nm=_normDT(row[cM]); var d=_toDate(row[cD]); if(!nm||!d)continue;
+      var dl=fmtD(d), mi=d.getUTCMonth(), wkn=parseInt(row[cW],10); if(isNaN(wkn)) wkn=_isoWk(d); var dur=f(row[cDur]);
       var add=function(bag,k){ bag[nm]=bag[nm]||{}; bag[nm][k]=(bag[nm][k]||0)+dur; };
       add(day,dl); add(mon,mi); if(!isNaN(wkn)) add(wk,wkn);
     }
@@ -5443,7 +5460,7 @@ function parseWB(wb){
   if(DT.length){ var hd=DT[0],ix={}; hd.forEach(function(h,i){ix[S(h)]=i;}); var mi=ix[&quot;Machine&quot;],du=ix[&quot;Duration&quot;],ca=ix[&quot;Category&quot;],pr=ix[&quot;Problem&quot;],wi=ix[&quot;Week&quot;],dai=ix[&quot;Date&quot;];
     for(var j=1;j<DT.length;j++){ var r=DT[j]; if(!r||S(r[mi])===&quot;&quot;) continue; cnt++; var d=parseFloat(r[du])||0; tot+=d; var mm=S(r[mi]); var cat=(ca!=null&amp;&amp;S(r[ca]))?S(r[ca]):&quot;Uncategorised&quot;; var p=S(r[pr])||&quot;—&quot;; bym[mm]=(bym[mm]||0)+d; byc[cat]=(byc[cat]||0)+d; prob[p]=(prob[p]||0)+d;
       if(wi!=null){ var wk=parseInt(r[wi],10); if(!isNaN(wk)){ dweek[wk]=dweek[wk]||{min:0,cnt:0}; dweek[wk].min+=d; dweek[wk].cnt++; } }
-      if(dai!=null &amp;&amp; r[dai] instanceof Date){ var mo=r[dai].getMonth(); dmon[mo]=dmon[mo]||{min:0,cnt:0}; dmon[mo].min+=d; dmon[mo].cnt++; }
+      if(dai!=null){ var _dd=_toDate(r[dai]); if(_dd){ var mo=_dd.getUTCMonth(); dmon[mo]=dmon[mo]||{min:0,cnt:0}; dmon[mo].min+=d; dmon[mo].cnt++; } }
     } }
   nd.dt_week={}; for(var k in dweek){ nd.dt_week[String(k)]={min:Math.round(dweek[k].min),cnt:dweek[k].cnt}; }
   nd.dt_month={}; for(var k in dmon){ nd.dt_month[String(k)]={min:Math.round(dmon[k].min),cnt:dmon[k].cnt}; }
@@ -5894,6 +5911,28 @@ async function save(key,val){ mem[key]=val; var text=JSON.stringify(val);
   if(has()){ try{ await window.storage.set(key,text); }catch(e){} }
   var L=ls(); if(L){ try{ L.setItem(key,text); }catch(e){} }
 }
+async function fetchKV(key){
+  if(has()){ try{ var r=await window.storage.get(key); if(r&amp;&amp;r.value!=null){ try{ return {ok:true,value:JSON.parse(r.value)}; }catch(e){ return {ok:true,value:undefined}; } } }catch(e){} }
+  try{ var resp=await fetch(&quot;/api/kv?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}); if(!resp.ok) return {ok:false}; var j=await resp.json(); if(!j||j.value==null) return {ok:true,value:undefined}; try{ return {ok:true,value:JSON.parse(j.value)}; }catch(e){ return {ok:true,value:undefined}; } }
+  catch(e){ var L=ls(); if(L){ try{ var v=L.getItem(key); if(v!==null){ try{ return {ok:true,value:JSON.parse(v)}; }catch(e2){} } }catch(e3){} } return {ok:false}; }
+}
+function _entById(list){ var m={}; (list||[]).forEach(function(r){ if(r&amp;&amp;r.id!=null) m[r.id]=r; }); return m; }
+var dieselLoadOK=false;
+/* Safe save for the diesel ledger: re-read the stored list and reconcile by id so a blank/stale
+   local list can never overwrite the shared history; refuse (and report) when the DB is unreachable. */
+async function commitEntries(){
+  var res=await fetchKV(ENTRY_KEY);
+  if(!res.ok){ toast(&quot;Not saved — can't reach the database. Check the connection and try again.&quot;); return false; }
+  var stored=Array.isArray(res.value)?res.value:[];
+  var localById=_entById(entries), delById=_entById(deletedD), out=[], seen={};
+  stored.forEach(function(s){ if(!s||s.id==null){ out.push(s); return; } if(delById[s.id]) return; out.push(localById[s.id]||s); seen[s.id]=1; });
+  entries.forEach(function(r){ if(r&amp;&amp;r.id!=null&amp;&amp;!seen[r.id]&amp;&amp;!delById[r.id]){ out.push(r); seen[r.id]=1; } });
+  entries=out; dieselLoadOK=true;
+  mem[ENTRY_KEY]=entries; var text=JSON.stringify(entries);
+  if(has()){ try{ await window.storage.set(ENTRY_KEY,text); }catch(e){} }
+  var L=ls(); if(L){ try{ L.setItem(ENTRY_KEY,text); }catch(e){} }
+  return true;
+}
 var MAX_PH=4, PH_MAX_PX=1000;
 function shrink(file){ return new Promise(function(resolve,reject){
   var draw=function(src,w,h){ var scale=Math.min(1,PH_MAX_PX/Math.max(w,h)); var cw=Math.max(1,Math.round(w*scale)),ch=Math.max(1,Math.round(h*scale));
@@ -6054,7 +6093,7 @@ function drawTrashD(){
   wrap.querySelectorAll(&quot;[data-rst]&quot;).forEach(function(b){ b.onclick=async function(){
     var id=b.getAttribute(&quot;data-rst&quot;); var e=null; deletedD=deletedD.filter(function(v){ if(String(v.id)===String(id)){ e=v; return false; } return true; });
     if(e){ delete e.deletedAt; entries.push(e); }
-    await save(ENTRY_KEY,entries); await save(DEL_KEY,deletedD); refreshHead(); drawBook(); drawTrashD(); toast(&quot;Entry restored.&quot;);
+    if(!(await commitEntries())) return; await save(DEL_KEY,deletedD); refreshHead(); drawBook(); drawTrashD(); toast(&quot;Entry restored.&quot;);
   }; });
   wrap.querySelectorAll(&quot;[data-purge]&quot;).forEach(function(b){ b.onclick=async function(){
     var id=b.getAttribute(&quot;data-purge&quot;); if(!adminOK()) return; if(!confirm(&quot;Delete this entry permanently? This cannot be undone.&quot;)) return;
@@ -6146,7 +6185,7 @@ $(&quot;rSave&quot;).addEventListener(&quot;click&quot;,async function(){
     note:$(&quot;rNote&quot;).value.trim(), photos:photos, deviceId:(editing?(byId(id).deviceId||DEVICE_ID):DEVICE_ID) };
   if(editing){ var ix=entries.findIndex(function(v){ return String(v.id)===String(id); }); if(ix>=0) entries[ix]=rec; else entries.push(rec); }
   else entries.push(rec);
-  await save(ENTRY_KEY,entries); refreshHead();
+  if(!(await commitEntries())) return; refreshHead();
   $(&quot;rNoteMsg&quot;).textContent=&quot;Received &quot;+litres(received)+&quot; L logged.&quot;;
   RECV_PH.clear(); [&quot;rDriver&quot;,&quot;rTruck&quot;,&quot;rSupplier&quot;,&quot;rDO&quot;,&quot;rTank&quot;,&quot;rBefore&quot;,&quot;rAfter&quot;,&quot;rNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;rTankSel&quot;).value=&quot;&quot;; recalcRecv();
   resetEditState();
@@ -6174,7 +6213,7 @@ $(&quot;uSave&quot;).addEventListener(&quot;click&quot;,async function(){
     note:$(&quot;uNote&quot;).value.trim(), photos:photos, deviceId:(editing?(byId(id).deviceId||DEVICE_ID):DEVICE_ID) };
   if(editing){ var ix=entries.findIndex(function(v){ return String(v.id)===String(id); }); if(ix>=0) entries[ix]=rec; else entries.push(rec); }
   else entries.push(rec);
-  await save(ENTRY_KEY,entries); refreshHead();
+  if(!(await commitEntries())) return; refreshHead();
   $(&quot;uNoteMsg&quot;).textContent=&quot;Usage &quot;+litres(num($(&quot;uLitres&quot;).value))+&quot; L logged.&quot;;
   USE_PH.clear(); [&quot;uLitres&quot;,&quot;uOther&quot;,&quot;uBy&quot;,&quot;uNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;uDept&quot;).value=&quot;&quot;; $(&quot;uFrom&quot;).value=&quot;&quot;; $(&quot;uOtherWrap&quot;).hidden=true; $(&quot;uType&quot;).value=&quot;Boiler Primary Production (PMD)&quot;;
   resetEditState();
@@ -6201,7 +6240,7 @@ $(&quot;xSave&quot;).addEventListener(&quot;click&quot;,async function(){
     note:$(&quot;xNote&quot;).value.trim(), photos:photos, deviceId:(editing?(byId(id).deviceId||DEVICE_ID):DEVICE_ID) };
   if(editing){ var ix=entries.findIndex(function(v){ return String(v.id)===String(id); }); if(ix>=0) entries[ix]=rec; else entries.push(rec); }
   else entries.push(rec);
-  await save(ENTRY_KEY,entries); refreshHead();
+  if(!(await commitEntries())) return; refreshHead();
   $(&quot;xNoteMsg&quot;).textContent=&quot;Transfer &quot;+litres(num($(&quot;xLitres&quot;).value))+&quot; L to &quot;+$(&quot;xDest&quot;).value+&quot; logged.&quot;;
   XFER_PH.clear(); [&quot;xLitres&quot;,&quot;xBy&quot;,&quot;xNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;xFrom&quot;).value=&quot;&quot;;
   resetEditState();
@@ -6263,7 +6302,7 @@ function drawBook(){
     var e=byId(b.getAttribute(&quot;data-del&quot;)); if(!canDelete(e)) return;
     entries=entries.filter(function(v){ return String(v.id)!==String(e.id); });
     e.deletedAt=Date.now(); deletedD.unshift(e);
-    await save(ENTRY_KEY,entries); await save(DEL_KEY,deletedD); refreshHead(); drawBook(); drawTrashD(); toast(&quot;Entry moved to deleted history.&quot;);
+    if(!(await commitEntries())) return; await save(DEL_KEY,deletedD); refreshHead(); drawBook(); drawTrashD(); toast(&quot;Entry moved to deleted history.&quot;);
   }; });
 }
 function byId(id){ var f=null; entries.forEach(function(e){ if(String(e.id)===String(id)) f=e; }); return f; }
@@ -6621,7 +6660,7 @@ $(&quot;opSave&quot;).addEventListener(&quot;click&quot;,async function(){
     tanks:tanks, total:total, by:$(&quot;opBy&quot;).value.trim(), note:$(&quot;opNote&quot;).value.trim(), photos:photos, deviceId:(editing?(byId(id).deviceId||DEVICE_ID):DEVICE_ID) };
   if(editing){ var ix=entries.findIndex(function(v){ return String(v.id)===String(id); }); if(ix>=0) entries[ix]=rec; else entries.push(rec); }
   else entries.push(rec);
-  await save(ENTRY_KEY,entries); refreshHead(); drawStock(); if(!$(&quot;v-book&quot;).hidden) drawBook();
+  if(!(await commitEntries())) return; refreshHead(); drawStock(); if(!$(&quot;v-book&quot;).hidden) drawBook();
   $(&quot;opModal&quot;).hidden=true; resetEditState();
   toast(editing?&quot;Stock opname updated.&quot;:&quot;Stock opname saved (&quot;+litres(total)+&quot; L).&quot;);
   showSuccess(editing?&quot;Stock opname updated in database.&quot;:&quot;Stock opname saved to database (&quot;+litres(total)+&quot; L).&quot;);
@@ -6635,7 +6674,7 @@ async function setEntity(ent){
   DIESEL_ENT=ent; loadCreds();
   ENTRY_KEY = ent===&quot;ALCO&quot; ? &quot;diesel:entries&quot; : &quot;diesel:entries:&quot;+ent;
   DEL_KEY   = ent===&quot;ALCO&quot; ? &quot;diesel:entries:deleted&quot; : &quot;diesel:entries:deleted:&quot;+ent;
-  entries=await load(ENTRY_KEY,[]); if(!Array.isArray(entries)) entries=[];
+  var _er=await fetchKV(ENTRY_KEY); dieselLoadOK=_er.ok; entries=Array.isArray(_er.value)?_er.value:[]; if(!dieselLoadOK) toast(&quot;⚠ Couldn't load existing diesel records — check your connection before adding entries.&quot;);
   deletedD=await load(DEL_KEY,[]); if(!Array.isArray(deletedD)) deletedD=[];
   if(typeof resetEditState===&quot;function&quot;) resetEditState();
   refreshHead(); drawStock();
@@ -6644,7 +6683,7 @@ async function setEntity(ent){
 window.setEntity=setEntity;
 /* ---- boot ---- */
 (async function(){
-  entries=await load(ENTRY_KEY,[]); if(!Array.isArray(entries)) entries=[];
+  var _er=await fetchKV(ENTRY_KEY); dieselLoadOK=_er.ok; entries=Array.isArray(_er.value)?_er.value:[]; if(!dieselLoadOK) toast(&quot;⚠ Couldn't load existing diesel records — check your connection before adding entries.&quot;);
   deletedD=await load(DEL_KEY,[]); if(!Array.isArray(deletedD)) deletedD=[];
   fillTankSelect(&quot;rTankSel&quot;, true); fillTankSelect(&quot;uFrom&quot;, true); fillTankSelect(&quot;xFrom&quot;, true); fillTankSelect(&quot;xDest&quot;, true); fillBookTankFilter();
   $(&quot;rWhen&quot;).value=nowLocalDT(); $(&quot;uWhen&quot;).value=nowLocalDT(); $(&quot;xWhen&quot;).value=nowLocalDT();
