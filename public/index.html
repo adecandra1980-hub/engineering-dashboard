@@ -120,6 +120,16 @@
   .content { padding: 24px 28px 48px; max-width: 1160px; width: 100%; }
   .embed-frame { width: 100%; height: 620px; border: 1px solid var(--rule); border-radius: 2px; background: #EDE9E2; display: block; overflow: hidden; }
   .embed-frame.autofit { height: auto; border: none; border-radius: 0; background: transparent; }
+  /* OEE dashboard "full screen" (fills the browser window) */
+  #oeeMaxBtn{ display:none; }
+  body[data-page="oee"] #oeeMaxBtn{ display:inline-flex; }
+  body.oee-max{ overflow:hidden; }
+  body.oee-max #oeeFrame{ position:fixed; inset:0; width:100vw; height:100vh !important; z-index:4000; border:none; border-radius:0; }
+  #oeeExitFs{ display:none; }
+  body.oee-max #oeeExitFs{ display:inline-flex; align-items:center; gap:6px; position:fixed; top:10px; right:12px; z-index:2147483000;
+    font-family:var(--mono,monospace); font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+    background:#1B1F23; color:#fff; border:1px solid #1B1F23; border-radius:4px; padding:8px 12px; cursor:pointer; box-shadow:0 3px 14px rgba(0,0,0,.35); }
+  body.oee-max #oeeExitFs:hover{ background:#000; }
   .page { display: none; }
   .page.active { display: block; animation: fade .18s ease; }
   @keyframes fade { from { opacity: 0; transform: translateY(4px);} to {opacity:1; transform:none;} }
@@ -324,6 +334,9 @@
         </div>
       </div>
       <div class="spacer"></div>
+      <button class="icon-btn" id="oeeMaxBtn" title="Full screen" onclick="toggleOeeMax()" aria-label="Full screen OEE dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+      </button>
       <button class="icon-btn" id="backupBtn" title="Backup all data (download .zip of CSV files)" onclick="downloadBackup()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
       </button>
@@ -4675,6 +4688,30 @@ var $=function(id){return document.getElementById(id);};
 /* when running inside the Engineering Dashboard portal iframe (auto-fit, no inner scroll),
    flag <html> so full-screen overlays pin to the visible slice via --vt/--vh */
 try{ if(window.top!==window.self) document.documentElement.classList.add(&quot;embedded&quot;); }catch(e){ document.documentElement.classList.add(&quot;embedded&quot;); }
+/* shared-storage bridge -> Cloudflare D1 via /api/kv (same as the portal apps).
+   Keeps uploaded data in the cloud so it survives refresh and is shared across devices;
+   falls back silently to localStorage when standalone/offline. */
+if(!window.storage){ (function(){ var API=&quot;/api/kv&quot;;
+  window.storage={
+    get:function(key){ return fetch(API+&quot;?key=&quot;+encodeURIComponent(key),{cache:&quot;no-store&quot;}).then(function(r){ return r.ok?r.json():null; }).then(function(j){ return (j&amp;&amp;j.value!=null)?{value:j.value}:null; }).catch(function(){ return null; }); },
+    set:function(key,value){ return fetch(API,{method:&quot;POST&quot;,headers:{&quot;Content-Type&quot;:&quot;application/json&quot;},body:JSON.stringify({key:key,value:String(value)})}).then(function(r){ return r.ok; }).catch(function(){ return false; }); }
+  };
+})(); }
+var OEE_KEY=&quot;oee:ds&quot;;
+function _oeeValid(o){ return !!(o&amp;&amp;o.data&amp;&amp;o.data.plan_w&amp;&amp;o.data.oee_w&amp;&amp;o.data.weeks&amp;&amp;o.data.chart&amp;&amp;o.data.output_w&amp;&amp;o.data.groups&amp;&amp;o.data.waste7&amp;&amp;o.data.dtm7); }
+function _oeeGz(str){ try{ if(typeof CompressionStream===&quot;undefined&quot;) return Promise.resolve(null);
+  var cs=new CompressionStream(&quot;gzip&quot;);
+  return new Response(new Blob([str]).stream().pipeThrough(cs)).arrayBuffer().then(function(buf){ var bytes=new Uint8Array(buf),bin=&quot;&quot;,CH=0x8000; for(var i=0;i<bytes.length;i+=CH){ bin+=String.fromCharCode.apply(null, bytes.subarray(i,i+CH)); } return &quot;GZ:&quot;+btoa(bin); });
+}catch(e){ return Promise.resolve(null); } }
+function _oeeGunz(b64){ var bin=atob(b64); var bytes=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i); var ds=new DecompressionStream(&quot;gzip&quot;); return new Response(new Blob([bytes]).stream().pipeThrough(ds)).text(); }
+function oeeSaveCloud(payloadStr){ if(!(window.storage&amp;&amp;window.storage.set)) return Promise.resolve(false); return _oeeGz(payloadStr).then(function(gz){ return window.storage.set(OEE_KEY, gz||payloadStr); }).catch(function(){ return window.storage.set(OEE_KEY, payloadStr); }); }
+function oeeLoadCloud(cb){ if(!(window.storage&amp;&amp;window.storage.get)){ cb(null); return; }
+  window.storage.get(OEE_KEY).then(function(res){ if(!res||res.value==null){ cb(null); return; }
+    var v=res.value;
+    if(typeof v===&quot;string&quot;&amp;&amp;v.slice(0,3)===&quot;GZ:&quot;){ _oeeGunz(v.slice(3)).then(function(str){ try{ cb(JSON.parse(str)); }catch(e){ cb(null); } }).catch(function(){ cb(null); }); }
+    else { try{ cb(JSON.parse(v)); }catch(e){ cb(null); } }
+  }).catch(function(){ cb(null); });
+}
 mergeDaily(DATA, BUILTIN_DAILY);
 try{ var st=localStorage.getItem(&quot;oee_ds&quot;); if(st){ var o=JSON.parse(st); if(o&amp;&amp;o.data&amp;&amp;o.data.plan_w&amp;&amp;o.data.oee_w&amp;&amp;o.data.weeks&amp;&amp;o.data.chart&amp;&amp;o.data.output_w&amp;&amp;o.data.groups&amp;&amp;o.data.waste7&amp;&amp;o.data.dtm7){ DATA=o.data; META=o.meta||META; } else { localStorage.removeItem(&quot;oee_ds&quot;); } } }catch(e){}
 var MCOL=[&quot;#D98A0B&quot;,&quot;#1F5673&quot;,&quot;#B07845&quot;,&quot;#2E7D4F&quot;,&quot;#B3402F&quot;,&quot;#6B4E9E&quot;,&quot;#2A9D8F&quot;,&quot;#B5457B&quot;,&quot;#4C6EF5&quot;,&quot;#E8590C&quot;];
@@ -5429,13 +5466,16 @@ function doUpload(file){
     var nd=parseWB(wb);
     if(!nd.machines||!nd.machines.length){ alert(&quot;Could not read OEE data — is this the OEE Machine SMD workbook?&quot;); return; }
     DATA=nd; META={src:&quot;upload&quot;,name:file.name,when:new Date().toISOString()};
-    try{ localStorage.setItem(&quot;oee_ds&quot;,JSON.stringify({data:DATA,meta:META})); }catch(x){}
+    var _pl=JSON.stringify({data:DATA,meta:META});
+    try{ localStorage.setItem(&quot;oee_ds&quot;,_pl); }catch(x){}
     recompute(); captureAll(); if($(&quot;shiftSel&quot;)) $(&quot;shiftSel&quot;).value=&quot;all&quot;; _curShift=&quot;all&quot;; fillControls(false); render();
-    alert(&quot;Updated from &quot;+file.name+&quot; — &quot;+DATA.machines.length+&quot; machines, weeks 1–&quot;+(DATA.cur_week||&quot;?&quot;)+&quot;.&quot;);
+    oeeSaveCloud(_pl).then(function(ok){ alert(&quot;Updated from &quot;+file.name+&quot; — &quot;+DATA.machines.length+&quot; machines, weeks 1–&quot;+(DATA.cur_week||&quot;?&quot;)+(ok?&quot;.\nSaved to the shared database — it will stay after refresh and show on other devices.&quot;:&quot;.\nSaved on this device only (shared database not reachable).&quot;)); });
   }catch(err){ alert(&quot;Upload failed: &quot;+err.message); } };
   rd.readAsArrayBuffer(file);
 }
 recompute(); captureAll(); fillControls(false); render();
+/* pull the latest uploaded dataset from the shared database (if any) and apply it */
+oeeLoadCloud(function(o){ if(_oeeValid(o)){ DATA=o.data; META=o.meta||META; try{ localStorage.setItem(&quot;oee_ds&quot;,JSON.stringify({data:DATA,meta:META})); }catch(e){} recompute(); captureAll(); if($(&quot;shiftSel&quot;)) $(&quot;shiftSel&quot;).value=&quot;all&quot;; _curShift=&quot;all&quot;; fillControls(false); render(); } });
 $(&quot;shiftSel&quot;).addEventListener(&quot;change&quot;,function(){ applyShift(this.value); });
 $(&quot;mtFsBtn&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;mtFs&quot;).classList.add(&quot;open&quot;); renderMachineTilesFS(); });
 $(&quot;mtFsClose&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;mtFs&quot;).classList.remove(&quot;open&quot;); });
@@ -9873,6 +9913,8 @@ const REPORTKINDS = {
 /* ---------- navigation ---------- */
 const TITLES={dashboard:"Engineering Dashboard",oee:"OEE Dashboard",downtime:"Technician Downtime Report",workorder:"Utility & Facility Work Order",downtime2:"Technician Downtime Log Book",workorder2:"Work Order Request — Utility Facility",linedt:"Downtime by Line",dieselwk:"Diesel — Weekly Analysis",diesel:"Diesel Inventory Management",material:"Waste Material In / Out — PT SAAT",spare:"Spare Part Request & Return",utility:"Water & Electricity Monitoring"};
 function nav(page){
+  if(document.body.classList.contains('oee-max') && page!=='oee') toggleOeeMax();
+  document.body.setAttribute('data-page', page);
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   $('#page-'+page).classList.add('active');
@@ -10519,7 +10561,9 @@ window.addEventListener('resize', ()=>{ fitFrame(document.getElementById('logboo
 /* ---------- embedded apps: grow to fit content so the MAIN window scrolls (no inner scrollbar) ---------- */
 var EMBED_FRAMES=['logbookFrame','workorderFrame','dieselFrame','materialFrame','spareFrame','utilityFrame','oeeFrame'];
 function frameDoc(f){ try{ return f.contentDocument||(f.contentWindow&&f.contentWindow.document)||null; }catch(e){ return null; } }
-function autoFit(id){ var f=document.getElementById(id); if(!f) return; var d=frameDoc(f); if(!d||!d.body) return;
+function autoFit(id){ var f=document.getElementById(id); if(!f) return;
+  if(id==='oeeFrame' && document.body.classList.contains('oee-max')) return; /* don't fight the full-screen size */
+  var d=frameDoc(f); if(!d||!d.body) return;
   f.classList.add('autofit');
   var h=Math.max(d.body.scrollHeight, d.documentElement?d.documentElement.scrollHeight:0);
   if(h>0) f.style.height=(h+8)+'px';
@@ -10548,6 +10592,17 @@ window.addEventListener('resize', function(){ autoFitActive(); });
 EMBED_FRAMES.forEach(observeFrame);
 /* re-fit whenever a page is shown */
 (function(){ var _nav=window.nav; if(typeof _nav==='function'){ window.nav=function(p){ _nav(p); [60,250,600].forEach(function(ms){ setTimeout(autoFitActive, ms); }); }; } })();
+/* ---- OEE dashboard full-screen (fills the browser window) ---- */
+function _oeeEsc(e){ if(e.key==='Escape' && document.body.classList.contains('oee-max')){ var f=document.getElementById('oeeFrame'); var d=f&&frameDoc(f); if(d && d.querySelector('.fsov.open, .modal.open')) return; /* let the OEE close its own overlay first */ toggleOeeMax(); } }
+function toggleOeeMax(){
+  var f=document.getElementById('oeeFrame'); if(!f) return;
+  var on=document.body.classList.toggle('oee-max');
+  try{ var d=frameDoc(f); if(d&&d.documentElement){ if(on) d.documentElement.classList.remove('embedded'); else d.documentElement.classList.add('embedded'); if(on) d.addEventListener('keydown',_oeeEsc); else d.removeEventListener('keydown',_oeeEsc); } }catch(e){}
+  if(on){ f.setAttribute('scrolling','auto'); }
+  else { f.setAttribute('scrolling','no'); setTimeout(function(){ autoFit('oeeFrame'); }, 30); }
+  var btn=document.getElementById('oeeMaxBtn'); if(btn) btn.title = on ? 'Exit full screen (Esc)' : 'Full screen';
+}
+document.addEventListener('keydown', _oeeEsc);
 
 /* ============================================================
    DATA BACKUP — one click, all modules, all entities.
@@ -10656,5 +10711,6 @@ initEntities();
 renderAll();
 setTimeout(autoFitActive, 400);
 </script>
+<button type="button" id="oeeExitFs" onclick="toggleOeeMax()" title="Exit full screen (Esc)" aria-label="Exit full screen">&#10005; Exit full screen</button>
 </body>
 </html>
