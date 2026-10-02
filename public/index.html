@@ -4486,7 +4486,8 @@ var CREDS={};
   .mspanel.open{display:flex;flex-wrap:wrap;gap:6px}
   .dstamp{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);padding:8px 8px 14px}
   .dstamp b{color:var(--ink)}
-  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:6px 0 20px}
+  .kpis{display:grid;grid-template-columns:repeat(8,1fr);gap:12px;margin:6px 0 20px}
+  @media(max-width:1280px){.kpis{grid-template-columns:repeat(4,1fr)}}
   @media(max-width:900px){.kpis{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:560px){.kpis{grid-template-columns:repeat(2,1fr)}}
   .kpi{background:var(--panel);border:1px solid var(--rule);border-left:3px solid var(--starch);border-radius:2px;padding:12px 13px}
@@ -4679,6 +4680,11 @@ function mergeDaily(D,pt){ if(!pt) return;
   D.oee_ytd=D.oee_ytd||{}; for(var m in (pt.mk_ytd||{})){ D.oee_ytd[m]=pt.mk_ytd[m].oee; }
   if(pt.waste7) D.waste7=pt.waste7; if(pt.waste_m) D.waste_m=pt.waste_m; if(pt.waste_w) D.waste_w=pt.waste_w;
   if(pt.dtm7) D.dtm7=pt.dtm7; if(pt.dtm_m) D.dtm_m=pt.dtm_m; if(pt.dtm_w) D.dtm_w=pt.dtm_w; if(pt.dtm_ytd) D.dtm_ytd=pt.dtm_ytd;
+  if(pt.wtob7!=null) D.wtob7=pt.wtob7; if(pt.wtob_m!=null) D.wtob_m=pt.wtob_m; if(pt.wtob_w!=null) D.wtob_w=pt.wtob_w; if(pt.wtob_ytd!=null) D.wtob_ytd=pt.wtob_ytd;
+  if(pt.wntm7!=null) D.wntm7=pt.wntm7; if(pt.wntm_m!=null) D.wntm_m=pt.wntm_m; if(pt.wntm_w!=null) D.wntm_w=pt.wntm_w; if(pt.wntm_ytd!=null) D.wntm_ytd=pt.wntm_ytd;
+  if(pt.tuse_m!=null){ D.tuse7=pt.tuse7; D.tuse_m=pt.tuse_m; D.tuse_w=pt.tuse_w; D.tuse_ytd=pt.tuse_ytd; }
+  if(pt.nrej_m!=null){ D.nrej7=pt.nrej7; D.nrej_m=pt.nrej_m; D.nrej_w=pt.nrej_w; D.nrej_ytd=pt.nrej_ytd; }
+  if(pt.nfg_m!=null){ D.nfg7=pt.nfg7; D.nfg_m=pt.nfg_m; D.nfg_w=pt.nfg_w; D.nfg_ytd=pt.nfg_ytd; }
   if(pt.shift) D._shift=pt.shift;
   if(pt.machines&amp;&amp;pt.machines.length) D.machines=pt.machines;
   if(pt.groups) D.groups=pt.groups;
@@ -4900,6 +4906,18 @@ function wasteFor(m,pi){ var wm=DATA.waste_m||{}, ww=DATA.waste_w||{}, wd=DATA.w
   if(pi.t===&quot;ytd&quot;){ var a=(wm[m]||[]).slice(0,LM+1).filter(function(x){return x>0;}); return a.length?Math.round(a.reduce(function(x,y){return x+y;},0)/a.length*10)/10:null; }
   var src=pi.t===&quot;m&quot;?wm:(pi.t===&quot;d&quot;?wd:ww); return avgVals(pi.idxs.map(function(i){return (src[m]||[])[i];})); }
 function dtFor(pi){ if(pi.t===&quot;ytd&quot;) return {min:DATA.dt_total_min,cnt:DATA.dt_count}; if(pi.t===&quot;d&quot;) return {min:null,cnt:null}; var min=0,cnt=0; pi.idxs.forEach(function(i){ var d; if(pi.t===&quot;m&quot;) d=DATA.dt_month&amp;&amp;DATA.dt_month[String(i)]; else { var wk=DATA.weeks[i]; d=DATA.dt_week&amp;&amp;DATA.dt_week[String(wk)]; } if(d){ min+=d.min||0; cnt+=d.cnt||0; } }); return {min:min,cnt:cnt}; }
+/* sum one period-indexed field set (monthly/weekly/daily arrays + ytd total) over the selected period */
+function _periodSum(dm,dw,dd,dy,pi){ if(dm==null&amp;&amp;dw==null&amp;&amp;dd==null&amp;&amp;dy==null) return null;
+  if(pi.t===&quot;ytd&quot;) return (dy!=null?dy:(dm?dm.reduce(function(a,b){return a+b;},0):null));
+  var src=pi.t===&quot;m&quot;?dm:(pi.t===&quot;d&quot;?dd:dw); if(!src) return null;
+  return sumVals(pi.idxs.map(function(i){ return src[i]; })); }
+/* total waste in KG for the period: which = &quot;tob&quot; (makers) or &quot;ntm&quot; (packers) */
+function wasteKgFor(which,pi){ return which===&quot;tob&quot;
+  ? _periodSum(DATA.wtob_m,DATA.wtob_w,DATA.wtob7,DATA.wtob_ytd,pi)
+  : _periodSum(DATA.wntm_m,DATA.wntm_w,DATA.wntm7,DATA.wntm_ytd,pi); }
+/* Waste Tobacco % = waste kg / tobacco used (USAGE KG); Waste NTM % = reject packs / (FG + reject packs) = HMI % */
+function wasteTobPct(pi){ var w=wasteKgFor(&quot;tob&quot;,pi), u=_periodSum(DATA.tuse_m,DATA.tuse_w,DATA.tuse7,DATA.tuse_ytd,pi); return (w!=null&amp;&amp;u&amp;&amp;u>0)?Math.round(w/u*1000)/10:null; }
+function wasteNtmPct(pi){ var r=_periodSum(DATA.nrej_m,DATA.nrej_w,DATA.nrej7,DATA.nrej_ytd,pi), g=_periodSum(DATA.nfg_m,DATA.nfg_w,DATA.nfg7,DATA.nfg_ytd,pi); var den=(r||0)+(g||0); return (r!=null&amp;&amp;den>0)?Math.round(r/den*1000)/10:null; }
 /* ---- Shift-level analysis ---- */
 var _SHMET={
   oee:   {m:&quot;oee&quot;,   w:&quot;oee_w&quot;,   d:&quot;oee7&quot;,   y:&quot;oee_ytd&quot;,    agg:&quot;avg&quot;, pct:true,  lbl:&quot;OEE %&quot;},
@@ -5165,6 +5183,9 @@ function render(){
   function kpi(k,v,u,cls){ return '<div class=&quot;kpi '+(cls||&quot;&quot;)+'&quot;><div class=&quot;k&quot;>'+k+'</div><div class=&quot;v&quot;>'+v+'</div><div class=&quot;u&quot;>'+(u||&quot;&quot;)+'</div></div>'; }
   var kh=&quot;&quot;;
   kh+=kpi(&quot;Plant OEE · &quot;+pi.label, (pOEE==null?&quot;—&quot;:pOEE+&quot;%&quot;), &quot;all packing lines&quot;, pOEE>=60?&quot;good&quot;:(pOEE>=40?&quot;amber&quot;:&quot;bad&quot;));
+  var wTob=wasteKgFor(&quot;tob&quot;,pi), wNtm=wasteKgFor(&quot;ntm&quot;,pi), wTobP=wasteTobPct(pi), wNtmP=wasteNtmPct(pi);
+  kh+=kpi(&quot;Waste Tobacco · &quot;+pi.label, (wTobP==null?(wTob==null?&quot;—&quot;:fmt(wTob)+&quot; kg&quot;):wTobP+&quot;%&quot;), (wTob!=null?fmt(wTob)+&quot; kg ÷ tobacco used&quot;:&quot;all cigarette makers&quot;), &quot;bad&quot;);
+  kh+=kpi(&quot;Waste NTM · &quot;+pi.label, (wNtmP==null?(wNtm==null?&quot;—&quot;:fmt(wNtm)+&quot; kg&quot;):wNtmP+&quot;%&quot;), (wNtm!=null?fmt(wNtm)+&quot; kg reject · HMI basis&quot;:&quot;all cigarette packers&quot;), &quot;amber&quot;);
   kh+=kpi(&quot;Best · &quot;+pi.label, bestM?(bestM.v+&quot;%&quot;):&quot;—&quot;, bestM?bestM.m:&quot;no data&quot;, &quot;good&quot;);
   kh+=kpi(&quot;Needs attention · &quot;+pi.label, worstM?(worstM.v+&quot;%&quot;):&quot;—&quot;, worstM?worstM.m:&quot;no data&quot;, &quot;bad&quot;);
   kh+=kpi(&quot;Output FG · &quot;+pi.label, (outP==null?&quot;—&quot;:fmt(outP)), &quot;master cartons&quot;, &quot;kraft&quot;);
@@ -5433,7 +5454,37 @@ function buildDailyFromRaw(wb){
       dtm_w[m]=weeks.map(function(w){ return Math.round((wk[m]&amp;&amp;wk[m][w])||0); });
       dtm_ytd[m]=dtm_m[m].reduce(function(a,b){return a+b;},0); });
   })();
-  return { days7:days.map(lab), oee7:oee7,avail7:avail7,perf7:perf7,qual7:qual7,output7:output7, mk_month:mk_month,mk_week:mk_week,mk_ytd:mk_ytd, waste7:waste7,waste_m:waste_m,waste_w:waste_w, dtm7:dtm7,dtm_m:dtm_m,dtm_w:dtm_w,dtm_ytd:dtm_ytd, machines:makers.concat(packers).concat(filters), groups:groups };
+  // ---- Waste totals in KG: Tobacco (Maker reject+short+dust+stem) &amp; NTM (Packer Kg Reject from machine) ----
+  function _wHdrRow(A){ for(var r=0;r<Math.min(6,A.length);r++){ var row=A[r]||[]; for(var c=0;c<row.length;c++){ if(S(row[c]).toUpperCase().trim()===&quot;MACHINE&quot;) return r; } } return 0; }
+  function _wCol(hdr,keys){ for(var c=0;c<hdr.length;c++){ var h=S(hdr[c]).toUpperCase().replace(/\s+/g,&quot; &quot;).trim(); for(var k=0;k<keys.length;k++) if(h.indexOf(keys[k])>=0) return c; } return -1; }
+  function wasteKgAgg(sheet,colKeyList){ var A=rowsOf(wb,sheet); if(!A.length) return null; var hr=_wHdrRow(A); var hdr=A[hr]||[];
+    var cDate=_wCol(hdr,[&quot;DATE&quot;]), cMon=_wCol(hdr,[&quot;MONTH&quot;]), cWk=_wCol(hdr,[&quot;WEEK&quot;]);
+    var cols=colKeyList.map(function(keys){ return _wCol(hdr,keys); }).filter(function(c){ return c>=0; });
+    if(!cols.length||cDate<0) return null; var f=function(v){var n=parseFloat(v);return isNaN(n)?0:n;};
+    var day={},mon={},wk={};
+    for(var i=hr+1;i<A.length;i++){ var row=A[i]; var m=S(row[0]); var d=_toDate(row[cDate]); if(!m||!d) continue;
+      var ds=d.toISOString().slice(0,10); var mi=(cMon>=0?MONn.indexOf(S(row[cMon])):-1); if(mi<0) mi=d.getUTCMonth(); var wkn=(cWk>=0?parseInt(row[cWk],10):NaN); if(isNaN(wkn)) wkn=_isoWk(d);
+      var val=0; cols.forEach(function(c){ val+=f(row[c]); });
+      day[ds]=(day[ds]||0)+val; mon[mi]=(mon[mi]||0)+val; wk[wkn]=(wk[wkn]||0)+val;
+    }
+    return {day:day,mon:mon,wk:wk};
+  }
+  function _kgArrs(bag){ if(!bag) return null; var dd=days.map(function(ds){ return Math.round(bag.day[ds]||0); });
+    var mo=[]; for(var mi=0;mi<12;mi++) mo.push(Math.round(bag.mon[mi]||0));
+    var wa=weeks.map(function(w){ return Math.round(bag.wk[w]||0); });
+    return {d:dd, m:mo, w:wa, ytd:mo.reduce(function(a,b){return a+b;},0)};
+  }
+  var _tob=_kgArrs(wasteKgAgg(&quot;Maker&quot;,[[&quot;MAKER REJECT&quot;],[&quot;SHORT&quot;],[&quot;DUST&quot;],[&quot;STEM&quot;]]));
+  var _ntm=_kgArrs(wasteKgAgg(&quot;Packer&quot;,[[&quot;KG REJECT&quot;,&quot;REJECT FROM MACHINE&quot;]]));
+  var _tuse=_kgArrs(wasteKgAgg(&quot;Maker&quot;,[[&quot;USAGE&quot;]]));              /* tobacco used (kg) — denominator for Waste Tobacco % */
+  var _nrej=_kgArrs(wasteKgAgg(&quot;Packer&quot;,[[&quot;TOTAL REJECT PACK&quot;]])); /* NTM reject packs — numerator for Waste HMI % */
+  var _nfg=_kgArrs(wasteKgAgg(&quot;Packer&quot;,[[&quot;FG PACK&quot;]]));            /* good FG packs — with reject = HMI denominator */
+  return { days7:days.map(lab), oee7:oee7,avail7:avail7,perf7:perf7,qual7:qual7,output7:output7, mk_month:mk_month,mk_week:mk_week,mk_ytd:mk_ytd, waste7:waste7,waste_m:waste_m,waste_w:waste_w, dtm7:dtm7,dtm_m:dtm_m,dtm_w:dtm_w,dtm_ytd:dtm_ytd, machines:makers.concat(packers).concat(filters), groups:groups,
+    wtob7:_tob?_tob.d:null, wtob_m:_tob?_tob.m:null, wtob_w:_tob?_tob.w:null, wtob_ytd:_tob?_tob.ytd:null,
+    wntm7:_ntm?_ntm.d:null, wntm_m:_ntm?_ntm.m:null, wntm_w:_ntm?_ntm.w:null, wntm_ytd:_ntm?_ntm.ytd:null,
+    tuse7:_tuse?_tuse.d:null, tuse_m:_tuse?_tuse.m:null, tuse_w:_tuse?_tuse.w:null, tuse_ytd:_tuse?_tuse.ytd:null,
+    nrej7:_nrej?_nrej.d:null, nrej_m:_nrej?_nrej.m:null, nrej_w:_nrej?_nrej.w:null, nrej_ytd:_nrej?_nrej.ytd:null,
+    nfg7:_nfg?_nfg.d:null, nfg_m:_nfg?_nfg.m:null, nfg_w:_nfg?_nfg.w:null, nfg_ytd:_nfg?_nfg.ytd:null };
 }
 function parseWB(wb){
   var nd={months:[&quot;Jan&quot;,&quot;Feb&quot;,&quot;Mar&quot;,&quot;Apr&quot;,&quot;May&quot;,&quot;Jun&quot;,&quot;Jul&quot;,&quot;Aug&quot;,&quot;Sep&quot;,&quot;Oct&quot;,&quot;Nov&quot;,&quot;Dec&quot;]};
