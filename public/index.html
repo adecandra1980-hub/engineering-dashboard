@@ -3034,8 +3034,8 @@ $(&quot;vbSave&quot;).addEventListener(&quot;click&quot;, async function(){
       var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.addEventListener(&quot;click&quot;, bkExport);
       var _rb=document.createElement(&quot;button&quot;); _rb.type=&quot;button&quot;; _rb.textContent=&quot;Restore CSV&quot;; _rb.className=_an.className;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_csv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
-      _rb.addEventListener(&quot;click&quot;, function(){ if(!_bkAuth()) return; _fi.click(); });
-      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
+      _rb.addEventListener(&quot;click&quot;, function(){ _fi.click(); });
+      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; _fi.value=&quot;&quot;; if(!_bkAuth()) return; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } } });
       _wrap.appendChild(_bb); _wrap.appendChild(_rb); _wrap.appendChild(_fi);
       _an.parentNode.insertBefore(_wrap, _an.nextSibling);
       try{ _an.style.display=&quot;none&quot;; }catch(e){}
@@ -4377,8 +4377,8 @@ var CREDS={};
       var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.addEventListener(&quot;click&quot;, bkExport);
       var _rb=document.createElement(&quot;button&quot;); _rb.type=&quot;button&quot;; _rb.textContent=&quot;Restore CSV&quot;; _rb.className=_an.className;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_csv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
-      _rb.addEventListener(&quot;click&quot;, function(){ if(!_bkAuth()) return; _fi.click(); });
-      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
+      _rb.addEventListener(&quot;click&quot;, function(){ _fi.click(); });
+      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; _fi.value=&quot;&quot;; if(!_bkAuth()) return; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } } });
       _wrap.appendChild(_bb); _wrap.appendChild(_rb); _wrap.appendChild(_fi);
       _an.parentNode.insertBefore(_wrap, _an.nextSibling);
       try{ _an.style.display=&quot;none&quot;; }catch(e){}
@@ -6386,8 +6386,8 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
       var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.addEventListener(&quot;click&quot;, bkExport);
       var _rb=document.createElement(&quot;button&quot;); _rb.type=&quot;button&quot;; _rb.textContent=&quot;Restore CSV&quot;; _rb.className=_an.className;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
-      _rb.addEventListener(&quot;click&quot;, function(){ if(!_bkAuth()) return; _fi.click(); });
-      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
+      _rb.addEventListener(&quot;click&quot;, function(){ _fi.click(); });
+      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; _fi.value=&quot;&quot;; if(!_bkAuth()) return; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } } });
       _wrap.appendChild(_bb); _wrap.appendChild(_rb); _wrap.appendChild(_fi);
       _an.parentNode.insertBefore(_wrap, _an.nextSibling);
       try{ _an.style.display=&quot;none&quot;; }catch(e){}
@@ -7360,8 +7360,8 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
       var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.addEventListener(&quot;click&quot;, bkExport);
       var _rb=document.createElement(&quot;button&quot;); _rb.type=&quot;button&quot;; _rb.textContent=&quot;Restore CSV&quot;; _rb.className=_an.className;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
-      _rb.addEventListener(&quot;click&quot;, function(){ if(!_bkAuth()) return; _fi.click(); });
-      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
+      _rb.addEventListener(&quot;click&quot;, function(){ _fi.click(); });
+      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; _fi.value=&quot;&quot;; if(!_bkAuth()) return; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } } });
       _wrap.appendChild(_bb); _wrap.appendChild(_rb); _wrap.appendChild(_fi);
       _an.parentNode.insertBefore(_wrap, _an.nextSibling);
       try{ _an.style.display=&quot;none&quot;; }catch(e){}
@@ -8872,8 +8872,8 @@ $(&quot;okModal&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.targ
       var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.addEventListener(&quot;click&quot;, bkExport);
       var _rb=document.createElement(&quot;button&quot;); _rb.type=&quot;button&quot;; _rb.textContent=&quot;Restore CSV&quot;; _rb.className=_an.className;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
-      _rb.addEventListener(&quot;click&quot;, function(){ if(!_bkAuth()) return; _fi.click(); });
-      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
+      _rb.addEventListener(&quot;click&quot;, function(){ _fi.click(); });
+      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; _fi.value=&quot;&quot;; if(!_bkAuth()) return; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } } });
       _wrap.appendChild(_bb); _wrap.appendChild(_rb); _wrap.appendChild(_fi);
       _an.parentNode.insertBefore(_wrap, _an.nextSibling);
       try{ _an.style.display=&quot;none&quot;; }catch(e){}
@@ -9674,8 +9674,8 @@ $(&quot;bTrashToggle&quot;).addEventListener(&quot;click&quot;,function(){ var w
       var _bb=document.createElement(&quot;button&quot;); _bb.type=&quot;button&quot;; _bb.textContent=&quot;Backup CSV&quot;; _bb.className=_an.className; _bb.addEventListener(&quot;click&quot;, bkExport);
       var _rb=document.createElement(&quot;button&quot;); _rb.type=&quot;button&quot;; _rb.textContent=&quot;Restore CSV&quot;; _rb.className=_an.className;
       var _fi=document.createElement(&quot;input&quot;); _fi.type=&quot;file&quot;; _fi.id=&quot;bkRestoreInput_bCsv&quot;; _fi.accept=&quot;.csv,text/csv&quot;; _fi.style.display=&quot;none&quot;;
-      _rb.addEventListener(&quot;click&quot;, function(){ if(!_bkAuth()) return; _fi.click(); });
-      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } _fi.value=&quot;&quot;; } });
+      _rb.addEventListener(&quot;click&quot;, function(){ _fi.click(); });
+      _fi.addEventListener(&quot;change&quot;, function(){ if(_fi.files&amp;&amp;_fi.files[0]){ var f=_fi.files[0]; _fi.value=&quot;&quot;; if(!_bkAuth()) return; if(confirm(&quot;Restore records from '&quot;+f.name+&quot;'?\nExisting records are kept; only missing ones are added.&quot;)){ bkRestore(f); } } });
       _wrap.appendChild(_bb); _wrap.appendChild(_rb); _wrap.appendChild(_fi);
       _an.parentNode.insertBefore(_wrap, _an.nextSibling);
       try{ _an.style.display=&quot;none&quot;; }catch(e){}
