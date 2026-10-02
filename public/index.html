@@ -6093,7 +6093,7 @@ function drawTrashD(){
   wrap.querySelectorAll(&quot;[data-rst]&quot;).forEach(function(b){ b.onclick=async function(){
     var id=b.getAttribute(&quot;data-rst&quot;); var e=null; deletedD=deletedD.filter(function(v){ if(String(v.id)===String(id)){ e=v; return false; } return true; });
     if(e){ delete e.deletedAt; entries.push(e); }
-    if(!(await commitEntries())) return; await save(DEL_KEY,deletedD); refreshHead(); drawBook(); drawTrashD(); toast(&quot;Entry restored.&quot;);
+    if(!(await commitEntries())) return; await save(DEL_KEY,deletedD); refreshHead(); drawBook(); drawStock(); drawTrashD(); toast(&quot;Entry restored.&quot;);
   }; });
   wrap.querySelectorAll(&quot;[data-purge]&quot;).forEach(function(b){ b.onclick=async function(){
     var id=b.getAttribute(&quot;data-purge&quot;); if(!adminOK()) return; if(!confirm(&quot;Delete this entry permanently? This cannot be undone.&quot;)) return;
@@ -6185,7 +6185,7 @@ $(&quot;rSave&quot;).addEventListener(&quot;click&quot;,async function(){
     note:$(&quot;rNote&quot;).value.trim(), photos:photos, deviceId:(editing?(byId(id).deviceId||DEVICE_ID):DEVICE_ID) };
   if(editing){ var ix=entries.findIndex(function(v){ return String(v.id)===String(id); }); if(ix>=0) entries[ix]=rec; else entries.push(rec); }
   else entries.push(rec);
-  if(!(await commitEntries())) return; refreshHead();
+  if(!(await commitEntries())) return; refreshHead(); drawStock(); if(!$(&quot;v-book&quot;).hidden) drawBook();
   $(&quot;rNoteMsg&quot;).textContent=&quot;Received &quot;+litres(received)+&quot; L logged.&quot;;
   RECV_PH.clear(); [&quot;rDriver&quot;,&quot;rTruck&quot;,&quot;rSupplier&quot;,&quot;rDO&quot;,&quot;rTank&quot;,&quot;rBefore&quot;,&quot;rAfter&quot;,&quot;rNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;rTankSel&quot;).value=&quot;&quot;; recalcRecv();
   resetEditState();
@@ -6213,7 +6213,7 @@ $(&quot;uSave&quot;).addEventListener(&quot;click&quot;,async function(){
     note:$(&quot;uNote&quot;).value.trim(), photos:photos, deviceId:(editing?(byId(id).deviceId||DEVICE_ID):DEVICE_ID) };
   if(editing){ var ix=entries.findIndex(function(v){ return String(v.id)===String(id); }); if(ix>=0) entries[ix]=rec; else entries.push(rec); }
   else entries.push(rec);
-  if(!(await commitEntries())) return; refreshHead();
+  if(!(await commitEntries())) return; refreshHead(); drawStock(); if(!$(&quot;v-book&quot;).hidden) drawBook();
   $(&quot;uNoteMsg&quot;).textContent=&quot;Usage &quot;+litres(num($(&quot;uLitres&quot;).value))+&quot; L logged.&quot;;
   USE_PH.clear(); [&quot;uLitres&quot;,&quot;uOther&quot;,&quot;uBy&quot;,&quot;uNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;uDept&quot;).value=&quot;&quot;; $(&quot;uFrom&quot;).value=&quot;&quot;; $(&quot;uOtherWrap&quot;).hidden=true; $(&quot;uType&quot;).value=&quot;Boiler Primary Production (PMD)&quot;;
   resetEditState();
@@ -6240,7 +6240,7 @@ $(&quot;xSave&quot;).addEventListener(&quot;click&quot;,async function(){
     note:$(&quot;xNote&quot;).value.trim(), photos:photos, deviceId:(editing?(byId(id).deviceId||DEVICE_ID):DEVICE_ID) };
   if(editing){ var ix=entries.findIndex(function(v){ return String(v.id)===String(id); }); if(ix>=0) entries[ix]=rec; else entries.push(rec); }
   else entries.push(rec);
-  if(!(await commitEntries())) return; refreshHead();
+  if(!(await commitEntries())) return; refreshHead(); drawStock(); if(!$(&quot;v-book&quot;).hidden) drawBook();
   $(&quot;xNoteMsg&quot;).textContent=&quot;Transfer &quot;+litres(num($(&quot;xLitres&quot;).value))+&quot; L to &quot;+$(&quot;xDest&quot;).value+&quot; logged.&quot;;
   XFER_PH.clear(); [&quot;xLitres&quot;,&quot;xBy&quot;,&quot;xNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;xFrom&quot;).value=&quot;&quot;;
   resetEditState();
@@ -6302,7 +6302,7 @@ function drawBook(){
     var e=byId(b.getAttribute(&quot;data-del&quot;)); if(!canDelete(e)) return;
     entries=entries.filter(function(v){ return String(v.id)!==String(e.id); });
     e.deletedAt=Date.now(); deletedD.unshift(e);
-    if(!(await commitEntries())) return; await save(DEL_KEY,deletedD); refreshHead(); drawBook(); drawTrashD(); toast(&quot;Entry moved to deleted history.&quot;);
+    if(!(await commitEntries())) return; await save(DEL_KEY,deletedD); refreshHead(); drawBook(); drawStock(); drawTrashD(); toast(&quot;Entry moved to deleted history.&quot;);
   }; });
 }
 function byId(id){ var f=null; entries.forEach(function(e){ if(String(e.id)===String(id)) f=e; }); return f; }
@@ -6326,10 +6326,10 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
   function _bkBuild(list){
     list=list||[]; if(!list.length){ return &quot;&quot;; }
     var cols=[],seen={};
-    list.forEach(function(r){ if(r&amp;&amp;typeof r===&quot;object&quot;){ for(var k in r){ var v=r[k]; if(v==null||Array.isArray(v)||typeof v===&quot;object&quot;||_bkHeavy(String(v)))continue; if(!seen[k]){seen[k]=1;cols.push(k);} } } });
+    list.forEach(function(r){ if(r&amp;&amp;typeof r===&quot;object&quot;){ for(var k in r){ var v=r[k]; if(v==null)continue; if(typeof v===&quot;string&quot;&amp;&amp;_bkHeavy(v))continue; if(!seen[k]){seen[k]=1;cols.push(k);} } } });
     if(cols.indexOf(&quot;id&quot;)<0 &amp;&amp; list[0] &amp;&amp; (&quot;id&quot; in list[0])) cols.unshift(&quot;id&quot;);
     var out=cols.map(_bkCell).join(&quot;,&quot;)+&quot;\n&quot;;
-    list.forEach(function(r){ out+=cols.map(function(c){ var v=r?r[c]:&quot;&quot;; if(v==null||Array.isArray(v)||typeof v===&quot;object&quot;)v=&quot;&quot;; return _bkCell(v); }).join(&quot;,&quot;)+&quot;\n&quot;; });
+    list.forEach(function(r){ out+=cols.map(function(c){ var v=r?r[c]:&quot;&quot;; if(v==null)v=&quot;&quot;; else if(Array.isArray(v)||typeof v===&quot;object&quot;){ try{v=JSON.stringify(v);}catch(e){v=&quot;&quot;;} } return _bkCell(v); }).join(&quot;,&quot;)+&quot;\n&quot;; });
     return out;
   }
   function _bkParse(text){
@@ -6348,7 +6348,7 @@ $(&quot;bSearch&quot;).addEventListener(&quot;input&quot;,drawBook);
     if(field.length||row.length){ endr(); }
     if(!rows.length) return [];
     var head=rows.shift();
-    return rows.filter(function(r){ return r.length &amp;&amp; r.join(&quot;&quot;).trim()!==&quot;&quot;; }).map(function(r){ var o={}; head.forEach(function(h,idx){ o[h]=(r[idx]!=null?r[idx]:&quot;&quot;); }); return o; });
+    return rows.filter(function(r){ return r.length &amp;&amp; r.join(&quot;&quot;).trim()!==&quot;&quot;; }).map(function(r){ var o={}; head.forEach(function(h,idx){ var val=(r[idx]!=null?r[idx]:&quot;&quot;); if(typeof val===&quot;string&quot;){ var _t=val.trim(); if(_t.charAt(0)===&quot;[&quot;||_t.charAt(0)===&quot;{&quot;){ try{ val=JSON.parse(_t); }catch(e){} } } o[h]=val; }); return o; });
   }
   function _bkDL(name,text){
     var blob=new Blob([text],{type:&quot;text/csv&quot;}),url=URL.createObjectURL(blob),a=document.createElement(&quot;a&quot;);
