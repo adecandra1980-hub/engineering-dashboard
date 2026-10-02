@@ -4528,7 +4528,8 @@ var CREDS={};
   .filters>div{min-width:140px}
 
   /* stock tiles */
-  .tank-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:10px}
+  .tank-tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:10px}
+  @media(max-width:1040px){ .tank-tiles{grid-template-columns:repeat(3,minmax(0,1fr))} }
   @media(max-width:680px){ .tank-tiles{grid-template-columns:repeat(2,minmax(0,1fr))} }
   @media(max-width:420px){ .tank-tiles{grid-template-columns:1fr} }
   #totalTiles{grid-template-columns:repeat(5,minmax(0,1fr))}
@@ -5331,16 +5332,19 @@ function drawStock(){
   var allTankNames=TANKS.slice();
   Object.keys(bal).forEach(function(t){ if(allTankNames.indexOf(t)<0) allTankNames.push(t); });
   var opnameTotal=totalStock();
-  /* Stock Holding — months of cover based on average usage of the last 2 months with data */
+  /* Stock Holding — months of cover based on the TWO full calendar months BEFORE the current month
+     (e.g. on 2 Oct it uses Aug + Sep, never the partial current month) */
   var _um={}; entries.forEach(function(e){ if(e.kind===&quot;usage&quot;){ var mk=String(e.date||&quot;&quot;).slice(0,7); if(mk.length===7) _um[mk]=(_um[mk]||0)+num(e.litres); } });
-  var _mk=Object.keys(_um).sort(); var _l2=_mk.slice(-2);
-  function _mlbl(k){ var p=String(k).split(&quot;-&quot;); var d=new Date(+p[0], (+p[1])-1, 1); return d.toLocaleString(&quot;en-US&quot;,{month:&quot;short&quot;,year:&quot;numeric&quot;}); }
-  var _avgMo=0, _hMonths=null, _hDays=null, _hsub=&quot;need usage history to calculate&quot;, _hcls=&quot;&quot;;
-  if(_l2.length){ var _s2=0; _l2.forEach(function(k){ _s2+=_um[k]; }); _avgMo=_s2/_l2.length;
-    if(_avgMo>0){ _hMonths=opnameTotal/_avgMo; _hDays=_hMonths*30.4; }
-    _hsub=(_l2.length===2?&quot;avg &quot;:&quot;&quot;)+_l2.map(_mlbl).join(&quot; + &quot;)+&quot; · &quot;+litres(Math.round(_avgMo))+&quot; L/mo&quot;;
-    _hcls=(_hMonths==null?&quot;&quot;:(_hMonths>=2?&quot;t-good&quot;:(_hMonths>=1?&quot;t-warn&quot;:&quot;t-bad&quot;)));
-  }
+  function _mkey(d){ var mo=d.getMonth()+1; return d.getFullYear()+&quot;-&quot;+(mo<10?&quot;0&quot;+mo:&quot;&quot;+mo); }
+  function _mlbl(d){ return d.toLocaleString(&quot;en-US&quot;,{month:&quot;short&quot;,year:&quot;numeric&quot;}); }
+  var _now=new Date();
+  var _pm1=new Date(_now.getFullYear(), _now.getMonth()-1, 1);   /* last full month */
+  var _pm2=new Date(_now.getFullYear(), _now.getMonth()-2, 1);   /* two months ago */
+  var _u1=num(_um[_mkey(_pm1)]), _u2=num(_um[_mkey(_pm2)]);
+  var _avgMo=(_u1+_u2)/2;
+  var _hMonths=null, _hDays=null, _hcls=&quot;&quot;;
+  if(_avgMo>0){ _hMonths=opnameTotal/_avgMo; _hDays=_hMonths*30.4; _hcls=(_hMonths>=2?&quot;t-good&quot;:(_hMonths>=1?&quot;t-warn&quot;:&quot;t-bad&quot;)); }
+  var _hsub=(_avgMo>0)?(&quot;avg &quot;+_mlbl(_pm2)+&quot; + &quot;+_mlbl(_pm1)+&quot; · &quot;+litres(Math.round(_avgMo))+&quot; L/mo&quot;):(&quot;no usage in &quot;+_mlbl(_pm2)+&quot; + &quot;+_mlbl(_pm1));
   var _hVal=(_hMonths!=null)?(Math.round(_hMonths*10)/10):null;
   var holdTile='<div class=&quot;tank-tile'+(_hcls?&quot; &quot;+_hcls:&quot;&quot;)+'&quot;><div class=&quot;tt-name&quot;>Stock Holding</div>'+
     '<div class=&quot;tt-val&quot;>'+(_hVal!=null?_hVal:&quot;—&quot;)+' <small>months</small></div>'+
