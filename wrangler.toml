@@ -18,7 +18,7 @@ database_id = "369c2eab-a4d7-4785-9c58-a471f19b788b"
 # KV -> Create namespace (name e.g. "oee-files") -> copy its ID below.
 [[kv_namespaces]]
 binding = "OEE_FILES"
-id ="OEE_FILES"
+id = b94e949b090d40369fff79b0d125a4bf
 
 # Optional: set a stronger shared secret for the Power Automate POST.
 # Either put it here as a plain var, or (better) add INGEST_KEY under
