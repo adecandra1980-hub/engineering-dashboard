@@ -4522,11 +4522,11 @@ var CREDS={};
   #shiftAnFS .shcard{cursor:default}
   #shiftAnFS .shcard .shexp{display:none}
   .shcard .shct{font-family:var(--disp);font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink)}
-  .shcard .shcs{font-size:10.5px;color:var(--muted);margin-bottom:4px}
+  .shcard .shcs{font-size:10.5px;font-weight:700;color:var(--ink-soft);margin-bottom:4px}
   #shiftAnFS{display:grid;gap:12px;width:100%;height:100%;overflow:hidden;box-sizing:border-box}
   #shiftAnFS .shcard{display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;box-sizing:border-box}
   #shiftAnFS .shcard .shct{flex:none;font-size:17px}
-  #shiftAnFS .shcard .shcs{flex:none;font-size:12.5px;margin-bottom:2px}
+  #shiftAnFS .shcard .shcs{flex:none;font-size:14px;font-weight:700;margin-bottom:3px}
   #shiftAnFS .shcard svg{flex:1 1 auto;width:100%;height:100%;min-height:0;display:block}
   .ccard{border:1px solid var(--rule);border-radius:2px;padding:10px 12px;background:var(--panel-2);cursor:pointer;position:relative}
   .ccard:hover{border-color:var(--starch);box-shadow:0 2px 10px rgba(0,0,0,.08)}
@@ -4777,6 +4777,7 @@ function vbars(cats, series, opt){
   opt=opt||{}; var W=opt.W||520,H=opt.H||190;
   var fs=opt.fs||1;
   var fAx=Math.round(8*fs*10)/10, fVal=Math.round(7.5*fs*10)/10, fCat=Math.round(8.5*fs*10)/10, fTgt=Math.round(8*fs*10)/10;
+  var fwBold=(fs>=1.4?800:700), fwAx=(fs>=1.4?700:600);
   var L=Math.round(Math.max(42, 24+fAx*1.6)), R=Math.round(Math.max(10, 8+fTgt*0.4)), T=Math.round(Math.max(14, 6+fVal)), B=Math.round(Math.max(28, 14+fCat));
   var n=cats.length, gw=(W-L-R)/Math.max(1,n), ns=series.length;
   var max=opt.pct?100:Math.max.apply(null, series.reduce(function(a,se){return a.concat(se.vals.map(function(v){return v||0;}));},[]).concat([1]));
@@ -4788,16 +4789,16 @@ function vbars(cats, series, opt){
   var labMode = (barW >= fVal*2.6) ? &quot;h&quot; : (bwEach >= fVal*1.15 ? &quot;v&quot; : &quot;off&quot;);
   if(opt.hideVals) labMode=&quot;off&quot;;
   var s='<svg viewBox=&quot;0 0 '+W+' '+H+'&quot;>';
-  for(var g=0;g<=4;g++){ var gy=T+(H-T-B)*g/4,val=max*(1-g/4); s+='<line x1=&quot;'+L+'&quot; y1=&quot;'+gy+'&quot; x2=&quot;'+(W-R)+'&quot; y2=&quot;'+gy+'&quot; stroke=&quot;var(--rule)&quot;/><text x=&quot;'+(L-fAx*0.6)+'&quot; y=&quot;'+(gy+fAx*0.35)+'&quot; font-size=&quot;'+fAx+'&quot; fill=&quot;var(--muted)&quot; text-anchor=&quot;end&quot;>'+(opt.pct?Math.round(val):(val>=1000?Math.round(val/1000)+&quot;k&quot;:Math.round(val)))+'</text>'; }
-  if(opt.target!=null){ var ty=yf(opt.target); s+='<line x1=&quot;'+L+'&quot; y1=&quot;'+ty+'&quot; x2=&quot;'+(W-R)+'&quot; y2=&quot;'+ty+'&quot; stroke=&quot;#B3402F&quot; stroke-width=&quot;'+(1.3*Math.max(1,fs*0.8))+'&quot; stroke-dasharray=&quot;'+(4*fs)+' '+(3*fs)+'&quot;/><text x=&quot;'+(W-R)+'&quot; y=&quot;'+(ty-fTgt*0.4)+'&quot; font-size=&quot;'+fTgt+'&quot; fill=&quot;#B3402F&quot; text-anchor=&quot;end&quot;>target '+opt.target+'%</text>'; }
+  for(var g=0;g<=4;g++){ var gy=T+(H-T-B)*g/4,val=max*(1-g/4); s+='<line x1=&quot;'+L+'&quot; y1=&quot;'+gy+'&quot; x2=&quot;'+(W-R)+'&quot; y2=&quot;'+gy+'&quot; stroke=&quot;var(--rule)&quot;/><text x=&quot;'+(L-fAx*0.6)+'&quot; y=&quot;'+(gy+fAx*0.35)+'&quot; font-size=&quot;'+fAx+'&quot; font-weight=&quot;'+fwAx+'&quot; fill=&quot;var(--ink-soft)&quot; text-anchor=&quot;end&quot;>'+(opt.pct?Math.round(val):(val>=1000?Math.round(val/1000)+&quot;k&quot;:Math.round(val)))+'</text>'; }
+  if(opt.target!=null){ var ty=yf(opt.target); s+='<line x1=&quot;'+L+'&quot; y1=&quot;'+ty+'&quot; x2=&quot;'+(W-R)+'&quot; y2=&quot;'+ty+'&quot; stroke=&quot;#B3402F&quot; stroke-width=&quot;'+(1.3*Math.max(1,fs*0.8))+'&quot; stroke-dasharray=&quot;'+(4*fs)+' '+(3*fs)+'&quot;/><text x=&quot;'+(W-R)+'&quot; y=&quot;'+(ty-fTgt*0.4)+'&quot; font-size=&quot;'+fTgt+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;#B3402F&quot; text-anchor=&quot;end&quot;>target '+opt.target+'%</text>'; }
   var maxLen=cats.reduce(function(a,c){return Math.max(a,String(c).length);},1);
   var catStep=Math.max(1, Math.ceil((maxLen*fCat*0.6+4)/gw));
   cats.forEach(function(ct,i){ var x0=L+i*gw, groupW=bwEach*ns, gstart=x0+(gw-groupW)/2;
     series.forEach(function(se,si){ var v=se.vals[i]||0, bx=gstart+si*bwEach, by=yf(v), bh=(H-B)-by, cx=bx+barW/2;
       s+='<rect x=&quot;'+bx+'&quot; y=&quot;'+by+'&quot; width=&quot;'+barW+'&quot; height=&quot;'+Math.max(0,bh)+'&quot; fill=&quot;'+se.color+'&quot;/>';
-      if(opt.pct&amp;&amp;v>0&amp;&amp;labMode===&quot;h&quot;) s+='<text x=&quot;'+cx+'&quot; y=&quot;'+(by-fVal*0.4)+'&quot; font-size=&quot;'+fVal+'&quot; fill=&quot;var(--ink-soft)&quot; text-anchor=&quot;middle&quot;>'+v+'</text>';
-      else if(opt.pct&amp;&amp;v>0&amp;&amp;labMode===&quot;v&quot;) s+='<text x=&quot;'+cx+'&quot; y=&quot;'+(by-fVal*0.35)+'&quot; font-size=&quot;'+(fVal*0.92)+'&quot; fill=&quot;var(--ink-soft)&quot; text-anchor=&quot;start&quot; transform=&quot;rotate(-90 '+cx+' '+(by-fVal*0.35)+')&quot;>'+v+'</text>'; });
-    if(i%catStep===0 || i===n-1) s+='<text x=&quot;'+(x0+gw/2)+'&quot; y=&quot;'+(H-B+fCat*1.5)+'&quot; font-size=&quot;'+fCat+'&quot; fill=&quot;var(--muted)&quot; text-anchor=&quot;middle&quot;>'+esc(ct)+'</text>'; });
+      if(opt.pct&amp;&amp;v>0&amp;&amp;labMode===&quot;h&quot;) s+='<text x=&quot;'+cx+'&quot; y=&quot;'+(by-fVal*0.4)+'&quot; font-size=&quot;'+fVal+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;middle&quot;>'+v+'</text>';
+      else if(opt.pct&amp;&amp;v>0&amp;&amp;labMode===&quot;v&quot;) s+='<text x=&quot;'+cx+'&quot; y=&quot;'+(by-fVal*0.35)+'&quot; font-size=&quot;'+(fVal*0.92)+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;start&quot; transform=&quot;rotate(-90 '+cx+' '+(by-fVal*0.35)+')&quot;>'+v+'</text>'; });
+    if(i%catStep===0 || i===n-1) s+='<text x=&quot;'+(x0+gw/2)+'&quot; y=&quot;'+(H-B+fCat*1.5)+'&quot; font-size=&quot;'+fCat+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;middle&quot;>'+esc(ct)+'</text>'; });
   return s+'</svg>';
 }
 function comboChart(cats, series, opt){
@@ -5012,7 +5013,7 @@ function renderShiftAnalysisFS(){
   if(!_shCards.length){ el.innerHTML='<div class=&quot;note&quot;>No shift data for this selection / period.</div>'; el.style.gridTemplateColumns=&quot;1fr&quot;; el.style.gridTemplateRows=&quot;1fr&quot;; return; }
   var single = (_shFsOnly!=null &amp;&amp; _shFsOnly>=0 &amp;&amp; _shFsOnly<_shCards.length);
   var list = single ? [_shCards[_shFsOnly]] : _shCards;
-  var W = single?1120:640, H = single?520:300, FS = single?2.4:1.5;
+  var W = single?1120:560, H = single?600:430, FS = single?2.9:2.5;
   el.innerHTML=list.map(function(c){
     return '<div class=&quot;shcard&quot;><div class=&quot;shct&quot;>'+esc(c.name)+'</div><div class=&quot;shcs&quot;>'+esc(c.sub||(cfg.lbl+' · Shift 1 / 2 / 3'))+'</div>'+vbars(c.ms,c.series,{pct:cfg.pct,target:cfg.pct?85:null,W:W,H:H,fs:FS})+'</div>';
   }).join(&quot;&quot;);
