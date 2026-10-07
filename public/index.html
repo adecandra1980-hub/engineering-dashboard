@@ -5288,7 +5288,18 @@ function N(v){ var n=parseFloat(v); return isNaN(n)?null:Math.round(n); }
 /* robust date reader: accepts a real Date, an Excel serial number, or a text date
    (ISO, day/month/year, &quot;1 Oct 2026&quot;, etc.) so rows typed as text (common for new
    October entries) are still counted. Returns a UTC Date or null. */
-function _toDate(v){
+/* Snap a parsed date to the nearest whole calendar DAY and return it as a UTC-midnight
+   Date, so downstream .toISOString()/.getUTCDate() always give the intended day.
+   This corrects (a) SheetJS reading Excel date serials a few seconds before midnight,
+   and (b) the viewer's timezone pushing a local-midnight date onto the previous UTC day
+   (e.g. an Oct-6 cell read in UTC+7 would otherwise bin as Oct 5). */
+function _snapDay(d){ if(!d||isNaN(d.getTime())) return null;
+  var ms=d.getTime()-d.getTimezoneOffset()*60000;   /* local wall-clock, expressed in UTC fields */
+  ms=Math.round(ms/86400000)*86400000;              /* round to the nearest whole day */
+  return new Date(ms);                              /* UTC-midnight on the intended calendar day */
+}
+function _toDate(v){ return _snapDay(_toDateRaw(v)); }
+function _toDateRaw(v){
   if(v instanceof Date) return isNaN(v.getTime())?null:v;
   if(typeof v===&quot;number&quot;){ if(v>20000&amp;&amp;v<80000) return new Date(Math.round((v-25569)*86400000)); return null; }
   if(typeof v===&quot;string&quot;){ var s=v.trim(); if(!s) return null; var m;
