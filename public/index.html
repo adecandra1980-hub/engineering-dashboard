@@ -5542,9 +5542,41 @@ function doUpload(file){
   }catch(err){ alert(&quot;Upload failed: &quot;+err.message); } };
   rd.readAsArrayBuffer(file);
 }
+/* ---- Auto-update from SharePoint ----------------------------------------
+   A Power Automate flow pushes the workbook to the Worker (/api/oee-ingest)
+   whenever the SharePoint file changes. The dashboard polls the file's
+   timestamp and, when it is newer than what we already have, downloads the
+   workbook and parses it in the browser (same parser as the Upload button),
+   then re-renders — no manual step, and the TV view refreshes on its own. */
+var OEE_INGEST=&quot;/api/oee-ingest&quot;;
+var _oeeFileTs=0; try{ _oeeFileTs=+localStorage.getItem(&quot;oee:fileTs&quot;)||0; }catch(e){}
+function applyWorkbookBuffer(ab, meta){
+  var wb=XLSX.read(new Uint8Array(ab),{type:&quot;array&quot;,cellDates:true});
+  var nd=parseWB(wb);
+  if(!nd.machines||!nd.machines.length) throw new Error(&quot;not an OEE workbook&quot;);
+  DATA=nd; META=meta||{src:&quot;auto&quot;,when:new Date().toISOString()};
+  var _pl=JSON.stringify({data:DATA,meta:META});
+  try{ localStorage.setItem(&quot;oee_ds&quot;,_pl); }catch(x){}
+  recompute(); captureAll(); if($(&quot;shiftSel&quot;)) $(&quot;shiftSel&quot;).value=&quot;all&quot;; _curShift=&quot;all&quot;; fillControls(false); render();
+  oeeSaveCloud(_pl);
+  return nd;
+}
+function _oeeToast(msg){ var t=document.getElementById(&quot;oeeToast&quot;); if(!t){ t=document.createElement(&quot;div&quot;); t.id=&quot;oeeToast&quot;; t.style.cssText=&quot;position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#1F5673;color:#fff;font:700 13px/1.3 Arial,Helvetica,sans-serif;padding:9px 16px;border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,.28);z-index:2147483600;opacity:0;transition:opacity .35s;pointer-events:none&quot;; document.body.appendChild(t); } t.textContent=msg; t.style.opacity=&quot;1&quot;; clearTimeout(t._h); t._h=setTimeout(function(){ t.style.opacity=&quot;0&quot;; },5000); }
+function oeeAutoSync(){ if(typeof fetch!==&quot;function&quot;) return;
+  fetch(OEE_INGEST+&quot;?meta=1&quot;,{cache:&quot;no-store&quot;}).then(function(r){ return r.ok?r.json():null; }).then(function(m){
+    if(!m||!m.ts||m.ts<=_oeeFileTs) return;            /* nothing newer in SharePoint */
+    return fetch(OEE_INGEST,{cache:&quot;no-store&quot;}).then(function(r){ if(!r.ok) throw new Error(&quot;dl &quot;+r.status); return r.arrayBuffer(); }).then(function(ab){
+      applyWorkbookBuffer(ab,{src:&quot;sharepoint&quot;,name:m.name||&quot;OEE Machine SMD 2026.xlsx&quot;,when:new Date(m.ts).toISOString(),fileTs:m.ts});
+      _oeeFileTs=m.ts; try{ localStorage.setItem(&quot;oee:fileTs&quot;,String(m.ts)); }catch(e){}
+      try{ _oeeToast(&quot;Updated from SharePoint · &quot;+new Date(m.ts).toLocaleString()); }catch(e){}
+    });
+  }).catch(function(){ /* offline / not set up yet — stay on current data */ });
+}
 recompute(); captureAll(); fillControls(false); render();
 /* pull the latest uploaded dataset from the shared database (if any) and apply it */
-oeeLoadCloud(function(o){ if(_oeeValid(o)){ DATA=o.data; META=o.meta||META; try{ localStorage.setItem(&quot;oee_ds&quot;,JSON.stringify({data:DATA,meta:META})); }catch(e){} recompute(); captureAll(); if($(&quot;shiftSel&quot;)) $(&quot;shiftSel&quot;).value=&quot;all&quot;; _curShift=&quot;all&quot;; fillControls(false); render(); } });
+oeeLoadCloud(function(o){ if(_oeeValid(o)){ DATA=o.data; META=o.meta||META; try{ localStorage.setItem(&quot;oee_ds&quot;,JSON.stringify({data:DATA,meta:META})); }catch(e){} if(META&amp;&amp;META.fileTs&amp;&amp;META.fileTs>_oeeFileTs) _oeeFileTs=META.fileTs; recompute(); captureAll(); if($(&quot;shiftSel&quot;)) $(&quot;shiftSel&quot;).value=&quot;all&quot;; _curShift=&quot;all&quot;; fillControls(false); render(); }
+  setTimeout(oeeAutoSync,1500); });            /* check SharePoint right after loading the cache */
+setInterval(oeeAutoSync,180000);               /* and re-check every 3 minutes (TV auto-refresh) */
 $(&quot;shiftSel&quot;).addEventListener(&quot;change&quot;,function(){ applyShift(this.value); });
 $(&quot;mtFsBtn&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;mtFs&quot;).classList.add(&quot;open&quot;); renderMachineTilesFS(); });
 $(&quot;mtFsClose&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;mtFs&quot;).classList.remove(&quot;open&quot;); });
