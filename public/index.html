@@ -5549,7 +5549,10 @@ function doUpload(file){
    workbook and parses it in the browser (same parser as the Upload button),
    then re-renders — no manual step, and the TV view refreshes on its own. */
 var OEE_INGEST=&quot;/api/oee-ingest&quot;;
-var _oeeFileTs=0; try{ _oeeFileTs=+localStorage.getItem(&quot;oee:fileTs&quot;)||0; }catch(e){}
+/* in-session gate only — NOT read from localStorage, so a fresh page load always
+   re-pulls the SharePoint file unless the shared cache (oee:ds) already carried its
+   fileTs. This avoids getting stuck on the built-in sample after a reload. */
+var _oeeFileTs=0;
 function applyWorkbookBuffer(ab, meta){
   var wb=XLSX.read(new Uint8Array(ab),{type:&quot;array&quot;,cellDates:true});
   var nd=parseWB(wb);
@@ -5567,7 +5570,7 @@ function oeeAutoSync(){ if(typeof fetch!==&quot;function&quot;) return;
     if(!m||!m.ts||m.ts<=_oeeFileTs) return;            /* nothing newer in SharePoint */
     return fetch(OEE_INGEST,{cache:&quot;no-store&quot;}).then(function(r){ if(!r.ok) throw new Error(&quot;dl &quot;+r.status); return r.arrayBuffer(); }).then(function(ab){
       applyWorkbookBuffer(ab,{src:&quot;sharepoint&quot;,name:m.name||&quot;OEE Machine SMD 2026.xlsx&quot;,when:new Date(m.ts).toISOString(),fileTs:m.ts});
-      _oeeFileTs=m.ts; try{ localStorage.setItem(&quot;oee:fileTs&quot;,String(m.ts)); }catch(e){}
+      _oeeFileTs=m.ts;
       try{ _oeeToast(&quot;Updated from SharePoint · &quot;+new Date(m.ts).toLocaleString()); }catch(e){}
     });
   }).catch(function(){ /* offline / not set up yet — stay on current data */ });
