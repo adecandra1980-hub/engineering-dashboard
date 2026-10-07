@@ -5172,7 +5172,8 @@ function render(){
   var sel=getSel(); var machs=sel.filter(function(x){return x!==&quot;ALL&quot;;}); var showPlant=sel.indexOf(&quot;ALL&quot;)>=0;
   var effAll = showPlant &amp;&amp; !machs.length; /* whole-plant view: panels show all machines, trend shows only the plant line */
   var focus = machs.length? machs[0] : &quot;ALL&quot;; var m=focus; var pi=periodInfo();
-  if(META.src===&quot;upload&quot;){ var dt=META.when?new Date(META.when):null; $(&quot;dstamp&quot;).innerHTML='Data updated from <b>'+esc(META.name||&quot;Excel&quot;)+'</b> · uploaded <b>'+(dt?dt.toLocaleString():&quot;—&quot;)+'</b>'; }
+  if(META.src===&quot;sharepoint&quot;||META.src===&quot;auto&quot;){ var dts=META.when?new Date(META.when):null; $(&quot;dstamp&quot;).innerHTML='Auto-synced from <b>SharePoint</b> · <b>'+esc(META.name||&quot;OEE Machine SMD 2026.xlsx&quot;)+'</b> · data as of <b>'+esc(DATA.asof||&quot;—&quot;)+'</b> (week '+esc(DATA.cur_week||&quot;&quot;)+') · updated <b>'+(dts?dts.toLocaleString():&quot;—&quot;)+'</b>'; }
+  else if(META.src===&quot;upload&quot;){ var dt=META.when?new Date(META.when):null; $(&quot;dstamp&quot;).innerHTML='Data updated from <b>'+esc(META.name||&quot;Excel&quot;)+'</b> · uploaded <b>'+(dt?dt.toLocaleString():&quot;—&quot;)+'</b>'; }
   else { $(&quot;dstamp&quot;).innerHTML='Built-in sample · data as of <b>'+esc(DATA.asof||&quot;—&quot;)+'</b> (week '+esc(DATA.cur_week||&quot;&quot;)+'). Upload your Excel to update.'; }
   /* KPIs */
   var pOEE=oeeFor(&quot;ALL&quot;,pi);
