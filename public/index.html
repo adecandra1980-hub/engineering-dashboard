@@ -4704,6 +4704,9 @@ if(!window.storage){ (function(){ var API=&quot;/api/kv&quot;;
   };
 })(); }
 var OEE_KEY=&quot;oee:ds&quot;;
+/* Parser version. Bump this whenever parseWB/date handling changes, so a cached parse
+   (oee:ds) made by an older parser is treated as stale and the file is re-pulled/re-parsed. */
+var OEE_PV=2;
 function _oeeValid(o){ return !!(o&amp;&amp;o.data&amp;&amp;o.data.plan_w&amp;&amp;o.data.oee_w&amp;&amp;o.data.weeks&amp;&amp;o.data.chart&amp;&amp;o.data.output_w&amp;&amp;o.data.groups&amp;&amp;o.data.waste7&amp;&amp;o.data.dtm7); }
 function _oeeGz(str){ try{ if(typeof CompressionStream===&quot;undefined&quot;) return Promise.resolve(null);
   var cs=new CompressionStream(&quot;gzip&quot;);
@@ -5202,12 +5205,20 @@ function render(){
   if(!idxs.length){ tmode=&quot;m&quot;; idxs=[]; for(var i=0;i<=LM;i++) idxs.push(i); }
   var xl=idxs.map(function(i){ return tmode===&quot;w&quot;?(&quot;W&quot;+DATA.weeks[i]) : (tmode===&quot;d&quot;?((DATA.days7||[])[i]||(&quot;Day &quot;+(i+1))) : DATA.months[i]); });
   var tsrc = tmode===&quot;w&quot;? DATA.oee_w : (tmode===&quot;d&quot;? DATA.oee7 : DATA.oee);
+  /* When exactly ONE week is selected, break the trend into that week's individual days
+     (daily OEE within the week) instead of a single weekly bar. */
+  var _wkExpand=0;
+  if(tmode===&quot;w&quot; &amp;&amp; idxs.length===1 &amp;&amp; DATA.oee7 &amp;&amp; DATA.days7 &amp;&amp; DATA.days7.length){
+    var _wkNum=DATA.weeks[idxs[0]], _yr=_dataYear(), _MON=[&quot;Jan&quot;,&quot;Feb&quot;,&quot;Mar&quot;,&quot;Apr&quot;,&quot;May&quot;,&quot;Jun&quot;,&quot;Jul&quot;,&quot;Aug&quot;,&quot;Sep&quot;,&quot;Oct&quot;,&quot;Nov&quot;,&quot;Dec&quot;], _di=[];
+    DATA.days7.forEach(function(lbl,i){ var p=String(lbl).split(&quot; &quot;); var dd=parseInt(p[0],10), mi=_MON.indexOf(p[1]); if(isNaN(dd)||mi<0) return; if(_isoWk(new Date(Date.UTC(_yr,mi,dd)))===_wkNum) _di.push(i); });
+    if(_di.length){ tmode=&quot;d&quot;; idxs=_di; xl=_di.map(function(i){ return (DATA.days7||[])[i]; }); tsrc=DATA.oee7; _wkExpand=_wkNum; }
+  }
   function tpts(key){ return idxs.map(function(i){ return (tsrc[key]||[])[i]; }); }
   var series=[];
   if(showPlant) series.push({name:&quot;Plant (all)&quot;,color:&quot;#1B1F23&quot;,points:tpts(&quot;ALL&quot;)});
   machs.forEach(function(mm){ series.push({name:mm,color:machColor(mm),points:tpts(mm)}); });
   if(!series.length){ series.push({name:&quot;Plant (all)&quot;,color:&quot;#1B1F23&quot;,points:tpts(&quot;ALL&quot;)}); }
-  $(&quot;trendTitle&quot;).textContent=tmode===&quot;w&quot;?&quot;Weekly OEE Trend&quot;:(tmode===&quot;d&quot;?&quot;Daily OEE Trend&quot;:&quot;Monthly OEE Trend&quot;);
+  $(&quot;trendTitle&quot;).textContent=_wkExpand?(&quot;Week &quot;+_wkExpand+&quot; — Daily OEE&quot;):(tmode===&quot;w&quot;?&quot;Weekly OEE Trend&quot;:(tmode===&quot;d&quot;?&quot;Daily OEE Trend&quot;:&quot;Monthly OEE Trend&quot;));
   _trendSeries=series; _trendXl=xl; _trendLabel=pi.label; drawTrend();
   /* OEE by machine (clickable → A/P/Q drill-down) */
   var selSet={}; machs.forEach(function(x){selSet[x]=1;});
@@ -5546,7 +5557,7 @@ function doUpload(file){
     var wb=XLSX.read(new Uint8Array(e.target.result),{type:&quot;array&quot;,cellDates:true});
     var nd=parseWB(wb);
     if(!nd.machines||!nd.machines.length){ alert(&quot;Could not read OEE data — is this the OEE Machine SMD workbook?&quot;); return; }
-    DATA=nd; META={src:&quot;upload&quot;,name:file.name,when:new Date().toISOString()};
+    DATA=nd; META={src:&quot;upload&quot;,name:file.name,when:new Date().toISOString(),pv:OEE_PV};
     var _pl=JSON.stringify({data:DATA,meta:META});
     try{ localStorage.setItem(&quot;oee_ds&quot;,_pl); }catch(x){}
     recompute(); captureAll(); if($(&quot;shiftSel&quot;)) $(&quot;shiftSel&quot;).value=&quot;all&quot;; _curShift=&quot;all&quot;; fillControls(false); render();
@@ -5569,7 +5580,7 @@ function applyWorkbookBuffer(ab, meta){
   var wb=XLSX.read(new Uint8Array(ab),{type:&quot;array&quot;,cellDates:true});
   var nd=parseWB(wb);
   if(!nd.machines||!nd.machines.length) throw new Error(&quot;not an OEE workbook&quot;);
-  DATA=nd; META=meta||{src:&quot;auto&quot;,when:new Date().toISOString()};
+  DATA=nd; META=meta||{src:&quot;auto&quot;,when:new Date().toISOString()}; META.pv=OEE_PV;
   var _pl=JSON.stringify({data:DATA,meta:META});
   try{ localStorage.setItem(&quot;oee_ds&quot;,_pl); }catch(x){}
   recompute(); captureAll(); if($(&quot;shiftSel&quot;)) $(&quot;shiftSel&quot;).value=&quot;all&quot;; _curShift=&quot;all&quot;; fillControls(false); render();
@@ -5589,7 +5600,7 @@ function oeeAutoSync(){ if(typeof fetch!==&quot;function&quot;) return;
 }
 recompute(); captureAll(); fillControls(false); render();
 /* pull the latest uploaded dataset from the shared database (if any) and apply it */
-oeeLoadCloud(function(o){ if(_oeeValid(o)){ DATA=o.data; META=o.meta||META; try{ localStorage.setItem(&quot;oee_ds&quot;,JSON.stringify({data:DATA,meta:META})); }catch(e){} if(META&amp;&amp;META.fileTs&amp;&amp;META.fileTs>_oeeFileTs) _oeeFileTs=META.fileTs; recompute(); captureAll(); if($(&quot;shiftSel&quot;)) $(&quot;shiftSel&quot;).value=&quot;all&quot;; _curShift=&quot;all&quot;; fillControls(false); render(); }
+oeeLoadCloud(function(o){ if(_oeeValid(o)){ DATA=o.data; META=o.meta||META; try{ localStorage.setItem(&quot;oee_ds&quot;,JSON.stringify({data:DATA,meta:META})); }catch(e){} if(META&amp;&amp;META.fileTs&amp;&amp;META.pv===OEE_PV&amp;&amp;META.fileTs>_oeeFileTs) _oeeFileTs=META.fileTs; recompute(); captureAll(); if($(&quot;shiftSel&quot;)) $(&quot;shiftSel&quot;).value=&quot;all&quot;; _curShift=&quot;all&quot;; fillControls(false); render(); }
   setTimeout(oeeAutoSync,1500); });            /* check SharePoint right after loading the cache */
 setInterval(oeeAutoSync,180000);               /* and re-check every 3 minutes (TV auto-refresh) */
 $(&quot;shiftSel&quot;).addEventListener(&quot;change&quot;,function(){ applyShift(this.value); });
