@@ -5205,10 +5205,17 @@ function render(){
   if(!idxs.length){ tmode=&quot;m&quot;; idxs=[]; for(var i=0;i<=LM;i++) idxs.push(i); }
   var xl=idxs.map(function(i){ return tmode===&quot;w&quot;?(&quot;W&quot;+DATA.weeks[i]) : (tmode===&quot;d&quot;?((DATA.days7||[])[i]||(&quot;Day &quot;+(i+1))) : DATA.months[i]); });
   var tsrc = tmode===&quot;w&quot;? DATA.oee_w : (tmode===&quot;d&quot;? DATA.oee7 : DATA.oee);
-  /* When exactly ONE week is selected, break the trend into that week's individual days
-     (daily OEE within the week) instead of a single weekly bar. */
+  /* When exactly ONE month is selected, break the trend into that month's weeks
+     (weekly OEE within the month) instead of a single monthly bar. */
+  var _moExpand=&quot;&quot;;
+  if(tmode===&quot;m&quot; &amp;&amp; idxs.length===1 &amp;&amp; DATA.oee_w &amp;&amp; DATA.weeks &amp;&amp; DATA.weeks.length){
+    var _mIdx=idxs[0], _wi=weekIdxsInMonth(_mIdx);
+    if(_wi.length){ tmode=&quot;w&quot;; idxs=_wi; xl=_wi.map(function(i){ return &quot;W&quot;+DATA.weeks[i]; }); tsrc=DATA.oee_w; _moExpand=DATA.months[_mIdx]; }
+  }
+  /* When exactly ONE week is selected (and we didn't just expand a month), break the trend
+     into that week's individual days (daily OEE within the week). */
   var _wkExpand=0;
-  if(tmode===&quot;w&quot; &amp;&amp; idxs.length===1 &amp;&amp; DATA.oee7 &amp;&amp; DATA.days7 &amp;&amp; DATA.days7.length){
+  if(!_moExpand &amp;&amp; tmode===&quot;w&quot; &amp;&amp; idxs.length===1 &amp;&amp; DATA.oee7 &amp;&amp; DATA.days7 &amp;&amp; DATA.days7.length){
     var _wkNum=DATA.weeks[idxs[0]], _yr=_dataYear(), _MON=[&quot;Jan&quot;,&quot;Feb&quot;,&quot;Mar&quot;,&quot;Apr&quot;,&quot;May&quot;,&quot;Jun&quot;,&quot;Jul&quot;,&quot;Aug&quot;,&quot;Sep&quot;,&quot;Oct&quot;,&quot;Nov&quot;,&quot;Dec&quot;], _di=[];
     DATA.days7.forEach(function(lbl,i){ var p=String(lbl).split(&quot; &quot;); var dd=parseInt(p[0],10), mi=_MON.indexOf(p[1]); if(isNaN(dd)||mi<0) return; if(_isoWk(new Date(Date.UTC(_yr,mi,dd)))===_wkNum) _di.push(i); });
     if(_di.length){ tmode=&quot;d&quot;; idxs=_di; xl=_di.map(function(i){ return (DATA.days7||[])[i]; }); tsrc=DATA.oee7; _wkExpand=_wkNum; }
@@ -5218,7 +5225,7 @@ function render(){
   if(showPlant) series.push({name:&quot;Plant (all)&quot;,color:&quot;#1B1F23&quot;,points:tpts(&quot;ALL&quot;)});
   machs.forEach(function(mm){ series.push({name:mm,color:machColor(mm),points:tpts(mm)}); });
   if(!series.length){ series.push({name:&quot;Plant (all)&quot;,color:&quot;#1B1F23&quot;,points:tpts(&quot;ALL&quot;)}); }
-  $(&quot;trendTitle&quot;).textContent=_wkExpand?(&quot;Week &quot;+_wkExpand+&quot; — Daily OEE&quot;):(tmode===&quot;w&quot;?&quot;Weekly OEE Trend&quot;:(tmode===&quot;d&quot;?&quot;Daily OEE Trend&quot;:&quot;Monthly OEE Trend&quot;));
+  $(&quot;trendTitle&quot;).textContent=_moExpand?(_moExpand+&quot; — Weekly OEE&quot;):(_wkExpand?(&quot;Week &quot;+_wkExpand+&quot; — Daily OEE&quot;):(tmode===&quot;w&quot;?&quot;Weekly OEE Trend&quot;:(tmode===&quot;d&quot;?&quot;Daily OEE Trend&quot;:&quot;Monthly OEE Trend&quot;)));
   _trendSeries=series; _trendXl=xl; _trendLabel=pi.label; drawTrend();
   /* OEE by machine (clickable → A/P/Q drill-down) */
   var selSet={}; machs.forEach(function(x){selSet[x]=1;});
