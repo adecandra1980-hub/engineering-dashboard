@@ -5871,6 +5871,7 @@ document.addEventListener(&quot;click&quot;,function(e){ var d=$(&quot;mSel&quot
           <select id=&quot;uType&quot;>
             <option>Boiler Primary Production (PMD)</option>
             <option>Forklift usage from Warehouse</option>
+            <option>Generator</option>
             <option>Others</option>
           </select></div>
         <div><label class=&quot;f&quot; for=&quot;uLitres&quot;>Litres used (L) <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;uLitres&quot; type=&quot;number&quot; inputmode=&quot;decimal&quot; min=&quot;0&quot; placeholder=&quot;e.g. 120&quot;></div>
@@ -10155,9 +10156,10 @@ function renderDieselChart(){
   const USAGE_TYPES=[
     {key:'Boiler Primary Production (PMD)', label:'Boiler PMD',        color:'#B07845'},
     {key:'Forklift usage from Warehouse',   label:'Forklift Warehouse',color:'#1F5673'},
+    {key:'Generator',                       label:'Generator',         color:'#2E7D4F'},
     {key:'Others',                          label:'Others',            color:'#8A8478'}
   ];
-  const usageBreak=(a,b,tank)=>{ const o=[0,0,0]; entries.forEach(x=>{ if(x.kind!=='usage')return; if(tank && canonT(x.from)!==tank) return; const t=tsOf(x); if(t<a||t>b) return; let k=USAGE_TYPES.findIndex(u=>u.key===x.usageType); if(k<0) k=2; o[k]+=(+x.litres||0); }); return o; };
+  const usageBreak=(a,b,tank)=>{ const o=USAGE_TYPES.map(()=>0); entries.forEach(x=>{ if(x.kind!=='usage')return; if(tank && canonT(x.from)!==tank) return; const t=tsOf(x); if(t<a||t>b) return; let k=USAGE_TYPES.findIndex(u=>u.key===x.usageType); if(k<0) k=USAGE_TYPES.length-1; o[k]+=(+x.litres||0); }); return o; };
   const sumArr=o=>o.reduce((a,b)=>a+b,0);
   const stacked=dwkMetric==='usage';
   function box(label, tank){
