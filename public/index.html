@@ -4547,6 +4547,10 @@ var CREDS={};
   @media(max-width:1000px){.mtiles{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:760px){.mtiles{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:460px){.mtiles{grid-template-columns:1fr}}
+  #moutTiles svg{width:100%;height:auto;display:block}
+  #moutTilesFS{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;overflow:hidden}
+  #moutTilesFS svg{width:100%;height:auto;max-height:100%}
+  #moutTilesFS .legend{font-size:15px}
   .mtile{background:var(--panel-2);border:1px solid var(--rule);border-top:3px solid var(--starch);border-radius:2px;padding:14px 16px}
   .mtile.sel{box-shadow:0 0 0 2px var(--starch) inset}
   .mtile .mt-name{font-family:var(--disp);font-size:19px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;line-height:1}
@@ -4637,6 +4641,7 @@ var CREDS={};
     <div class=&quot;kpis&quot; id=&quot;kpis&quot;></div>
     <div class=&quot;panel full&quot;><div class=&quot;mt-head&quot;><div><h2>OEE &amp;amp; A / P / Q by Machine</h2><div class=&quot;hint&quot; id=&quot;mtHint&quot;></div></div><button type=&quot;button&quot; class=&quot;fsbtn&quot; id=&quot;mtFsBtn&quot;>⛶ Full screen</button></div><div class=&quot;mtiles&quot; id=&quot;mtiles&quot;></div>
       <div class=&quot;legend&quot;><span><i style=&quot;background:var(--starch)&quot;></i>Availability</span><span><i style=&quot;background:var(--kraft)&quot;></i>Performance</span><span><i style=&quot;background:var(--good)&quot;></i>Quality</span><span>· OEE = A × P × Q</span></div></div>
+    <div class=&quot;panel full&quot;><div class=&quot;mt-head&quot;><div><h2>Output by Machine (MC)</h2><div class=&quot;hint&quot; id=&quot;moutHint&quot;></div></div><button type=&quot;button&quot; class=&quot;fsbtn&quot; id=&quot;moutFsBtn&quot;>⛶ Full screen</button></div><div id=&quot;moutTiles&quot; style=&quot;margin-top:12px&quot;></div></div>
     <div class=&quot;panel full&quot;><div class=&quot;mt-head&quot;><div><h2>Shift Analysis — by Shift</h2><div class=&quot;hint&quot; id=&quot;shAnHint&quot;></div></div>
       <div style=&quot;display:flex;gap:8px;align-items:center;flex-wrap:wrap&quot;><select id=&quot;shMetric&quot; style=&quot;min-width:130px&quot;><option value=&quot;oee&quot;>OEE %</option><option value=&quot;avail&quot;>Availability %</option><option value=&quot;perf&quot;>Performance %</option><option value=&quot;qual&quot;>Quality %</option><option value=&quot;output&quot;>Output FG (MC)</option></select><button type=&quot;button&quot; class=&quot;fsbtn&quot; id=&quot;shFsBtn&quot;>⛶ Full screen</button></div></div>
       <div class=&quot;legend&quot;><span><i style=&quot;background:#1F5673&quot;></i>Shift 1</span><span><i style=&quot;background:#D98A0B&quot;></i>Shift 2</span><span><i style=&quot;background:#6B4E9E&quot;></i>Shift 3</span><span id=&quot;shTgtLeg&quot;><i style=&quot;background:#B3402F&quot;></i>85% target</span></div>
@@ -4663,6 +4668,7 @@ var CREDS={};
     <div class=&quot;panel full&quot;><h2>Top Downtime Problems</h2><div class=&quot;hint&quot;>Longest-duration recorded stoppages (minutes)</div><div id=&quot;probs&quot;></div></div>
   </div>
   <div class=&quot;fsov&quot; id=&quot;mtFs&quot;><div class=&quot;fshd&quot;><button type=&quot;button&quot; class=&quot;fsbtn fsx&quot; id=&quot;mtFsClose&quot; title=&quot;Close full screen&quot; aria-label=&quot;Close full screen&quot;>✕</button></div><div class=&quot;mtilesfs&quot; id=&quot;mtilesFS&quot;></div></div>
+  <div class=&quot;fsov&quot; id=&quot;moutFs&quot;><div class=&quot;fshd&quot;><button type=&quot;button&quot; class=&quot;fsbtn fsx&quot; id=&quot;moutFsClose&quot; title=&quot;Close full screen&quot; aria-label=&quot;Close full screen&quot;>✕</button></div><div id=&quot;moutTilesFS&quot; style=&quot;flex:1;min-height:0&quot;></div></div>
   <div class=&quot;fsov&quot; id=&quot;chartFs&quot;><div class=&quot;fshd&quot;><button type=&quot;button&quot; class=&quot;fsbtn fsx&quot; id=&quot;chartFsClose&quot; title=&quot;Close full screen&quot; aria-label=&quot;Close full screen&quot;>✕</button></div><div id=&quot;chartFsBody&quot; style=&quot;flex:1;min-height:0&quot;></div></div>
   <div class=&quot;fsov&quot; id=&quot;shFs&quot;><div class=&quot;fshd&quot;><button type=&quot;button&quot; class=&quot;fsbtn fsx&quot; id=&quot;shFsClose&quot; title=&quot;Close full screen&quot; aria-label=&quot;Close full screen&quot;>✕</button></div><div id=&quot;shiftAnFS&quot; style=&quot;flex:1;min-height:0&quot;></div></div>
   <div class=&quot;modal&quot; id=&quot;apqPop&quot;><div class=&quot;modal-box&quot;><div class=&quot;modal-hd&quot;><h3 id=&quot;apqPopTitle&quot;></h3><button type=&quot;button&quot; class=&quot;fsbtn fsx&quot; id=&quot;apqPopClose&quot; title=&quot;Close&quot; aria-label=&quot;Close&quot;>✕</button></div><div id=&quot;apqPopBody&quot;></div><div class=&quot;note&quot;>OEE = Availability × Performance × Quality</div></div></div>
@@ -4781,7 +4787,7 @@ function vbars(cats, series, opt){
   var fs=opt.fs||1;
   var fAx=Math.round(8*fs*10)/10, fVal=Math.round(7.5*fs*10)/10, fCat=Math.round(8.5*fs*10)/10, fTgt=Math.round(8*fs*10)/10;
   var fwBold=(fs>=1.4?800:700), fwAx=(fs>=1.4?700:600);
-  var L=Math.round(Math.max(42, 24+fAx*1.6)), R=Math.round(Math.max(10, 8+fTgt*0.4)), T=Math.round(Math.max(14, 6+fVal)), B=Math.round(Math.max(28, 14+fCat));
+  var L=Math.round(Math.max(42, 24+fAx*1.6)), R=Math.round(Math.max(10, 8+fTgt*0.4)), T=Math.round(Math.max(14, 6+fVal)), B=Math.round(Math.max(28, 14+fCat) + (opt.subs?fCat*1.25:0) + (opt.subs2?fCat*1.05:0));
   var n=cats.length, gw=(W-L-R)/Math.max(1,n), ns=series.length;
   var max=opt.pct?100:Math.max.apply(null, series.reduce(function(a,se){return a.concat(se.vals.map(function(v){return v||0;}));},[]).concat([1]));
   if(opt.target!=null&amp;&amp;opt.pct) max=Math.max(max, opt.target);
@@ -4799,9 +4805,12 @@ function vbars(cats, series, opt){
   cats.forEach(function(ct,i){ var x0=L+i*gw, groupW=bwEach*ns, gstart=x0+(gw-groupW)/2;
     series.forEach(function(se,si){ var v=se.vals[i]||0, bx=gstart+si*bwEach, by=yf(v), bh=(H-B)-by, cx=bx+barW/2;
       s+='<rect x=&quot;'+bx+'&quot; y=&quot;'+by+'&quot; width=&quot;'+barW+'&quot; height=&quot;'+Math.max(0,bh)+'&quot; fill=&quot;'+se.color+'&quot;/>';
-      if(opt.pct&amp;&amp;v>0&amp;&amp;labMode===&quot;h&quot;) s+='<text x=&quot;'+cx+'&quot; y=&quot;'+(by-fVal*0.4)+'&quot; font-size=&quot;'+fVal+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;middle&quot;>'+v+'</text>';
-      else if(opt.pct&amp;&amp;v>0&amp;&amp;labMode===&quot;v&quot;) s+='<text x=&quot;'+cx+'&quot; y=&quot;'+(by-fVal*0.35)+'&quot; font-size=&quot;'+(fVal*0.92)+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;start&quot; transform=&quot;rotate(-90 '+cx+' '+(by-fVal*0.35)+')&quot;>'+v+'</text>'; });
-    if(i%catStep===0 || i===n-1) s+='<text x=&quot;'+(x0+gw/2)+'&quot; y=&quot;'+(H-B+fCat*1.5)+'&quot; font-size=&quot;'+fCat+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;middle&quot;>'+esc(ct)+'</text>'; });
+      var _lv=(opt.pct? v : (opt.showVals? (opt.vfmt?opt.vfmt(v):String(v)) : null));
+      if(_lv!=null&amp;&amp;v>0&amp;&amp;labMode===&quot;h&quot;) s+='<text x=&quot;'+cx+'&quot; y=&quot;'+(by-fVal*0.4)+'&quot; font-size=&quot;'+fVal+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;middle&quot;>'+_lv+'</text>';
+      else if(_lv!=null&amp;&amp;v>0&amp;&amp;labMode===&quot;v&quot;) s+='<text x=&quot;'+cx+'&quot; y=&quot;'+(by-fVal*0.35)+'&quot; font-size=&quot;'+(fVal*0.92)+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;start&quot; transform=&quot;rotate(-90 '+cx+' '+(by-fVal*0.35)+')&quot;>'+_lv+'</text>'; });
+    if(i%catStep===0 || i===n-1){ s+='<text x=&quot;'+(x0+gw/2)+'&quot; y=&quot;'+(H-B+fCat*1.5)+'&quot; font-size=&quot;'+fCat+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;middle&quot;>'+esc(ct)+'</text>';
+      if(opt.subs&amp;&amp;opt.subs[i]) s+='<text x=&quot;'+(x0+gw/2)+'&quot; y=&quot;'+(H-B+fCat*1.5+fCat*1.1)+'&quot; font-size=&quot;'+(fCat*0.82)+'&quot; font-weight=&quot;600&quot; fill=&quot;var(--muted)&quot; text-anchor=&quot;middle&quot;>'+esc(opt.subs[i])+'</text>';
+      if(opt.subs2&amp;&amp;opt.subs2[i]) s+='<text x=&quot;'+(x0+gw/2)+'&quot; y=&quot;'+(H-B+fCat*1.5+fCat*1.1+fCat*0.98)+'&quot; font-size=&quot;'+(fCat*0.8)+'&quot; font-weight=&quot;700&quot; fill=&quot;#1F5673&quot; text-anchor=&quot;middle&quot;>'+esc(opt.subs2[i])+'</text>'; } });
   return s+'</svg>';
 }
 function comboChart(cats, series, opt){
@@ -5104,6 +5113,28 @@ function renderMachineTilesFS(){
   el.style.gridTemplateColumns=&quot;repeat(&quot;+cols+&quot;,1fr)&quot;;
   el.style.gridTemplateRows=&quot;repeat(&quot;+rows+&quot;,1fr)&quot;;
 }
+/* ---- Output (MC) over time — same period drill-down as the OEE trend ----
+   Year → months, single month → weeks, single week → days. One series per
+   selected machine (or a Plant-packing total when &quot;Plant (all)&quot; is chosen). */
+var _outXl=[], _outSeries=[], _outSubs=null, _outSubs2=null;
+function _outChartHTML(xl, series, fs, subs, subs2){
+  if(!series||!series.length) return &quot;&quot;;
+  if(!series.some(function(s){ return (s.vals||[]).some(function(v){ return v>0; }); })) return &quot;&quot;;
+  var leg = series.length>1 ? '<div class=&quot;legend&quot; style=&quot;margin:0 0 8px&quot;>'+series.map(function(s){ return '<span><i style=&quot;background:'+s.color+'&quot;></i>'+esc(s.name)+'</span>'; }).join(&quot;&quot;)+'</div>' : '';
+  return leg + vbars(xl, series, {W:1120,H:fs?430:300,fs:fs?2.3:1.25,showVals:(series.length<=2),vfmt:fmt,maxBar:fs?120:70,subs:subs,subs2:subs2});
+}
+function renderOutputTiles(xl, series, hint, subs, subs2){ _outXl=xl; _outSeries=series; _outSubs=subs||null; _outSubs2=subs2||null; var el=$(&quot;moutTiles&quot;); if(!el) return; el.innerHTML=_outChartHTML(xl,series,false,subs,subs2)||'<div class=&quot;note&quot;>No packing output for this period / selection.</div>'; var h=$(&quot;moutHint&quot;); if(h&amp;&amp;hint!=null) h.textContent=hint; if($(&quot;moutFs&quot;)&amp;&amp;$(&quot;moutFs&quot;).classList.contains(&quot;open&quot;)) renderOutputTilesFS(); }
+function renderOutputTilesFS(){ var el=$(&quot;moutTilesFS&quot;); if(!el) return; el.innerHTML=_outChartHTML(_outXl,_outSeries,true,_outSubs,_outSubs2)||'<div class=&quot;note&quot;>No packing output for this period / selection.</div>'; }
+/* production-day counts per bucket (days a scope machine actually ran) — numeric array, or null in daily view */
+function _prodDayCounts(tmode, idxs, mach){
+  if(tmode!==&quot;m&quot; &amp;&amp; tmode!==&quot;w&quot;) return null;           /* daily view: each bar is already a day */
+  var MON=[&quot;Jan&quot;,&quot;Feb&quot;,&quot;Mar&quot;,&quot;Apr&quot;,&quot;May&quot;,&quot;Jun&quot;,&quot;Jul&quot;,&quot;Aug&quot;,&quot;Sep&quot;,&quot;Oct&quot;,&quot;Nov&quot;,&quot;Dec&quot;], yr=_dataYear(), o7=DATA.output7||{};
+  var info=(DATA.days7||[]).map(function(lbl,di){ var p=String(lbl).split(&quot; &quot;); var dd=parseInt(p[0],10), mi=MON.indexOf(p[1]);
+    var ran=mach.some(function(m){ var v=(o7[m]||[])[di]; return v!=null&amp;&amp;v>0; });
+    var wk=(mi>=0&amp;&amp;!isNaN(dd))? _isoWk(new Date(Date.UTC(yr,mi,dd))) : null;
+    return {mi:mi, wk:wk, ran:ran}; });
+  return idxs.map(function(i){ if(tmode===&quot;m&quot;) return info.filter(function(d){return d.mi===i &amp;&amp; d.ran;}).length; var wkn=DATA.weeks[i]; return info.filter(function(d){return d.wk===wkn &amp;&amp; d.ran;}).length; });
+}
 function lineBarsHTML(cfg){
   var secs=[], dmax=0;
   LINES.forEach(function(ln){
@@ -5242,6 +5273,22 @@ function render(){
   $(&quot;wHint&quot;).textContent=&quot;Waste % by line (Maker: Waste Maker · Packer: HMI) — &quot;+pi.label+(machs.length?&quot; · selected&quot;:&quot;&quot;);
   /* per-machine OEE + A/P/Q tiles */
   renderMachineTiles(pi,tilesSel);
+  /* Output (MC) over time — reuse the trend's period buckets (xl/idxs/tmode) so it
+     drills down exactly like the OEE trend: Year→months, month→weeks, week→days. */
+  (function(){
+    var _oSrc = tmode===&quot;w&quot;?DATA.output_w : (tmode===&quot;d&quot;?DATA.output7 : DATA.output);
+    function _packSum(i){ var s=0; LINES.forEach(function(ln){ ln.ms.forEach(function(m){ if(_machType(m)!==&quot;pack&quot;) return; var v=(_oSrc[m]||[])[i]; if(v!=null&amp;&amp;!isNaN(v)) s+=v; }); }); return s; }
+    var oser=[], scope=[];
+    if(showPlant){ oser.push({name:&quot;Plant (packing)&quot;,color:&quot;#1F5673&quot;,vals:idxs.map(_packSum)}); LINES.forEach(function(ln){ ln.ms.forEach(function(m){ if(_machType(m)===&quot;pack&quot;) scope.push(m); }); }); }
+    machs.forEach(function(m){ if(_machType(m)===&quot;pack&quot;){ oser.push({name:m,color:machColor(m),vals:idxs.map(function(i){ return (_oSrc[m]||[])[i]; })}); scope.push(m); } });
+    if(!oser.length){ oser.push({name:&quot;Plant (packing)&quot;,color:&quot;#1F5673&quot;,vals:idxs.map(_packSum)}); LINES.forEach(function(ln){ ln.ms.forEach(function(m){ if(_machType(m)===&quot;pack&quot;) scope.push(m); }); }); }
+    var unit = tmode===&quot;w&quot;?&quot;week&quot;:(tmode===&quot;d&quot;?&quot;day&quot;:&quot;month&quot;);
+    var counts = _prodDayCounts(tmode, idxs, scope);
+    var subs=null, subs2=null;
+    if(counts){ subs = counts.map(function(c){ return c>0?(c+&quot; d&quot;):&quot;&quot;; });
+      subs2 = idxs.map(function(i){ var tot=0; oser.forEach(function(s){ var v=s.vals[i]; if(v!=null&amp;&amp;!isNaN(v)) tot+=v; }); var c=counts[i]; return (c>0&amp;&amp;tot>0)?(fmt(Math.round(tot/c))+&quot;/d&quot;):&quot;&quot;; }); }
+    renderOutputTiles(xl, oser, &quot;Finished-goods output (master cartons) by &quot;+unit+&quot; — &quot;+pi.label+&quot; · under each: production days (“N d”) and average output per day (“…/d”) · follows the period &amp; machine selection.&quot;, subs, subs2);
+  })();
   /* shift-level analysis (all lines when plant/none selected, else selected machines) */
   renderShiftAnalysis(pi, machs.length ? tilesSel : null);
   /* heatmap — columns follow the selected period (Year = all months; Month/Week/Day = selected buckets); YTD column always kept */
@@ -5613,6 +5660,8 @@ setInterval(oeeAutoSync,180000);               /* and re-check every 3 minutes (
 $(&quot;shiftSel&quot;).addEventListener(&quot;change&quot;,function(){ applyShift(this.value); });
 $(&quot;mtFsBtn&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;mtFs&quot;).classList.add(&quot;open&quot;); renderMachineTilesFS(); });
 $(&quot;mtFsClose&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;mtFs&quot;).classList.remove(&quot;open&quot;); });
+if($(&quot;moutFsBtn&quot;)) $(&quot;moutFsBtn&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;moutFs&quot;).classList.add(&quot;open&quot;); renderOutputTilesFS(); });
+if($(&quot;moutFsClose&quot;)) $(&quot;moutFsClose&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;moutFs&quot;).classList.remove(&quot;open&quot;); });
 if($(&quot;shMetric&quot;)) $(&quot;shMetric&quot;).addEventListener(&quot;change&quot;,function(){ render(); });
 if($(&quot;shFsBtn&quot;)) $(&quot;shFsBtn&quot;).addEventListener(&quot;click&quot;,function(){ _shFsOnly=null; $(&quot;shFs&quot;).classList.add(&quot;open&quot;); renderShiftAnalysisFS(); });
 if($(&quot;shFsClose&quot;)) $(&quot;shFsClose&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;shFs&quot;).classList.remove(&quot;open&quot;); _shFsOnly=null; });
@@ -5625,7 +5674,7 @@ $(&quot;byM&quot;).addEventListener(&quot;click&quot;,function(e){ var t=e.targe
 $(&quot;trendLeg&quot;).addEventListener(&quot;click&quot;,function(e){ var it=(e.target&amp;&amp;e.target.closest)?e.target.closest(&quot;.legitem&quot;):null; if(!it) return; var s=it.getAttribute(&quot;data-s&quot;); if(trendHidden[s]) delete trendHidden[s]; else trendHidden[s]=1; drawTrend(); });
 $(&quot;apqPopClose&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;apqPop&quot;).classList.remove(&quot;open&quot;); });
 $(&quot;apqPop&quot;).addEventListener(&quot;click&quot;,function(e){ if(e.target===$(&quot;apqPop&quot;)) $(&quot;apqPop&quot;).classList.remove(&quot;open&quot;); });
-document.addEventListener(&quot;keydown&quot;,function(e){ if(e.key===&quot;Escape&quot;){ if($(&quot;mtFs&quot;).classList.contains(&quot;open&quot;)) $(&quot;mtFs&quot;).classList.remove(&quot;open&quot;); if($(&quot;chartFs&quot;).classList.contains(&quot;open&quot;)) $(&quot;chartFs&quot;).classList.remove(&quot;open&quot;); if($(&quot;shFs&quot;)&amp;&amp;$(&quot;shFs&quot;).classList.contains(&quot;open&quot;)){ $(&quot;shFs&quot;).classList.remove(&quot;open&quot;); _shFsOnly=null; } if($(&quot;apqPop&quot;).classList.contains(&quot;open&quot;)) $(&quot;apqPop&quot;).classList.remove(&quot;open&quot;); } });
+document.addEventListener(&quot;keydown&quot;,function(e){ if(e.key===&quot;Escape&quot;){ if($(&quot;mtFs&quot;).classList.contains(&quot;open&quot;)) $(&quot;mtFs&quot;).classList.remove(&quot;open&quot;); if($(&quot;moutFs&quot;)&amp;&amp;$(&quot;moutFs&quot;).classList.contains(&quot;open&quot;)) $(&quot;moutFs&quot;).classList.remove(&quot;open&quot;); if($(&quot;chartFs&quot;).classList.contains(&quot;open&quot;)) $(&quot;chartFs&quot;).classList.remove(&quot;open&quot;); if($(&quot;shFs&quot;)&amp;&amp;$(&quot;shFs&quot;).classList.contains(&quot;open&quot;)){ $(&quot;shFs&quot;).classList.remove(&quot;open&quot;); _shFsOnly=null; } if($(&quot;apqPop&quot;).classList.contains(&quot;open&quot;)) $(&quot;apqPop&quot;).classList.remove(&quot;open&quot;); } });
 $(&quot;pType&quot;).addEventListener(&quot;change&quot;,function(){ fillPVal(this.value); render(); });
 $(&quot;pvBtn&quot;).addEventListener(&quot;click&quot;,function(e){ e.stopPropagation(); $(&quot;pVal&quot;).classList.toggle(&quot;open&quot;); });
 document.addEventListener(&quot;click&quot;,function(e){ var d=$(&quot;pVal&quot;),btn=$(&quot;pvBtn&quot;); if(d&amp;&amp;d.classList.contains(&quot;open&quot;) &amp;&amp; !d.contains(e.target) &amp;&amp; !btn.contains(e.target)) d.classList.remove(&quot;open&quot;); });
