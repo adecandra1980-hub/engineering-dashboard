@@ -4809,7 +4809,7 @@ function vbars(cats, series, opt){
       if(_lv!=null&amp;&amp;v>0&amp;&amp;labMode===&quot;h&quot;) s+='<text x=&quot;'+cx+'&quot; y=&quot;'+(by-fVal*0.4)+'&quot; font-size=&quot;'+fVal+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;middle&quot;>'+_lv+'</text>';
       else if(_lv!=null&amp;&amp;v>0&amp;&amp;labMode===&quot;v&quot;) s+='<text x=&quot;'+cx+'&quot; y=&quot;'+(by-fVal*0.35)+'&quot; font-size=&quot;'+(fVal*0.92)+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;start&quot; transform=&quot;rotate(-90 '+cx+' '+(by-fVal*0.35)+')&quot;>'+_lv+'</text>'; });
     if(i%catStep===0 || i===n-1){ s+='<text x=&quot;'+(x0+gw/2)+'&quot; y=&quot;'+(H-B+fCat*1.5)+'&quot; font-size=&quot;'+fCat+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;middle&quot;>'+esc(ct)+'</text>';
-      if(opt.subs&amp;&amp;opt.subs[i]) s+='<text x=&quot;'+(x0+gw/2)+'&quot; y=&quot;'+(H-B+fCat*1.5+fCat*1.1)+'&quot; font-size=&quot;'+(fCat*0.82)+'&quot; font-weight=&quot;600&quot; fill=&quot;var(--muted)&quot; text-anchor=&quot;middle&quot;>'+esc(opt.subs[i])+'</text>';
+      if(opt.subs&amp;&amp;opt.subs[i]) s+='<text x=&quot;'+(x0+gw/2)+'&quot; y=&quot;'+(H-B+fCat*1.5+fCat*1.1)+'&quot; font-size=&quot;'+(fCat*0.82)+'&quot; font-weight=&quot;700&quot; fill=&quot;'+((opt.subCols&amp;&amp;opt.subCols[i])?opt.subCols[i]:'var(--muted)')+'&quot; text-anchor=&quot;middle&quot;>'+esc(opt.subs[i])+'</text>';
       if(opt.subs2&amp;&amp;opt.subs2[i]) s+='<text x=&quot;'+(x0+gw/2)+'&quot; y=&quot;'+(H-B+fCat*1.5+fCat*1.1+fCat*0.98)+'&quot; font-size=&quot;'+(fCat*0.8)+'&quot; font-weight=&quot;700&quot; fill=&quot;#1F5673&quot; text-anchor=&quot;middle&quot;>'+esc(opt.subs2[i])+'</text>'; } });
   return s+'</svg>';
 }
@@ -4863,21 +4863,24 @@ function renderChart(){
     labels=colIdxs.map(function(i){return DATA.months[i];});
     note=&quot;all months (YTD)&quot;;
   }
-  var cats=[&quot;YTD&quot;].concat(labels);
+  var cats=labels.slice();
   var order=(DATA.chart&amp;&amp;DATA.chart.order&amp;&amp;DATA.chart.order.length)?DATA.chart.order:[&quot;ALL&quot;].concat(DATA.machines||[]);
-  var hint=$(&quot;chartHint&quot;); if(hint) hint.textContent=&quot;Plan vs Actual output (MC) and OEE % vs target — YTD + &quot;+labels.join(&quot;, &quot;)+&quot; (following your &quot;+note+&quot;).&quot;;
+  var hint=$(&quot;chartHint&quot;); if(hint) hint.textContent=&quot;Plan vs Actual output (MC) and OEE % vs target — &quot;+labels.join(&quot;, &quot;)+&quot;. Number on each bar = MC; green/red under each month = excess/backlog of actual vs plan (following your &quot;+note+&quot;).&quot;;
   var h=&quot;&quot;;
   order.forEach(function(key){ var nm=key===&quot;ALL&quot;?&quot;ALL MACHINE&quot;:key;
     var tgt=(DATA.targets&amp;&amp;DATA.targets[key]!=null)?DATA.targets[key]:null;
-    var plan=[(DATA.plan_ytd&amp;&amp;DATA.plan_ytd[key]!=null)?DATA.plan_ytd[key]:null];
-    var actual=[(DATA.output_ytd&amp;&amp;DATA.output_ytd[key]!=null)?DATA.output_ytd[key]:null];
-    var oee=[(DATA.oee_ytd&amp;&amp;DATA.oee_ytd[key]!=null)?DATA.oee_ytd[key]:null];
+    var plan=[]; var actual=[]; var oee=[];
     colIdxs.forEach(function(i){
       if(mode===&quot;d&quot;){ plan.push(null); actual.push(((DATA.output7||{})[key]||[])[i]); oee.push(((DATA.oee7||{})[key]||[])[i]); }
       else if(mode===&quot;w&quot;){ plan.push((DATA.plan_w[key]||[])[i]); actual.push((DATA.output_w[key]||[])[i]); oee.push((DATA.oee_w[key]||[])[i]); }
       else { plan.push(monthPlan(key,i)); actual.push((DATA.output[key]||[])[i]); oee.push((DATA.oee[key]||[])[i]); }
     });
-    var pa=vbars(cats,[{name:&quot;Plan&quot;,color:&quot;#1F5673&quot;,vals:plan},{name:&quot;Actual&quot;,color:&quot;#D98A0B&quot;,vals:actual}],{});
+    var kf=function(v){ v=v||0; return v>=10000?(Math.round(v/1000)+&quot;k&quot;):(v>=1000?((v/1000).toFixed(1)+&quot;k&quot;):String(Math.round(v))); };
+    var vsub=[], vcol=[];
+    for(var ci=0; ci<cats.length; ci++){ var pv=plan[ci], av=actual[ci];
+      if(pv!=null&amp;&amp;av!=null&amp;&amp;!isNaN(pv)&amp;&amp;!isNaN(av)){ var dd=Math.round(av-pv); vsub.push((dd>=0?&quot;+&quot;:&quot;−&quot;)+kf(Math.abs(dd))); vcol.push(dd>=0?&quot;#2E7D4F&quot;:&quot;#B3402F&quot;); }
+      else { vsub.push(&quot;&quot;); vcol.push(&quot;&quot;); } }
+    var pa=vbars(cats,[{name:&quot;Plan&quot;,color:&quot;#1F5673&quot;,vals:plan},{name:&quot;Actual&quot;,color:&quot;#D98A0B&quot;,vals:actual}],{showVals:true,vfmt:kf,subs:vsub,subCols:vcol});
     var oe=vbars(cats,[{name:&quot;OEE&quot;,color:&quot;#2E7D4F&quot;,vals:oee}],{pct:true,target:tgt});
     h+='<div class=&quot;ccard&quot; tabindex=&quot;0&quot;><span class=&quot;ccexp&quot;>⛶</span><div class=&quot;cctitle&quot;>'+esc(nm)+'</div><div class=&quot;ccrow&quot;><div><div class=&quot;ccsub&quot;>Plan vs Actual (MC)</div>'+pa+'</div><div><div class=&quot;ccsub&quot;>OEE % vs target</div>'+oe+'</div></div></div>';
   });
