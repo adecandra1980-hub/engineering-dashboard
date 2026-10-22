@@ -5644,10 +5644,9 @@ var OEE_INGEST=&quot;/api/oee-ingest&quot;;
    re-pulls the SharePoint file unless the shared cache (oee:ds) already carried its
    fileTs. This avoids getting stuck on the built-in sample after a reload. */
 var _oeeFileTs=0;
-function applyWorkbookBuffer(ab, meta){
-  var wb=XLSX.read(new Uint8Array(ab),{type:&quot;array&quot;,cellDates:true});
-  var nd=parseWB(wb);
-  if(!nd.machines||!nd.machines.length) throw new Error(&quot;not an OEE workbook&quot;);
+/* comparable &quot;latest day of data&quot; from a parsed dataset (from the 'data as of' date) */
+function _oeeDataDate(d){ if(!d) return 0; var s=String(d.asof||&quot;&quot;); var m=s.match(/(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})/); if(m){ var mons={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11}; var mo=mons[m[2].slice(0,3).toLowerCase()]; if(mo!=null) return Date.UTC(+m[3],mo,+m[1]); } return 0; }
+function _applyParsed(nd, meta){
   DATA=nd; META=meta||{src:&quot;auto&quot;,when:new Date().toISOString()}; META.pv=OEE_PV;
   var _pl=JSON.stringify({data:DATA,meta:META});
   try{ localStorage.setItem(&quot;oee_ds&quot;,_pl); }catch(x){}
@@ -5655,13 +5654,27 @@ function applyWorkbookBuffer(ab, meta){
   oeeSaveCloud(_pl);
   return nd;
 }
+function applyWorkbookBuffer(ab, meta){
+  var wb=XLSX.read(new Uint8Array(ab),{type:&quot;array&quot;,cellDates:true});
+  var nd=parseWB(wb);
+  if(!nd.machines||!nd.machines.length) throw new Error(&quot;not an OEE workbook&quot;);
+  return _applyParsed(nd, meta);
+}
 function _oeeToast(msg){ var t=document.getElementById(&quot;oeeToast&quot;); if(!t){ t=document.createElement(&quot;div&quot;); t.id=&quot;oeeToast&quot;; t.style.cssText=&quot;position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#1F5673;color:#fff;font:700 13px/1.3 Arial,Helvetica,sans-serif;padding:9px 16px;border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,.28);z-index:2147483600;opacity:0;transition:opacity .35s;pointer-events:none&quot;; document.body.appendChild(t); } t.textContent=msg; t.style.opacity=&quot;1&quot;; clearTimeout(t._h); t._h=setTimeout(function(){ t.style.opacity=&quot;0&quot;; },5000); }
 function oeeAutoSync(){ if(typeof fetch!==&quot;function&quot;) return;
   fetch(OEE_INGEST+&quot;?meta=1&quot;,{cache:&quot;no-store&quot;}).then(function(r){ return r.ok?r.json():null; }).then(function(m){
     if(!m||!m.ts||m.ts<=_oeeFileTs) return;            /* nothing newer in SharePoint */
     return fetch(OEE_INGEST,{cache:&quot;no-store&quot;}).then(function(r){ if(!r.ok) throw new Error(&quot;dl &quot;+r.status); return r.arrayBuffer(); }).then(function(ab){
-      applyWorkbookBuffer(ab,{src:&quot;sharepoint&quot;,name:m.name||&quot;OEE Machine SMD 2026.xlsx&quot;,when:new Date(m.ts).toISOString(),fileTs:m.ts});
-      _oeeFileTs=m.ts;
+      var wb=XLSX.read(new Uint8Array(ab),{type:&quot;array&quot;,cellDates:true});
+      var nd=parseWB(wb);
+      if(!nd.machines||!nd.machines.length) throw new Error(&quot;not an OEE workbook&quot;);
+      _oeeFileTs=m.ts;                                  /* mark this push seen either way */
+      var inc=_oeeDataDate(nd), cur=_oeeDataDate(DATA);
+      if(inc &amp;&amp; cur &amp;&amp; inc < cur){                      /* SharePoint copy is STALE — do NOT overwrite fresher data */
+        try{ _oeeToast(&quot;Ignored SharePoint push — its data (&quot;+(nd.asof||&quot;?&quot;)+&quot;) is older than what's loaded (&quot;+(DATA.asof||&quot;?&quot;)+&quot;). Save the Excel to update.&quot;); }catch(e){}
+        return;
+      }
+      _applyParsed(nd,{src:&quot;sharepoint&quot;,name:m.name||&quot;OEE Machine SMD 2026.xlsx&quot;,when:new Date(m.ts).toISOString(),fileTs:m.ts});
       try{ _oeeToast(&quot;Updated from SharePoint · &quot;+new Date(m.ts).toLocaleString()); }catch(e){}
     });
   }).catch(function(){ /* offline / not set up yet — stay on current data */ });
