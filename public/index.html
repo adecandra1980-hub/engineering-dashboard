@@ -4664,6 +4664,10 @@ var CREDS={};
       <div class=&quot;legend&quot;><span><i style=&quot;background:#1F5673&quot;></i>Plan (MC)</span><span><i style=&quot;background:#D98A0B&quot;></i>Actual (MC)</span><span><i style=&quot;background:#2E7D4F&quot;></i>OEE %</span><span><i style=&quot;background:#B3402F&quot;></i>OEE target</span></div>
       <div class=&quot;cgrid&quot; id=&quot;chartWrap&quot; style=&quot;margin-top:12px&quot;></div>
     </div>
+    <div class=&quot;panel full&quot;><h2>Monthly Output by SKU — Charts</h2>
+      <div class=&quot;hint&quot; id=&quot;skuHint&quot;>Finished-goods output (master cartons) per SKU, by month. Click a card for full screen.</div>
+      <div class=&quot;cgrid&quot; id=&quot;skuWrap&quot; style=&quot;margin-top:12px&quot;></div>
+    </div>
     <div class=&quot;panel full&quot;><h2>OEE Heatmap (%)</h2><div class=&quot;hint&quot; id=&quot;heatHint&quot;>Every machine, month by month. Green = strong, red = weak.</div><div style=&quot;overflow-x:auto&quot;><div id=&quot;heat&quot;></div></div></div>
     <div class=&quot;panel full&quot;><h2>Top Downtime Problems</h2><div class=&quot;hint&quot;>Longest-duration recorded stoppages (minutes)</div><div id=&quot;probs&quot;></div></div>
   </div>
@@ -5332,6 +5336,7 @@ function render(){
   DATA.dt_top_problem.forEach(function(x){ ph+='<tr><td style=&quot;white-space:normal&quot;>'+esc(x.p)+'</td><td>'+fmt(x.min)+'</td><td>'+(x.min/60).toFixed(1)+'</td></tr>'; });
   $(&quot;probs&quot;).innerHTML=ph+'</tbody></table>';
   renderChart();
+  renderSKU();
 }
 function _mLbl(m){ return '<label data-k=&quot;'+esc(m)+'&quot;><input type=&quot;checkbox&quot; value=&quot;'+esc(m)+'&quot;><span class=&quot;swatch&quot; style=&quot;background:'+machColor(m)+'&quot;></span>'+esc(m)+'</label>'; }
 function _machCbs(){ return [].slice.call($(&quot;mSel&quot;).querySelectorAll('input')).filter(function(c){ return c.value!==&quot;ALL&quot; &amp;&amp; !c.classList.contains('grpcb') &amp;&amp; !c.classList.contains('linecb'); }); }
@@ -5578,6 +5583,35 @@ function buildDailyFromRaw(wb){
     nrej7:_nrej?_nrej.d:null, nrej_m:_nrej?_nrej.m:null, nrej_w:_nrej?_nrej.w:null, nrej_ytd:_nrej?_nrej.ytd:null,
     nfg7:_nfg?_nfg.d:null, nfg_m:_nfg?_nfg.m:null, nfg_w:_nfg?_nfg.w:null, nfg_ytd:_nfg?_nfg.ytd:null };
 }
+/* per-SKU (brand) monthly finished-goods output (MC) from the raw Packer tab */
+function buildSKU(wb){
+  var A=rowsOf(wb,&quot;Packer&quot;); if(!A||!A.length) return [];
+  var hr=-1; for(var i=0;i<Math.min(6,A.length)&amp;&amp;hr<0;i++){ var row=A[i]||[]; for(var c=0;c<row.length;c++){ if(S(row[c]).toUpperCase().indexOf(&quot;BRAND&quot;)>=0){ hr=i; break; } } }
+  if(hr<0) return [];
+  var hdr=A[hr]; function col(keys){ for(var c=0;c<hdr.length;c++){ var h=S(hdr[c]).toUpperCase().replace(/\s+/g,&quot; &quot;); for(var k=0;k<keys.length;k++) if(h.indexOf(keys[k])>=0) return c; } return -1; }
+  var cB=col([&quot;BRAND&quot;]), cD=col([&quot;DATE&quot;]), cM=col([&quot;MACHINE&quot;]), cO=col([&quot;OUTPUT FG&quot;,&quot;OUTPUT&quot;]);
+  if(cB<0||cO<0||cD<0) return [];
+  var map={};
+  for(var j=hr+1;j<A.length;j++){ var r=A[j]; if(!r) continue; var b=S(r[cB]); if(!b) continue; b=b.replace(/^\s*FG\s*:\s*/i,&quot;&quot;).trim(); if(!b) continue;
+    var dt=_toDate(r[cD]); if(!dt) continue; var mo=dt.getUTCMonth(); var v=r[cO]; v=(typeof v===&quot;number&quot;)?v:parseFloat(v); if(isNaN(v)) v=0;
+    if(!map[b]) map[b]={m:[0,0,0,0,0,0,0,0,0,0,0,0],mac:{}}; map[b].m[mo]+=v; var mc=S(r[cM]); if(mc) map[b].mac[mc]=(map[b].mac[mc]||0)+v; }
+  var list=[]; for(var b in map){ var e=map[b]; var tot=0; for(var i=0;i<12;i++) tot+=e.m[i]; if(tot<=0) continue; var mac=&quot;&quot;,best=-1; for(var k in e.mac){ if(e.mac[k]>best){best=e.mac[k];mac=k;} } list.push({name:b,mac:mac,m:e.m.map(function(x){return Math.round(x);}),tot:Math.round(tot)}); }
+  list.sort(function(a,b){return b.tot-a.tot;}); return list;
+}
+var _skuSig=null;
+function renderSKU(){ var el=$(&quot;skuWrap&quot;); if(!el) return; var sku=(DATA&amp;&amp;DATA.sku)||[];
+  var sig=sku.length+&quot;|&quot;+((DATA&amp;&amp;DATA.asof)||&quot;&quot;);
+  if(sig===_skuSig &amp;&amp; el.childNodes.length) return; _skuSig=sig;
+  if(!sku.length){ el.innerHTML='<div class=&quot;note&quot; style=&quot;grid-column:1/-1&quot;>No per-SKU output found in this file (needs the raw <b>Packer</b> tab with BRAND + OUTPUT FG columns).</div>'; return; }
+  var lastmo=0; sku.forEach(function(s){ for(var i=0;i<12;i++) if(s.m[i]>0) lastmo=Math.max(lastmo,i); });
+  var cats=DATA.months.slice(0,lastmo+1);
+  function kf(v){ v=v||0; return v>=10000?(Math.round(v/1000)+&quot;k&quot;):(v>=1000?((v/1000).toFixed(1)+&quot;k&quot;):String(Math.round(v))); }
+  var gt=0; sku.forEach(function(s){ gt+=s.tot; });
+  el.innerHTML=sku.map(function(s){ var vals=s.m.slice(0,lastmo+1);
+    return '<div class=&quot;ccard&quot; tabindex=&quot;0&quot;><span class=&quot;ccexp&quot;>⛶</span><div class=&quot;cctitle&quot;>'+esc(s.name)+'</div><div class=&quot;ccsub&quot;>'+esc(s.mac||&quot;—&quot;)+' · YTD '+kf(s.tot)+' MC</div>'+vbars(cats,[{name:&quot;Output&quot;,color:&quot;#1F5673&quot;,vals:vals}],{showVals:true,vfmt:kf,W:520,H:200})+'</div>';
+  }).join(&quot;&quot;);
+  var hint=$(&quot;skuHint&quot;); if(hint) hint.textContent=&quot;Finished-goods output (master cartons) per SKU, by month (&quot;+cats[0]+&quot;–&quot;+cats[cats.length-1]+&quot;) · &quot;+sku.length+&quot; SKUs · total &quot;+kf(gt)+&quot; MC · click a card for full screen.&quot;;
+}
 function parseWB(wb){
   var nd={months:[&quot;Jan&quot;,&quot;Feb&quot;,&quot;Mar&quot;,&quot;Apr&quot;,&quot;May&quot;,&quot;Jun&quot;,&quot;Jul&quot;,&quot;Aug&quot;,&quot;Sep&quot;,&quot;Oct&quot;,&quot;Nov&quot;,&quot;Dec&quot;]};
   var M=rowsOf(wb,&quot;Monthly OEE&quot;);
@@ -5617,6 +5651,7 @@ function parseWB(wb){
   for(var kk in nd.chart.mach){ var bb=nd.chart.mach[kk]; nd.targets[kk]=(bb.target&amp;&amp;bb.target[0]!=null)?bb.target[0]:null; nd.plan_ytd[kk]=(bb.plan&amp;&amp;bb.plan[0]!=null)?bb.plan[0]:null; }
   try{ var _pt=buildDailyFromRaw(wb); if(_pt) mergeDaily(nd,_pt); }catch(e){}
   try{ if(nd.groups) nd._shift=_shiftBuckets(wb,nd); }catch(e){}
+  try{ nd.sku=buildSKU(wb); }catch(e){ nd.sku=[]; }
   return nd;
 }
 function doUpload(file){
@@ -5696,6 +5731,7 @@ if($(&quot;shiftAn&quot;)) $(&quot;shiftAn&quot;).addEventListener(&quot;click&q
 function openChartFs(card){ if(!card) return; $(&quot;chartFsBody&quot;).innerHTML='<div class=&quot;ccard&quot;>'+card.innerHTML+'</div>'; $(&quot;chartFs&quot;).classList.add(&quot;open&quot;); }
 $(&quot;chartWrap&quot;).addEventListener(&quot;click&quot;,function(e){ var c=e.target.closest(&quot;.ccard&quot;); if(c) openChartFs(c); });
 $(&quot;chartWrap&quot;).addEventListener(&quot;keydown&quot;,function(e){ if((e.key===&quot;Enter&quot;||e.key===&quot; &quot;)){ var c=e.target.closest(&quot;.ccard&quot;); if(c){ e.preventDefault(); openChartFs(c); } } });
+if($(&quot;skuWrap&quot;)){ $(&quot;skuWrap&quot;).addEventListener(&quot;click&quot;,function(e){ var c=e.target.closest(&quot;.ccard&quot;); if(c) openChartFs(c); }); $(&quot;skuWrap&quot;).addEventListener(&quot;keydown&quot;,function(e){ if((e.key===&quot;Enter&quot;||e.key===&quot; &quot;)){ var c=e.target.closest(&quot;.ccard&quot;); if(c){ e.preventDefault(); openChartFs(c); } } }); }
 $(&quot;chartFsClose&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;chartFs&quot;).classList.remove(&quot;open&quot;); });
 if($(&quot;trendFsBtn&quot;)) $(&quot;trendFsBtn&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;trendFs&quot;).classList.add(&quot;open&quot;); renderTrendFS(); });
 if($(&quot;trendFsClose&quot;)) $(&quot;trendFsClose&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;trendFs&quot;).classList.remove(&quot;open&quot;); });
