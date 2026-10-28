@@ -4552,6 +4552,12 @@ var CREDS={};
   .skuleg-tot{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:14.5px;margin-top:7px;padding-top:11px;border-top:2px solid var(--rule);font-weight:800}
   .skuleg-tot .skuleg-nm{color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-size:12.5px}
   .skuleg-tot .skuleg-av{font-size:16px}
+  .ccavg{display:none}
+  #chartFsBody .ccavg{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 28px;margin-top:18px;padding-top:16px;border-top:2px solid var(--rule);font-family:var(--mono);font-size:16px;color:var(--ink-soft)}
+  #chartFsBody .ccavg .ccavg-h{text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-size:13px}
+  #chartFsBody .ccavg .ccavg-i{display:inline-flex;align-items:center;gap:7px}
+  #chartFsBody .ccavg .ccavg-i i{width:12px;height:12px;border-radius:3px;display:inline-block;flex:0 0 auto}
+  #chartFsBody .ccavg .ccavg-i b{color:var(--ink);font-weight:800}
   .cctitle{font-family:var(--disp);font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px}
   .ccrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   @media(max-width:520px){.ccrow{grid-template-columns:1fr}}
@@ -4913,7 +4919,15 @@ function renderChart(){
       else { vsub.push(&quot;&quot;); vcol.push(&quot;&quot;); } }
     var pa=vbars(cats,[{name:&quot;Plan&quot;,color:&quot;#1F5673&quot;,vals:plan},{name:&quot;Actual&quot;,color:&quot;#D98A0B&quot;,vals:actual}],{showVals:true,vfmt:kf,subs:vsub,subCols:vcol});
     var oe=vbars(cats,[{name:&quot;OEE&quot;,color:&quot;#2E7D4F&quot;,vals:oee}],{pct:true,target:tgt});
-    h+='<div class=&quot;ccard&quot; tabindex=&quot;0&quot;><span class=&quot;ccexp&quot;>⛶</span><div class=&quot;cctitle&quot;>'+esc(nm)+'</div><div class=&quot;ccrow&quot;><div><div class=&quot;ccsub&quot;>Plan vs Actual (MC)</div>'+pa+'</div><div><div class=&quot;ccsub&quot;>OEE % vs target</div>'+oe+'</div></div></div>';
+    function _avg(a){ var s=0,n=0; for(var i=0;i<a.length;i++){ var v=a[i]; if(v!=null&amp;&amp;!isNaN(v)){ s+=v; n++; } } return n?s/n:null; }
+    var nf=function(v){ return Math.round(v||0).toLocaleString(&quot;en-US&quot;); };
+    var aP=_avg(plan), aA=_avg(actual), aO=_avg(oee);
+    var perLbl=cats.length?(cats[0]+(cats.length>1?('–'+cats[cats.length-1]):'')):'—';
+    var avgHtml='<div class=&quot;ccavg&quot;><span class=&quot;ccavg-h&quot;>Avg / month · '+esc(perLbl)+'</span>'+
+      '<span class=&quot;ccavg-i&quot;><i style=&quot;background:#1F5673&quot;></i>Plan <b>'+(aP==null?'—':nf(aP))+'</b> MC</span>'+
+      '<span class=&quot;ccavg-i&quot;><i style=&quot;background:#D98A0B&quot;></i>Actual <b>'+(aA==null?'—':nf(aA))+'</b> MC</span>'+
+      '<span class=&quot;ccavg-i&quot;><i style=&quot;background:#2E7D4F&quot;></i>OEE <b>'+(aO==null?'—':(Math.round(aO*10)/10)+'%')+'</b></span></div>';
+    h+='<div class=&quot;ccard&quot; tabindex=&quot;0&quot;><span class=&quot;ccexp&quot;>⛶</span><div class=&quot;cctitle&quot;>'+esc(nm)+'</div><div class=&quot;ccrow&quot;><div><div class=&quot;ccsub&quot;>Plan vs Actual (MC)</div>'+pa+'</div><div><div class=&quot;ccsub&quot;>OEE % vs target</div>'+oe+'</div></div>'+avgHtml+'</div>';
   });
   w.innerHTML=h;
 }
@@ -5647,7 +5661,8 @@ function renderSkuFs(idx){ var mc=_skuCards&amp;&amp;_skuCards[idx]; if(!mc){ re
   var series=mc.skus.map(function(s,i){ return {name:s.name,color:_SKUPAL[i%_SKUPAL.length],vals:s.vals}; });
   var leg='<div class=&quot;skuleg&quot;>'+mc.skus.map(function(s,i){ return '<div class=&quot;skuleg-row&quot;><i style=&quot;background:'+_SKUPAL[i%_SKUPAL.length]+'&quot;></i><span class=&quot;skuleg-nm&quot;>'+esc(s.name)+'</span><span class=&quot;skuleg-av&quot;>'+nf(s.avg)+'/mo</span></div>'; }).join(&quot;&quot;)+
     '<div class=&quot;skuleg-tot&quot;><span class=&quot;skuleg-nm&quot;>Total avg / month</span><span class=&quot;skuleg-av&quot;>'+nf(mc.avg)+'/mo</span></div></div>';
-  var sub=mc.skus.length+' SKU'+(mc.skus.length>1?'s':'')+' · '+kf(mc.tot)+' MC total · Jun–Oct 5-month average';
+  var nm=cats.length||1; var per=cats.length?(cats[0]+(cats.length>1?('–'+cats[cats.length-1]):'')):'—';
+  var sub=mc.skus.length+' SKU'+(mc.skus.length>1?'s':'')+' · '+kf(mc.tot)+' MC total · '+per+' '+nm+'-month average';
   $(&quot;chartFsBody&quot;).innerHTML='<div class=&quot;ccard&quot;><div class=&quot;cctitle&quot;>'+esc(mc.mac)+'</div><div class=&quot;ccsub&quot;>'+sub+'</div><div class=&quot;skufs-row&quot;>'+vbars(cats,series,{W:560,H:260,stack:true,showVals:true,vfmt:kf})+leg+'</div></div>';
   $(&quot;chartFs&quot;).classList.add(&quot;open&quot;);
 }
@@ -5663,7 +5678,8 @@ function renderSKU(pi, machs){ var el=$(&quot;skuWrap&quot;); if(!el) return; va
   var cards=[];
   ms.forEach(function(mc){ if(selMac &amp;&amp; !selMac[mc.mac]) return;
     var skus=[];
-    mc.skus.forEach(function(s){ var arr=(s.sh&amp;&amp;s.sh[sh])||s.sh.all; var vals=mon.map(function(i){return arr[i]||0;}); var t=_ssum(vals); if(t>0){ var jo=0; for(var i=5;i<=9;i++) jo+=arr[i]||0; skus.push({name:s.name,vals:vals,tot:t,avg:jo/5}); } });
+    var nmon=mon.length||1;
+    mc.skus.forEach(function(s){ var arr=(s.sh&amp;&amp;s.sh[sh])||s.sh.all; var vals=mon.map(function(i){return arr[i]||0;}); var t=_ssum(vals); if(t>0){ skus.push({name:s.name,vals:vals,tot:t,avg:t/nmon}); } });
     if(!skus.length) return; skus.sort(function(a,b){return b.tot-a.tot;}); var mt=0,mavg=0; skus.forEach(function(s){mt+=s.tot;mavg+=s.avg;});
     cards.push({mac:mc.mac,skus:skus,tot:mt,avg:mavg}); });
   cards.sort(function(a,b){return b.tot-a.tot;});
