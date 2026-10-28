@@ -4529,6 +4529,9 @@ var CREDS={};
   #shiftAnFS .shcard .shcs{flex:none;font-size:14px;font-weight:700;margin-bottom:3px}
   #shiftAnFS .shcard svg{flex:1 1 auto;width:100%;height:100%;min-height:0;display:block}
   #trendFsBody svg{width:100%;height:auto;max-height:82vh;display:block;margin:0 auto}
+  #chartFsBody{display:flex;flex-direction:column;justify-content:center;overflow:auto}
+  #chartFsBody>.ccard{width:100%}
+  #chartFsBody svg{max-height:68vh;margin:0 auto}
   .ccard{border:1px solid var(--rule);border-radius:2px;padding:10px 12px;background:var(--panel-2);cursor:pointer;position:relative}
   .ccard:hover{border-color:var(--starch);box-shadow:0 2px 10px rgba(0,0,0,.08)}
   .ccard .ccexp{position:absolute;top:8px;right:10px;font-family:var(--mono);font-size:11px;color:var(--muted)}
@@ -4539,6 +4542,16 @@ var CREDS={};
   #chartFsBody .ccsub{font-size:14px;margin-bottom:6px}
   #chartFsBody .ccrow{gap:24px}
   #chartFsBody .ccard .ccexp{display:none}
+  #chartFsBody .skufs-row{display:flex;align-items:center;gap:30px;width:100%}
+  #chartFsBody .skufs-row svg{flex:1 1 auto;min-width:0;max-height:74vh;margin:0}
+  .skuleg{flex:0 0 250px;display:flex;flex-direction:column;gap:9px}
+  .skuleg-row{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:13px;color:var(--ink-soft)}
+  .skuleg-row i{display:inline-block;width:13px;height:13px;border-radius:3px;flex:0 0 auto}
+  .skuleg-nm{flex:1;min-width:0;line-height:1.3}
+  .skuleg-av{font-weight:800;white-space:nowrap;color:var(--ink)}
+  .skuleg-tot{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:14.5px;margin-top:7px;padding-top:11px;border-top:2px solid var(--rule);font-weight:800}
+  .skuleg-tot .skuleg-nm{color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-size:12.5px}
+  .skuleg-tot .skuleg-av{font-size:16px}
   .cctitle{font-family:var(--disp);font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px}
   .ccrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   @media(max-width:520px){.ccrow{grid-template-columns:1fr}}
@@ -5345,7 +5358,7 @@ function render(){
   DATA.dt_top_problem.forEach(function(x){ ph+='<tr><td style=&quot;white-space:normal&quot;>'+esc(x.p)+'</td><td>'+fmt(x.min)+'</td><td>'+(x.min/60).toFixed(1)+'</td></tr>'; });
   $(&quot;probs&quot;).innerHTML=ph+'</tbody></table>';
   renderChart();
-  renderSKU();
+  renderSKU(pi, machs);
 }
 function _mLbl(m){ return '<label data-k=&quot;'+esc(m)+'&quot;><input type=&quot;checkbox&quot; value=&quot;'+esc(m)+'&quot;><span class=&quot;swatch&quot; style=&quot;background:'+machColor(m)+'&quot;></span>'+esc(m)+'</label>'; }
 function _machCbs(){ return [].slice.call($(&quot;mSel&quot;).querySelectorAll('input')).filter(function(c){ return c.value!==&quot;ALL&quot; &amp;&amp; !c.classList.contains('grpcb') &amp;&amp; !c.classList.contains('linecb'); }); }
@@ -5592,41 +5605,79 @@ function buildDailyFromRaw(wb){
     nrej7:_nrej?_nrej.d:null, nrej_m:_nrej?_nrej.m:null, nrej_w:_nrej?_nrej.w:null, nrej_ytd:_nrej?_nrej.ytd:null,
     nfg7:_nfg?_nfg.d:null, nfg_m:_nfg?_nfg.m:null, nfg_w:_nfg?_nfg.w:null, nfg_ytd:_nfg?_nfg.ytd:null };
 }
-/* per-SKU (brand) monthly finished-goods output (MC) from the raw Packer tab */
+/* per-SKU (brand) monthly finished-goods output (MC) per machine &amp; shift, from the raw Packer tab */
+function _ssum(a){ var t=0; for(var i=0;i<(a||[]).length;i++) t+=a[i]||0; return t; }
+function _skuLblMonth(s){ s=String(s||&quot;&quot;); var m=s.match(/([A-Za-z]{3,})/); if(!m) return null; var mn={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11}; var k=m[1].slice(0,3).toLowerCase(); return (k in mn)?mn[k]:null; }
+function _skuMonths(pi){ var ms=(DATA&amp;&amp;DATA.machSku)||[]; var last=0; ms.forEach(function(mc){ mc.skus.forEach(function(s){ for(var i=0;i<12;i++) if(s.sh.all[i]>0) last=Math.max(last,i); }); });
+  if(!pi||pi.t===&quot;ytd&quot;||!pi.idxs||!pi.idxs.length){ var o=[]; for(var i=0;i<=last;i++) o.push(i); return o; }
+  var set={};
+  if(pi.t===&quot;m&quot;){ pi.idxs.forEach(function(i){ set[i]=1; }); }
+  else if(pi.t===&quot;w&quot;){ pi.idxs.forEach(function(i){ var wk=(DATA.weeks||[])[i]; if(wk!=null) set[isoWeekMonth(wk)]=1; }); }
+  else if(pi.t===&quot;d&quot;){ pi.idxs.forEach(function(i){ var mo=_skuLblMonth((DATA.days7||[])[i]); if(mo!=null) set[mo]=1; }); }
+  var a=Object.keys(set).map(Number).sort(function(x,y){return x-y;}); return a.length?a:[last];
+}
 function buildSKU(wb){
   var A=rowsOf(wb,&quot;Packer&quot;); if(!A||!A.length) return [];
   var hr=-1; for(var i=0;i<Math.min(6,A.length)&amp;&amp;hr<0;i++){ var row=A[i]||[]; for(var c=0;c<row.length;c++){ if(S(row[c]).toUpperCase().indexOf(&quot;BRAND&quot;)>=0){ hr=i; break; } } }
   if(hr<0) return [];
   var hdr=A[hr]; function col(keys){ for(var c=0;c<hdr.length;c++){ var h=S(hdr[c]).toUpperCase().replace(/\s+/g,&quot; &quot;); for(var k=0;k<keys.length;k++) if(h.indexOf(keys[k])>=0) return c; } return -1; }
-  var cB=col([&quot;BRAND&quot;]), cD=col([&quot;DATE&quot;]), cM=col([&quot;MACHINE&quot;]), cO=col([&quot;OUTPUT FG&quot;,&quot;OUTPUT&quot;]);
+  var cB=col([&quot;BRAND&quot;]), cD=col([&quot;DATE&quot;]), cM=col([&quot;MACHINE&quot;]), cO=col([&quot;OUTPUT FG&quot;,&quot;OUTPUT&quot;]), cS=col([&quot;SHIFT&quot;]);
   if(cB<0||cO<0||cD<0||cM<0) return [];
-  var M={};  /* machine -> brand -> [12 months] */
+  function z(){ return [0,0,0,0,0,0,0,0,0,0,0,0]; }
+  var M={};  /* machine -> brand -> {all,1,2,3}:[12 months] */
   for(var j=hr+1;j<A.length;j++){ var r=A[j]; if(!r) continue; var b=S(r[cB]); if(!b) continue; b=b.replace(/^\s*FG\s*:\s*/i,&quot;&quot;).trim(); if(!b) continue;
     var mac=S(r[cM]); if(!mac) continue;
     var dt=_toDate(r[cD]); if(!dt) continue; var mo=dt.getUTCMonth(); var v=r[cO]; v=(typeof v===&quot;number&quot;)?v:parseFloat(v); if(isNaN(v)) v=0;
-    if(!M[mac]) M[mac]={}; if(!M[mac][b]) M[mac][b]=[0,0,0,0,0,0,0,0,0,0,0,0]; M[mac][b][mo]+=v; }
+    var sh=cS>=0?S(r[cS]).replace(/[^0-9]/g,&quot;&quot;):&quot;&quot;;
+    if(!M[mac]) M[mac]={}; if(!M[mac][b]) M[mac][b]={all:z(),&quot;1&quot;:z(),&quot;2&quot;:z(),&quot;3&quot;:z()};
+    M[mac][b].all[mo]+=v; if(sh===&quot;1&quot;||sh===&quot;2&quot;||sh===&quot;3&quot;) M[mac][b][sh][mo]+=v; }
   var out=[];
   for(var mac in M){ var skus=[],mt=0;
-    for(var b in M[mac]){ var arr=M[mac][b].map(function(x){return Math.round(x);}); var t=0; for(var i=0;i<12;i++) t+=arr[i]; if(t<=0) continue; skus.push({name:b,m:arr,tot:Math.round(t)}); mt+=t; }
-    if(!skus.length) continue; skus.sort(function(a,b){return b.tot-a.tot;}); out.push({mac:mac,skus:skus,tot:Math.round(mt)}); }
+    for(var b in M[mac]){ var e=M[mac][b]; var t=_ssum(e.all); if(t<=0) continue;
+      function rnd(a){ return a.map(function(x){return Math.round(x);}); }
+      skus.push({name:b, sh:{all:rnd(e.all),&quot;1&quot;:rnd(e[&quot;1&quot;]),&quot;2&quot;:rnd(e[&quot;2&quot;]),&quot;3&quot;:rnd(e[&quot;3&quot;])}}); mt+=t; }
+    if(!skus.length) continue; skus.sort(function(a,b){ return _ssum(b.sh.all)-_ssum(a.sh.all); }); out.push({mac:mac,skus:skus,tot:Math.round(mt)}); }
   out.sort(function(a,b){return b.tot-a.tot;}); return out;
 }
-var _skuSig=null;
+var _skuSig=null,_skuCards=null,_skuCats=null;
 var _SKUPAL=[&quot;#1F5673&quot;,&quot;#D98A0B&quot;,&quot;#2E7D4F&quot;,&quot;#6B4E9E&quot;,&quot;#B3402F&quot;,&quot;#2A7EA8&quot;,&quot;#B07B2C&quot;,&quot;#4F8A6B&quot;,&quot;#8E5A9E&quot;,&quot;#C25A45&quot;,&quot;#3E6B8A&quot;,&quot;#7A8C3B&quot;,&quot;#A0486E&quot;,&quot;#5E8C4E&quot;,&quot;#8A6D3B&quot;,&quot;#4F6D7A&quot;];
-function renderSKU(){ var el=$(&quot;skuWrap&quot;); if(!el) return; var ms=(DATA&amp;&amp;DATA.machSku)||[];
-  var sig=ms.length+&quot;|&quot;+((DATA&amp;&amp;DATA.asof)||&quot;&quot;);
-  if(sig===_skuSig &amp;&amp; el.childNodes.length) return; _skuSig=sig;
-  if(!ms.length){ el.innerHTML='<div class=&quot;note&quot; style=&quot;grid-column:1/-1&quot;>No per-SKU output found (needs the raw <b>Packer</b> tab with MACHINE + BRAND + OUTPUT FG columns).</div>'; return; }
-  var lastmo=0; ms.forEach(function(mc){ mc.skus.forEach(function(s){ for(var i=0;i<12;i++) if(s.m[i]>0) lastmo=Math.max(lastmo,i); }); });
-  var cats=DATA.months.slice(0,lastmo+1);
+function renderSkuFs(idx){ var mc=_skuCards&amp;&amp;_skuCards[idx]; if(!mc){ return; } var cats=_skuCats||[];
   function kf(v){ v=v||0; return v>=10000?(Math.round(v/1000)+&quot;k&quot;):(v>=1000?((v/1000).toFixed(1)+&quot;k&quot;):String(Math.round(v))); }
-  var gt=0; ms.forEach(function(mc){ gt+=mc.tot; });
-  el.innerHTML=ms.map(function(mc){
-    var series=mc.skus.map(function(s,i){ return {name:s.name,color:_SKUPAL[i%_SKUPAL.length],vals:s.m.slice(0,lastmo+1)}; });
+  function nf(v){ return Math.round(v||0).toLocaleString(&quot;en-US&quot;); }
+  var series=mc.skus.map(function(s,i){ return {name:s.name,color:_SKUPAL[i%_SKUPAL.length],vals:s.vals}; });
+  var leg='<div class=&quot;skuleg&quot;>'+mc.skus.map(function(s,i){ return '<div class=&quot;skuleg-row&quot;><i style=&quot;background:'+_SKUPAL[i%_SKUPAL.length]+'&quot;></i><span class=&quot;skuleg-nm&quot;>'+esc(s.name)+'</span><span class=&quot;skuleg-av&quot;>'+nf(s.avg)+'/mo</span></div>'; }).join(&quot;&quot;)+
+    '<div class=&quot;skuleg-tot&quot;><span class=&quot;skuleg-nm&quot;>Total avg / month</span><span class=&quot;skuleg-av&quot;>'+nf(mc.avg)+'/mo</span></div></div>';
+  var sub=mc.skus.length+' SKU'+(mc.skus.length>1?'s':'')+' · '+kf(mc.tot)+' MC total · Jun–Oct 5-month average';
+  $(&quot;chartFsBody&quot;).innerHTML='<div class=&quot;ccard&quot;><div class=&quot;cctitle&quot;>'+esc(mc.mac)+'</div><div class=&quot;ccsub&quot;>'+sub+'</div><div class=&quot;skufs-row&quot;>'+vbars(cats,series,{W:560,H:260,stack:true,showVals:true,vfmt:kf})+leg+'</div></div>';
+  $(&quot;chartFs&quot;).classList.add(&quot;open&quot;);
+}
+function renderSKU(pi, machs){ var el=$(&quot;skuWrap&quot;); if(!el) return; var ms=(DATA&amp;&amp;DATA.machSku)||[];
+  var sh=(typeof _curShift!==&quot;undefined&quot;&amp;&amp;_curShift&amp;&amp;_curShift!==&quot;all&quot;)?_curShift:&quot;all&quot;;
+  var mon=_skuMonths(pi);
+  var selMac=(machs&amp;&amp;machs.length)?{}:null; if(selMac) machs.forEach(function(m){selMac[m]=1;});
+  var sig=ms.length+&quot;|sh&quot;+sh+&quot;|m&quot;+mon.join(&quot;,&quot;)+&quot;|&quot;+(machs&amp;&amp;machs.length?machs.join(&quot;,&quot;):&quot;all&quot;)+&quot;|&quot;+((DATA&amp;&amp;DATA.asof)||&quot;&quot;);
+  if(sig===_skuSig &amp;&amp; el.childNodes.length) return; _skuSig=sig;
+  var hint=$(&quot;skuHint&quot;);
+  if(!ms.length){ el.innerHTML='<div class=&quot;note&quot; style=&quot;grid-column:1/-1&quot;>No per-SKU output found (needs the raw <b>Packer</b> tab with MACHINE + BRAND + OUTPUT FG columns).</div>'; if(hint) hint.textContent=&quot;No per-SKU output in this file.&quot;; return; }
+  function kf(v){ v=v||0; return v>=10000?(Math.round(v/1000)+&quot;k&quot;):(v>=1000?((v/1000).toFixed(1)+&quot;k&quot;):String(Math.round(v))); }
+  var cards=[];
+  ms.forEach(function(mc){ if(selMac &amp;&amp; !selMac[mc.mac]) return;
+    var skus=[];
+    mc.skus.forEach(function(s){ var arr=(s.sh&amp;&amp;s.sh[sh])||s.sh.all; var vals=mon.map(function(i){return arr[i]||0;}); var t=_ssum(vals); if(t>0){ var jo=0; for(var i=5;i<=9;i++) jo+=arr[i]||0; skus.push({name:s.name,vals:vals,tot:t,avg:jo/5}); } });
+    if(!skus.length) return; skus.sort(function(a,b){return b.tot-a.tot;}); var mt=0,mavg=0; skus.forEach(function(s){mt+=s.tot;mavg+=s.avg;});
+    cards.push({mac:mc.mac,skus:skus,tot:mt,avg:mavg}); });
+  cards.sort(function(a,b){return b.tot-a.tot;});
+  var cats=mon.map(function(i){return DATA.months[i];}); _skuCards=cards; _skuCats=cats;
+  var scope=sh===&quot;all&quot;?&quot;all shifts&quot;:(&quot;Shift &quot;+sh);
+  var per=cats.length?(cats[0]+(cats.length>1?&quot;–&quot;+cats[cats.length-1]:&quot;&quot;)):&quot;—&quot;;
+  if(!cards.length){ el.innerHTML='<div class=&quot;note&quot; style=&quot;grid-column:1/-1&quot;>No SKU output for this selection ('+esc(scope)+' · '+esc(per)+').</div>'; if(hint) hint.textContent=&quot;No SKU output for the current machine / period / shift selection.&quot;; return; }
+  var gt=0; cards.forEach(function(c){gt+=c.tot;});
+  el.innerHTML=cards.map(function(mc,ci){
+    var series=mc.skus.map(function(s,i){ return {name:s.name,color:_SKUPAL[i%_SKUPAL.length],vals:s.vals}; });
     var leg='<div class=&quot;legend&quot; style=&quot;margin:8px 0 0;flex-wrap:wrap;gap:3px 10px&quot;>'+mc.skus.map(function(s,i){ return '<span style=&quot;font-size:10px&quot;><i style=&quot;background:'+_SKUPAL[i%_SKUPAL.length]+'&quot;></i>'+esc(s.name)+'</span>'; }).join(&quot;&quot;)+'</div>';
-    return '<div class=&quot;ccard&quot; tabindex=&quot;0&quot;><span class=&quot;ccexp&quot;>⛶</span><div class=&quot;cctitle&quot;>'+esc(mc.mac)+'</div><div class=&quot;ccsub&quot;>'+mc.skus.length+' SKU'+(mc.skus.length>1?'s':'')+' · YTD '+kf(mc.tot)+' MC</div>'+vbars(cats,series,{W:560,H:260,stack:true,showVals:true,vfmt:kf})+leg+'</div>';
+    return '<div class=&quot;ccard&quot; tabindex=&quot;0&quot; data-ski=&quot;'+ci+'&quot;><span class=&quot;ccexp&quot;>⛶</span><div class=&quot;cctitle&quot;>'+esc(mc.mac)+'</div><div class=&quot;ccsub&quot;>'+mc.skus.length+' SKU'+(mc.skus.length>1?'s':'')+' · '+kf(mc.tot)+' MC</div>'+vbars(cats,series,{W:560,H:260,stack:true,showVals:true,vfmt:kf})+leg+'</div>';
   }).join(&quot;&quot;);
-  var hint=$(&quot;skuHint&quot;); if(hint) hint.textContent=&quot;Monthly output (MC) per machine — each month's bar is stacked by SKU, total on top (&quot;+cats[0]+&quot;–&quot;+cats[cats.length-1]+&quot;) · &quot;+ms.length+&quot; machines · total &quot;+kf(gt)+&quot; MC · click a card for full screen.&quot;;
+  if(hint) hint.textContent=&quot;Monthly output (MC) per machine — stacked by SKU, total on top · &quot;+scope+&quot; · &quot;+per+&quot; · &quot;+cards.length+&quot; machine&quot;+(cards.length>1?&quot;s&quot;:&quot;&quot;)+&quot; · total &quot;+kf(gt)+&quot; MC · click a card for full screen.&quot;;
 }
 function parseWB(wb){
   var nd={months:[&quot;Jan&quot;,&quot;Feb&quot;,&quot;Mar&quot;,&quot;Apr&quot;,&quot;May&quot;,&quot;Jun&quot;,&quot;Jul&quot;,&quot;Aug&quot;,&quot;Sep&quot;,&quot;Oct&quot;,&quot;Nov&quot;,&quot;Dec&quot;]};
@@ -5747,7 +5798,7 @@ if($(&quot;shiftAn&quot;)) $(&quot;shiftAn&quot;).addEventListener(&quot;click&q
 function openChartFs(card){ if(!card) return; $(&quot;chartFsBody&quot;).innerHTML='<div class=&quot;ccard&quot;>'+card.innerHTML+'</div>'; $(&quot;chartFs&quot;).classList.add(&quot;open&quot;); }
 $(&quot;chartWrap&quot;).addEventListener(&quot;click&quot;,function(e){ var c=e.target.closest(&quot;.ccard&quot;); if(c) openChartFs(c); });
 $(&quot;chartWrap&quot;).addEventListener(&quot;keydown&quot;,function(e){ if((e.key===&quot;Enter&quot;||e.key===&quot; &quot;)){ var c=e.target.closest(&quot;.ccard&quot;); if(c){ e.preventDefault(); openChartFs(c); } } });
-if($(&quot;skuWrap&quot;)){ $(&quot;skuWrap&quot;).addEventListener(&quot;click&quot;,function(e){ var c=e.target.closest(&quot;.ccard&quot;); if(c) openChartFs(c); }); $(&quot;skuWrap&quot;).addEventListener(&quot;keydown&quot;,function(e){ if((e.key===&quot;Enter&quot;||e.key===&quot; &quot;)){ var c=e.target.closest(&quot;.ccard&quot;); if(c){ e.preventDefault(); openChartFs(c); } } }); }
+if($(&quot;skuWrap&quot;)){ $(&quot;skuWrap&quot;).addEventListener(&quot;click&quot;,function(e){ var c=e.target.closest(&quot;.ccard&quot;); if(!c) return; var i=c.getAttribute(&quot;data-ski&quot;); if(i!=null) renderSkuFs(+i); else openChartFs(c); }); $(&quot;skuWrap&quot;).addEventListener(&quot;keydown&quot;,function(e){ if((e.key===&quot;Enter&quot;||e.key===&quot; &quot;)){ var c=e.target.closest(&quot;.ccard&quot;); if(c){ e.preventDefault(); var i=c.getAttribute(&quot;data-ski&quot;); if(i!=null) renderSkuFs(+i); else openChartFs(c); } } }); }
 $(&quot;chartFsClose&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;chartFs&quot;).classList.remove(&quot;open&quot;); });
 if($(&quot;trendFsBtn&quot;)) $(&quot;trendFsBtn&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;trendFs&quot;).classList.add(&quot;open&quot;); renderTrendFS(); });
 if($(&quot;trendFsClose&quot;)) $(&quot;trendFsClose&quot;).addEventListener(&quot;click&quot;,function(){ $(&quot;trendFs&quot;).classList.remove(&quot;open&quot;); });
