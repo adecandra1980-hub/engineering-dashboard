@@ -4664,8 +4664,8 @@ var CREDS={};
       <div class=&quot;legend&quot;><span><i style=&quot;background:#1F5673&quot;></i>Plan (MC)</span><span><i style=&quot;background:#D98A0B&quot;></i>Actual (MC)</span><span><i style=&quot;background:#2E7D4F&quot;></i>OEE %</span><span><i style=&quot;background:#B3402F&quot;></i>OEE target</span></div>
       <div class=&quot;cgrid&quot; id=&quot;chartWrap&quot; style=&quot;margin-top:12px&quot;></div>
     </div>
-    <div class=&quot;panel full&quot;><h2>Monthly Output by SKU — Charts</h2>
-      <div class=&quot;hint&quot; id=&quot;skuHint&quot;>Finished-goods output (master cartons) per SKU, by month. Click a card for full screen.</div>
+    <div class=&quot;panel full&quot;><h2>Monthly SKU Output by Machine</h2>
+      <div class=&quot;hint&quot; id=&quot;skuHint&quot;>Per machine: monthly finished-goods output (MC), each SKU a separate bar. Click a card for full screen.</div>
       <div class=&quot;cgrid&quot; id=&quot;skuWrap&quot; style=&quot;margin-top:12px&quot;></div>
     </div>
     <div class=&quot;panel full&quot;><h2>OEE Heatmap (%)</h2><div class=&quot;hint&quot; id=&quot;heatHint&quot;>Every machine, month by month. Green = strong, red = weak.</div><div style=&quot;overflow-x:auto&quot;><div id=&quot;heat&quot;></div></div></div>
@@ -4794,11 +4794,12 @@ function vbars(cats, series, opt){
   var fwBold=(fs>=1.4?800:700), fwAx=(fs>=1.4?700:600);
   var L=Math.round(Math.max(42, 24+fAx*1.6)), R=Math.round(Math.max(10, 8+fTgt*0.4)), T=Math.round(Math.max(14, 6+fVal)), B=Math.round(Math.max(28, 14+fCat) + (opt.subs?fCat*1.25:0) + (opt.subs2?fCat*1.05:0));
   var n=cats.length, gw=(W-L-R)/Math.max(1,n), ns=series.length;
-  var max=opt.pct?100:Math.max.apply(null, series.reduce(function(a,se){return a.concat(se.vals.map(function(v){return v||0;}));},[]).concat([1]));
+  var stacked=!!opt.stack;
+  var max=opt.pct?100:Math.max.apply(null, (stacked? cats.map(function(ct,ci){ return series.reduce(function(a,se){return a+(se.vals[ci]||0);},0); }) : series.reduce(function(a,se){return a.concat(se.vals.map(function(v){return v||0;}));},[])).concat([1]));
   if(opt.target!=null&amp;&amp;opt.pct) max=Math.max(max, opt.target);
   var yf=function(v){return T+(H-T-B)*(1-(v/(max||1)));};
   var cap=(opt.maxBar!=null?opt.maxBar:(30*fs+24));
-  var bwEach=(gw*0.68)/ns; if(bwEach>cap) bwEach=cap; var gap=Math.max(2, bwEach*0.12); var barW=Math.max(1,bwEach-gap);
+  var bwEach=(gw*0.68)/(stacked?1:ns); if(bwEach>cap) bwEach=cap; var gap=Math.max(2, bwEach*0.12); var barW=Math.max(1,bwEach-gap);
   /* decide label mode so numbers never intersect: horizontal if the bar is wide enough, else rotated vertical, else off */
   var labMode = (barW >= fVal*2.6) ? &quot;h&quot; : (bwEach >= fVal*1.15 ? &quot;v&quot; : &quot;off&quot;);
   if(opt.forceLab &amp;&amp; labMode===&quot;off&quot; &amp;&amp; bwEach>=fVal*0.9) labMode=&quot;v&quot;;
@@ -4808,12 +4809,20 @@ function vbars(cats, series, opt){
   if(opt.target!=null){ var ty=yf(opt.target); s+='<line x1=&quot;'+L+'&quot; y1=&quot;'+ty+'&quot; x2=&quot;'+(W-R)+'&quot; y2=&quot;'+ty+'&quot; stroke=&quot;#B3402F&quot; stroke-width=&quot;'+(1.3*Math.max(1,fs*0.8))+'&quot; stroke-dasharray=&quot;'+(4*fs)+' '+(3*fs)+'&quot;/><text x=&quot;'+(W-R)+'&quot; y=&quot;'+(ty-fTgt*0.4)+'&quot; font-size=&quot;'+fTgt+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;#B3402F&quot; text-anchor=&quot;end&quot;>target '+opt.target+'%</text>'; }
   var maxLen=cats.reduce(function(a,c){return Math.max(a,String(c).length);},1);
   var catStep=Math.max(1, Math.ceil((maxLen*fCat*0.6+4)/gw));
-  cats.forEach(function(ct,i){ var x0=L+i*gw, groupW=bwEach*ns, gstart=x0+(gw-groupW)/2;
+  cats.forEach(function(ct,i){ var x0=L+i*gw, groupW=bwEach*(stacked?1:ns), gstart=x0+(gw-groupW)/2;
+    if(stacked){ var cxs=x0+gw/2, bxs=cxs-barW/2, baseY=H-B, sum=0;
+      series.forEach(function(se){ var v=se.vals[i]||0; if(v<=0) return; var h=(H-T-B)*(v/(max||1)); var by=baseY-h;
+        s+='<rect x=&quot;'+bxs+'&quot; y=&quot;'+by+'&quot; width=&quot;'+barW+'&quot; height=&quot;'+Math.max(0,h)+'&quot; fill=&quot;'+se.color+'&quot;/>';
+        if(opt.showVals&amp;&amp;h>=fVal*1.4) s+='<text x=&quot;'+cxs+'&quot; y=&quot;'+(by+h/2+fVal*0.34)+'&quot; font-size=&quot;'+(fVal*0.9)+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;#fff&quot; text-anchor=&quot;middle&quot;>'+(opt.vfmt?opt.vfmt(v):v)+'</text>';
+        baseY=by; sum+=v; });
+      if(sum>0) s+='<text x=&quot;'+cxs+'&quot; y=&quot;'+(baseY-fVal*0.4)+'&quot; font-size=&quot;'+fVal+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;middle&quot;>'+(opt.vfmt?opt.vfmt(sum):sum)+'</text>';
+    } else {
     series.forEach(function(se,si){ var v=se.vals[i]||0, bx=gstart+si*bwEach, by=yf(v), bh=(H-B)-by, cx=bx+barW/2;
       s+='<rect x=&quot;'+bx+'&quot; y=&quot;'+by+'&quot; width=&quot;'+barW+'&quot; height=&quot;'+Math.max(0,bh)+'&quot; fill=&quot;'+se.color+'&quot;/>';
       var _lv=(opt.pct? v : (opt.showVals? (opt.vfmt?opt.vfmt(v):String(v)) : null));
       if(_lv!=null&amp;&amp;v>0&amp;&amp;labMode===&quot;h&quot;) s+='<text x=&quot;'+cx+'&quot; y=&quot;'+(by-fVal*0.4)+'&quot; font-size=&quot;'+fVal+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;middle&quot;>'+_lv+'</text>';
       else if(_lv!=null&amp;&amp;v>0&amp;&amp;labMode===&quot;v&quot;) s+='<text x=&quot;'+cx+'&quot; y=&quot;'+(by-fVal*0.35)+'&quot; font-size=&quot;'+(fVal*0.92)+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;start&quot; transform=&quot;rotate(-90 '+cx+' '+(by-fVal*0.35)+')&quot;>'+_lv+'</text>'; });
+    }
     if(i%catStep===0 || i===n-1){ s+='<text x=&quot;'+(x0+gw/2)+'&quot; y=&quot;'+(H-B+fCat*1.5)+'&quot; font-size=&quot;'+fCat+'&quot; font-weight=&quot;'+fwBold+'&quot; fill=&quot;var(--ink)&quot; text-anchor=&quot;middle&quot;>'+esc(ct)+'</text>';
       if(opt.subs&amp;&amp;opt.subs[i]) s+='<text x=&quot;'+(x0+gw/2)+'&quot; y=&quot;'+(H-B+fCat*1.5+fCat*1.1)+'&quot; font-size=&quot;'+(fCat*0.82)+'&quot; font-weight=&quot;700&quot; fill=&quot;'+((opt.subCols&amp;&amp;opt.subCols[i])?opt.subCols[i]:'var(--muted)')+'&quot; text-anchor=&quot;middle&quot;>'+esc(opt.subs[i])+'</text>';
       if(opt.subs2&amp;&amp;opt.subs2[i]) s+='<text x=&quot;'+(x0+gw/2)+'&quot; y=&quot;'+(H-B+fCat*1.5+fCat*1.1+fCat*0.98)+'&quot; font-size=&quot;'+(fCat*0.8)+'&quot; font-weight=&quot;700&quot; fill=&quot;#1F5673&quot; text-anchor=&quot;middle&quot;>'+esc(opt.subs2[i])+'</text>'; } });
@@ -5590,27 +5599,34 @@ function buildSKU(wb){
   if(hr<0) return [];
   var hdr=A[hr]; function col(keys){ for(var c=0;c<hdr.length;c++){ var h=S(hdr[c]).toUpperCase().replace(/\s+/g,&quot; &quot;); for(var k=0;k<keys.length;k++) if(h.indexOf(keys[k])>=0) return c; } return -1; }
   var cB=col([&quot;BRAND&quot;]), cD=col([&quot;DATE&quot;]), cM=col([&quot;MACHINE&quot;]), cO=col([&quot;OUTPUT FG&quot;,&quot;OUTPUT&quot;]);
-  if(cB<0||cO<0||cD<0) return [];
-  var map={};
+  if(cB<0||cO<0||cD<0||cM<0) return [];
+  var M={};  /* machine -> brand -> [12 months] */
   for(var j=hr+1;j<A.length;j++){ var r=A[j]; if(!r) continue; var b=S(r[cB]); if(!b) continue; b=b.replace(/^\s*FG\s*:\s*/i,&quot;&quot;).trim(); if(!b) continue;
+    var mac=S(r[cM]); if(!mac) continue;
     var dt=_toDate(r[cD]); if(!dt) continue; var mo=dt.getUTCMonth(); var v=r[cO]; v=(typeof v===&quot;number&quot;)?v:parseFloat(v); if(isNaN(v)) v=0;
-    if(!map[b]) map[b]={m:[0,0,0,0,0,0,0,0,0,0,0,0],mac:{}}; map[b].m[mo]+=v; var mc=S(r[cM]); if(mc) map[b].mac[mc]=(map[b].mac[mc]||0)+v; }
-  var list=[]; for(var b in map){ var e=map[b]; var tot=0; for(var i=0;i<12;i++) tot+=e.m[i]; if(tot<=0) continue; var mac=&quot;&quot;,best=-1; for(var k in e.mac){ if(e.mac[k]>best){best=e.mac[k];mac=k;} } list.push({name:b,mac:mac,m:e.m.map(function(x){return Math.round(x);}),tot:Math.round(tot)}); }
-  list.sort(function(a,b){return b.tot-a.tot;}); return list;
+    if(!M[mac]) M[mac]={}; if(!M[mac][b]) M[mac][b]=[0,0,0,0,0,0,0,0,0,0,0,0]; M[mac][b][mo]+=v; }
+  var out=[];
+  for(var mac in M){ var skus=[],mt=0;
+    for(var b in M[mac]){ var arr=M[mac][b].map(function(x){return Math.round(x);}); var t=0; for(var i=0;i<12;i++) t+=arr[i]; if(t<=0) continue; skus.push({name:b,m:arr,tot:Math.round(t)}); mt+=t; }
+    if(!skus.length) continue; skus.sort(function(a,b){return b.tot-a.tot;}); out.push({mac:mac,skus:skus,tot:Math.round(mt)}); }
+  out.sort(function(a,b){return b.tot-a.tot;}); return out;
 }
 var _skuSig=null;
-function renderSKU(){ var el=$(&quot;skuWrap&quot;); if(!el) return; var sku=(DATA&amp;&amp;DATA.sku)||[];
-  var sig=sku.length+&quot;|&quot;+((DATA&amp;&amp;DATA.asof)||&quot;&quot;);
+var _SKUPAL=[&quot;#1F5673&quot;,&quot;#D98A0B&quot;,&quot;#2E7D4F&quot;,&quot;#6B4E9E&quot;,&quot;#B3402F&quot;,&quot;#2A7EA8&quot;,&quot;#B07B2C&quot;,&quot;#4F8A6B&quot;,&quot;#8E5A9E&quot;,&quot;#C25A45&quot;,&quot;#3E6B8A&quot;,&quot;#7A8C3B&quot;,&quot;#A0486E&quot;,&quot;#5E8C4E&quot;,&quot;#8A6D3B&quot;,&quot;#4F6D7A&quot;];
+function renderSKU(){ var el=$(&quot;skuWrap&quot;); if(!el) return; var ms=(DATA&amp;&amp;DATA.machSku)||[];
+  var sig=ms.length+&quot;|&quot;+((DATA&amp;&amp;DATA.asof)||&quot;&quot;);
   if(sig===_skuSig &amp;&amp; el.childNodes.length) return; _skuSig=sig;
-  if(!sku.length){ el.innerHTML='<div class=&quot;note&quot; style=&quot;grid-column:1/-1&quot;>No per-SKU output found in this file (needs the raw <b>Packer</b> tab with BRAND + OUTPUT FG columns).</div>'; return; }
-  var lastmo=0; sku.forEach(function(s){ for(var i=0;i<12;i++) if(s.m[i]>0) lastmo=Math.max(lastmo,i); });
+  if(!ms.length){ el.innerHTML='<div class=&quot;note&quot; style=&quot;grid-column:1/-1&quot;>No per-SKU output found (needs the raw <b>Packer</b> tab with MACHINE + BRAND + OUTPUT FG columns).</div>'; return; }
+  var lastmo=0; ms.forEach(function(mc){ mc.skus.forEach(function(s){ for(var i=0;i<12;i++) if(s.m[i]>0) lastmo=Math.max(lastmo,i); }); });
   var cats=DATA.months.slice(0,lastmo+1);
   function kf(v){ v=v||0; return v>=10000?(Math.round(v/1000)+&quot;k&quot;):(v>=1000?((v/1000).toFixed(1)+&quot;k&quot;):String(Math.round(v))); }
-  var gt=0; sku.forEach(function(s){ gt+=s.tot; });
-  el.innerHTML=sku.map(function(s){ var vals=s.m.slice(0,lastmo+1);
-    return '<div class=&quot;ccard&quot; tabindex=&quot;0&quot;><span class=&quot;ccexp&quot;>⛶</span><div class=&quot;cctitle&quot;>'+esc(s.name)+'</div><div class=&quot;ccsub&quot;>'+esc(s.mac||&quot;—&quot;)+' · YTD '+kf(s.tot)+' MC</div>'+vbars(cats,[{name:&quot;Output&quot;,color:&quot;#1F5673&quot;,vals:vals}],{showVals:true,vfmt:kf,W:520,H:200})+'</div>';
+  var gt=0; ms.forEach(function(mc){ gt+=mc.tot; });
+  el.innerHTML=ms.map(function(mc){
+    var series=mc.skus.map(function(s,i){ return {name:s.name,color:_SKUPAL[i%_SKUPAL.length],vals:s.m.slice(0,lastmo+1)}; });
+    var leg='<div class=&quot;legend&quot; style=&quot;margin:8px 0 0;flex-wrap:wrap;gap:3px 10px&quot;>'+mc.skus.map(function(s,i){ return '<span style=&quot;font-size:10px&quot;><i style=&quot;background:'+_SKUPAL[i%_SKUPAL.length]+'&quot;></i>'+esc(s.name)+'</span>'; }).join(&quot;&quot;)+'</div>';
+    return '<div class=&quot;ccard&quot; tabindex=&quot;0&quot;><span class=&quot;ccexp&quot;>⛶</span><div class=&quot;cctitle&quot;>'+esc(mc.mac)+'</div><div class=&quot;ccsub&quot;>'+mc.skus.length+' SKU'+(mc.skus.length>1?'s':'')+' · YTD '+kf(mc.tot)+' MC</div>'+vbars(cats,series,{W:560,H:260,stack:true,showVals:true,vfmt:kf})+leg+'</div>';
   }).join(&quot;&quot;);
-  var hint=$(&quot;skuHint&quot;); if(hint) hint.textContent=&quot;Finished-goods output (master cartons) per SKU, by month (&quot;+cats[0]+&quot;–&quot;+cats[cats.length-1]+&quot;) · &quot;+sku.length+&quot; SKUs · total &quot;+kf(gt)+&quot; MC · click a card for full screen.&quot;;
+  var hint=$(&quot;skuHint&quot;); if(hint) hint.textContent=&quot;Monthly output (MC) per machine — each month's bar is stacked by SKU, total on top (&quot;+cats[0]+&quot;–&quot;+cats[cats.length-1]+&quot;) · &quot;+ms.length+&quot; machines · total &quot;+kf(gt)+&quot; MC · click a card for full screen.&quot;;
 }
 function parseWB(wb){
   var nd={months:[&quot;Jan&quot;,&quot;Feb&quot;,&quot;Mar&quot;,&quot;Apr&quot;,&quot;May&quot;,&quot;Jun&quot;,&quot;Jul&quot;,&quot;Aug&quot;,&quot;Sep&quot;,&quot;Oct&quot;,&quot;Nov&quot;,&quot;Dec&quot;]};
@@ -5651,7 +5667,7 @@ function parseWB(wb){
   for(var kk in nd.chart.mach){ var bb=nd.chart.mach[kk]; nd.targets[kk]=(bb.target&amp;&amp;bb.target[0]!=null)?bb.target[0]:null; nd.plan_ytd[kk]=(bb.plan&amp;&amp;bb.plan[0]!=null)?bb.plan[0]:null; }
   try{ var _pt=buildDailyFromRaw(wb); if(_pt) mergeDaily(nd,_pt); }catch(e){}
   try{ if(nd.groups) nd._shift=_shiftBuckets(wb,nd); }catch(e){}
-  try{ nd.sku=buildSKU(wb); }catch(e){ nd.sku=[]; }
+  try{ nd.machSku=buildSKU(wb); }catch(e){ nd.machSku=[]; }
   return nd;
 }
 function doUpload(file){
