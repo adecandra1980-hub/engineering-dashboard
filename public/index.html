@@ -6032,11 +6032,15 @@ document.addEventListener(&quot;click&quot;,function(e){ var d=$(&quot;mSel&quot
             <option>PT. SARANA RUSSEL VICTORY</option>
             <option>PT. MAJESTY PROSPERINDO</option>
             <option>PT. SHA SOLO</option>
+            <option>Return Internal</option>
           </select></div>
         <div><label class=&quot;f&quot; for=&quot;rDO&quot;>Delivery order no. <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;rDO&quot; type=&quot;text&quot; placeholder=&quot;DO / receipt no.&quot;></div>
         <div><label class=&quot;f&quot; for=&quot;rTankSel&quot;>Receiving tank <span style=&quot;color:var(--bad)&quot;>*</span></label>
           <select id=&quot;rTankSel&quot;></select></div>
         <div><label class=&quot;f&quot; for=&quot;rTank&quot;>Tank level after (L) <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;rTank&quot; type=&quot;number&quot; inputmode=&quot;decimal&quot; min=&quot;0&quot; placeholder=&quot;e.g. 8500&quot;></div>
+      </div>
+      <div class=&quot;grid g2&quot; id=&quot;rReturnRow&quot; style=&quot;margin-top:12px;display:none&quot;>
+        <div><label class=&quot;f&quot; for=&quot;rReason&quot;>Reason for return <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;rReason&quot; type=&quot;text&quot; placeholder=&quot;why is it returned? e.g. excess from Genset 3, surplus after job, wrong tank&quot;></div>
       </div>
       <div class=&quot;grid g3&quot; style=&quot;margin-top:12px&quot;>
         <div><label class=&quot;f&quot; for=&quot;rBefore&quot;>Flow meter BEFORE (L) <span style=&quot;color:var(--bad)&quot;>*</span></label><input id=&quot;rBefore&quot; type=&quot;number&quot; inputmode=&quot;decimal&quot; min=&quot;0&quot; placeholder=&quot;reading before&quot;></div>
@@ -6370,7 +6374,7 @@ async function editEntry(e){
   if(e.kind===&quot;receive&quot;){
     $(&quot;t-recv&quot;).click(); editingId=e.id;
     $(&quot;rWhen&quot;).value=e.date||nowLocalDT(); $(&quot;rDriver&quot;).value=e.driver||&quot;&quot;; $(&quot;rTruck&quot;).value=e.truck||&quot;&quot;;
-    $(&quot;rSupplier&quot;).value=e.supplier||&quot;&quot;; $(&quot;rDO&quot;).value=e.doNo||&quot;&quot;; $(&quot;rTankSel&quot;).value=e.tank||&quot;&quot;;
+    $(&quot;rSupplier&quot;).value=e.supplier||&quot;&quot;; $(&quot;rReason&quot;).value=e.reason||&quot;&quot;; $(&quot;rReturnRow&quot;).style.display=(e.supplier===&quot;Return Internal&quot;)?&quot;&quot;:&quot;none&quot;; $(&quot;rDO&quot;).value=e.doNo||&quot;&quot;; $(&quot;rTankSel&quot;).value=e.tank||&quot;&quot;;
     $(&quot;rTank&quot;).value=e.tankLevel||&quot;&quot;; $(&quot;rBefore&quot;).value=(e.meterBefore!=null?e.meterBefore:&quot;&quot;); $(&quot;rAfter&quot;).value=(e.meterAfter!=null?e.meterAfter:&quot;&quot;);
     $(&quot;rNote&quot;).value=e.note||&quot;&quot;; recalcRecv(); RECV_PH.load(ph); $(&quot;rSave&quot;).textContent=&quot;Update receiving&quot;;
   } else if(e.kind===&quot;usage&quot;){
@@ -6479,6 +6483,7 @@ $(&quot;rSave&quot;).addEventListener(&quot;click&quot;,async function(){
   if(!$(&quot;rDriver&quot;).value.trim()){ toast(&quot;Enter driver name.&quot;); $(&quot;rDriver&quot;).focus(); return; }
   if(!$(&quot;rTruck&quot;).value.trim()){ toast(&quot;Enter truck number.&quot;); $(&quot;rTruck&quot;).focus(); return; }
   if(!$(&quot;rSupplier&quot;).value.trim()){ toast(&quot;Select the supplier.&quot;); $(&quot;rSupplier&quot;).focus(); return; }
+  if($(&quot;rSupplier&quot;).value===&quot;Return Internal&quot; &amp;&amp; !$(&quot;rReason&quot;).value.trim()){ toast(&quot;Enter the reason for return.&quot;); $(&quot;rReason&quot;).focus(); return; }
   if(!$(&quot;rDO&quot;).value.trim()){ toast(&quot;Enter delivery order no.&quot;); $(&quot;rDO&quot;).focus(); return; }
   if(!$(&quot;rTankSel&quot;).value){ toast(&quot;Select the receiving tank.&quot;); $(&quot;rTankSel&quot;).focus(); return; }
   if($(&quot;rTank&quot;).value.trim()===&quot;&quot;){ toast(&quot;Enter tank level after.&quot;); $(&quot;rTank&quot;).focus(); return; }
@@ -6495,6 +6500,7 @@ $(&quot;rSave&quot;).addEventListener(&quot;click&quot;,async function(){
   var photos=await savePhotos(id,RECV_PH.data());
   var rec={ id:id, ts:Date.parse(when)||Date.now(), kind:&quot;receive&quot;, date:when,
     driver:$(&quot;rDriver&quot;).value.trim(), truck:$(&quot;rTruck&quot;).value.trim(), supplier:$(&quot;rSupplier&quot;).value.trim(),
+    reason:($(&quot;rSupplier&quot;).value===&quot;Return Internal&quot;?$(&quot;rReason&quot;).value.trim():&quot;&quot;),
     doNo:$(&quot;rDO&quot;).value.trim(), tank:$(&quot;rTankSel&quot;).value, tankLevel:$(&quot;rTank&quot;).value.trim(),
     meterBefore:num($(&quot;rBefore&quot;).value), meterAfter:num($(&quot;rAfter&quot;).value), received:received,
     note:$(&quot;rNote&quot;).value.trim(), photos:photos, deviceId:(editing?(byId(id).deviceId||DEVICE_ID):DEVICE_ID) };
@@ -6502,12 +6508,13 @@ $(&quot;rSave&quot;).addEventListener(&quot;click&quot;,async function(){
   else entries.push(rec);
   if(!(await commitEntries())) return; refreshHead(); drawStock(); if(!$(&quot;v-book&quot;).hidden) drawBook();
   $(&quot;rNoteMsg&quot;).textContent=&quot;Received &quot;+litres(received)+&quot; L logged.&quot;;
-  RECV_PH.clear(); [&quot;rDriver&quot;,&quot;rTruck&quot;,&quot;rSupplier&quot;,&quot;rDO&quot;,&quot;rTank&quot;,&quot;rBefore&quot;,&quot;rAfter&quot;,&quot;rNote&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;rTankSel&quot;).value=&quot;&quot;; recalcRecv();
+  RECV_PH.clear(); [&quot;rDriver&quot;,&quot;rTruck&quot;,&quot;rSupplier&quot;,&quot;rDO&quot;,&quot;rTank&quot;,&quot;rBefore&quot;,&quot;rAfter&quot;,&quot;rNote&quot;,&quot;rReason&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;rTankSel&quot;).value=&quot;&quot;; $(&quot;rReturnRow&quot;).style.display=&quot;none&quot;; recalcRecv();
   resetEditState();
   toast(editing?&quot;Receiving updated.&quot;:&quot;Receiving submitted.&quot;);
   showSuccess(editing?&quot;Receiving updated in database.&quot;:&quot;Receiving &quot;+litres(received)+&quot; L saved to database.&quot;);
 });
-$(&quot;rReset&quot;).addEventListener(&quot;click&quot;,function(){ RECV_PH.clear(); [&quot;rDriver&quot;,&quot;rTruck&quot;,&quot;rSupplier&quot;,&quot;rDO&quot;,&quot;rTank&quot;,&quot;rBefore&quot;,&quot;rAfter&quot;,&quot;rNote&quot;,&quot;rWhen&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;rTankSel&quot;).value=&quot;&quot;; recalcRecv(); toast(&quot;Form reset.&quot;); });
+$(&quot;rReset&quot;).addEventListener(&quot;click&quot;,function(){ RECV_PH.clear(); [&quot;rDriver&quot;,&quot;rTruck&quot;,&quot;rSupplier&quot;,&quot;rDO&quot;,&quot;rTank&quot;,&quot;rBefore&quot;,&quot;rAfter&quot;,&quot;rNote&quot;,&quot;rWhen&quot;,&quot;rReason&quot;].forEach(function(x){ $(x).value=&quot;&quot;; }); $(&quot;rTankSel&quot;).value=&quot;&quot;; $(&quot;rReturnRow&quot;).style.display=&quot;none&quot;; recalcRecv(); toast(&quot;Form reset.&quot;); });
+$(&quot;rSupplier&quot;).addEventListener(&quot;change&quot;,function(){ $(&quot;rReturnRow&quot;).style.display = (this.value===&quot;Return Internal&quot;) ? &quot;&quot; : &quot;none&quot;; });
 
 $(&quot;uSave&quot;).addEventListener(&quot;click&quot;,async function(){
   if(!$(&quot;uWhen&quot;).value){ toast(&quot;Enter date &amp; time.&quot;); $(&quot;uWhen&quot;).focus(); return; }
@@ -6566,7 +6573,7 @@ $(&quot;xReset&quot;).addEventListener(&quot;click&quot;,function(){ XFER_PH.cle
 
 /* ---- log book ---- */
 function detailOf(e){
-  if(e.kind===&quot;receive&quot;) return [e.truck,e.driver,e.supplier].filter(Boolean).join(&quot; · &quot;)||&quot;Receiving&quot;;
+  if(e.kind===&quot;receive&quot;) return [e.truck,e.driver,e.supplier,(e.reason?(&quot;Reason: &quot;+e.reason):&quot;&quot;)].filter(Boolean).join(&quot; · &quot;)||&quot;Receiving&quot;;
   if(e.kind===&quot;usage&quot;) return (e.usageType===&quot;Others&quot;?(&quot;Others: &quot;+(e.usageOther||&quot;&quot;)):e.usageType);
   if(e.kind===&quot;transfer&quot;) return e.dest;
   if(e.kind===&quot;opname&quot;) return &quot;Stock opname — &quot;+litres(num(e.total))+&quot; L (&quot;+((e.tanks||[]).length)+&quot; tanks)&quot;;
@@ -6591,7 +6598,7 @@ function drawBook(){
   var list=entries.slice().sort(function(a,b){ return (b.ts||b.id)-(a.ts||a.id); }).filter(function(e){
     if(kind &amp;&amp; e.kind!==kind) return false;
     if(tank &amp;&amp; entryTanks(e).indexOf(tank)<0) return false;
-    if(q){ var blob=[e.driver,e.truck,e.supplier,e.doNo,e.tankLevel,e.usageType,e.usageOther,e.tank,e.from,e.dest,e.by,e.note].join(&quot; &quot;).toLowerCase(); if(blob.indexOf(q)<0) return false; }
+    if(q){ var blob=[e.driver,e.truck,e.supplier,e.reason,e.doNo,e.tankLevel,e.usageType,e.usageOther,e.tank,e.from,e.dest,e.by,e.note].join(&quot; &quot;).toLowerCase(); if(blob.indexOf(q)<0) return false; }
     return true;
   });
   if(!list.length){ $(&quot;book&quot;).innerHTML='<div class=&quot;empty&quot;><b>No entries</b>Submitted receiving, usage and transfers appear here.</div>'; return; }
